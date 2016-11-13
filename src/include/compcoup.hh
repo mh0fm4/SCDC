@@ -1,0 +1,1 @@
+../components/compcoup/compcoup.hh
