@@ -49,7 +49,7 @@ int scdc_log_cerr_printf_nl(const char *format, ...);
 # define SCDC_INFO(_x_...)  Z_NOP()
 #endif
 
-#if HAVE_SCDC_TRACE && !SCDC_TRACE_NOT
+#if HAVE_SCDC_TRACE && !(SCDC_TRACE_NOT)
 # define SCDC_TRACE_PREFIX                       "SCDC-TRACE: "
 # define SCDC_TRACE(_x_...)                      scdc_cout_printf_nl(SCDC_TRACE_PREFIX SCDC_LOG_PREFIX _x_)
 # define SCDC_TRACE_N(_x_...)                    scdc_cout_printf(SCDC_TRACE_PREFIX SCDC_LOG_PREFIX _x_)

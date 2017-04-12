@@ -52,9 +52,9 @@ static scdcint_t dataset_output_next(scdc_dataset_output_t *output)
   SCDC_TRACE_DATASET_OUTPUT(output, "dataset_output_next: ");
 
   /* min of data left and buffer size */
-  scdcint_t size = min(data->total_size_left, output->buf_size);
+  scdcint_t size = min(data->total_size_left, SCDC_DATASET_INOUT_BUF_SIZE(output));
 
-  char *buf = static_cast<char *>(output->buf);
+  char *buf = static_cast<char *>(SCDC_DATASET_INOUT_BUF_PTR(output));
 
   strncpy(output->format, (data->format == "ascii")?"text":"data", SCDC_FORMAT_MAX_SIZE);
 
@@ -102,7 +102,7 @@ static scdcint_t dataset_output_next(scdc_dataset_output_t *output)
     }
   }
 
-  output->current_size = size;
+  SCDC_DATASET_INOUT_BUF_CURRENT(output) = size;
 
   data->total_size_left -= size;
 
@@ -201,11 +201,11 @@ class scdc_dataset_bench: public scdc_dataset
       while (ret)
       {
         /* min of data left and current size */
-        scdcint_t size = min(total_size, input->current_size);
+        scdcint_t size = min(total_size, SCDC_DATASET_INOUT_BUF_CURRENT(input));
 
         SCDC_TRACE("do_cmd_put: put data of size = " << size);
 
-        if (file) size = fwrite(input->buf, 1, size, file);
+        if (file) size = fwrite(SCDC_DATASET_INOUT_BUF_PTR(input), 1, size, file);
 
         total_size -= size;
 

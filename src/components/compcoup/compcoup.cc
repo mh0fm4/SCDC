@@ -18,6 +18,8 @@
  */
 
 
+#define SCDC_TRACE_NOT  !SCDC_TRACE_COMPCOUP
+
 #include "config.hh"
 #include "log.hh"
 #include "common.hh"

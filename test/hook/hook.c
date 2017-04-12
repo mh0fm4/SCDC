@@ -185,13 +185,13 @@ scdcint_t hook_dataset_get_next(scdc_dataset_output_t *output)
 
   x = (ptrdiff_t) output->data;
 
-  output->current_size = z_min(output->buf_size, DEFAULT_GET_SIZE);
+  SCDC_DATASET_INOUT_BUF_CURRENT(output) = z_min(SCDC_DATASET_INOUT_BUF_SIZE(output), DEFAULT_GET_SIZE);
 
 #if 0
-  memset(output->buf, 'x', output->current_size - 1);
-  ((char *) output->buf)[output->current_size - 1] = '\0';
+  memset(SCDC_DATASET_INOUT_BUF_PTR(output), 'x', SCDC_DATASET_INOUT_BUF_CURRENT(output) - 1);
+  ((char *) SCDC_DATASET_INOUT_BUF_PTR(output))[SCDC_DATASET_INOUT_BUF_CURRENT(output) - 1] = '\0';
 #else
-  memset(output->buf, 'x', output->current_size);
+  memset(SCDC_DATASET_INOUT_BUF_PTR(output), 'x', SCDC_DATASET_INOUT_BUF_CURRENT(output));
 #endif
 
   --x;
@@ -207,7 +207,7 @@ static void consume_input(const char *prefix, scdc_dataset_input_t *input)
 {
   while (input)
   {
-    printf("%sinput content: '%.*s'\n", prefix, (int) input->current_size, (char *) input->buf);
+    printf("%sinput content: '%.*s'\n", prefix, (int) SCDC_DATASET_INOUT_BUF_CURRENT(input), (char *) SCDC_DATASET_INOUT_BUF_PTR(input));
     if (!input->next) break;
     printf("%snext input\n", prefix);
     input->next(input);
@@ -220,9 +220,9 @@ static void clear_output(scdc_dataset_output_t *output)
 {
   if (!output) return;
 
+  SCDC_DATASET_INOUT_BUF_CURRENT(output) = 0;
   output->total_size = 0;
   output->total_size_given = SCDC_DATASET_INOUT_TOTAL_SIZE_GIVEN_NONE;
-  output->current_size = 0;
   output->data = 0;
   output->next = 0;
 }
@@ -287,7 +287,8 @@ scdcint_t hook_dataset_cmd(void *dataprov, void *dataset, const char *cmd, const
 
     strcpy(output->format, "text");
 
-    output->total_size = output->current_size = sprintf(output->buf, "dataset: '%p', cmd: '%s', params: '%s'", dataset, cmd, params);
+    SCDC_DATASET_INOUT_BUF_CURRENT(output) = sprintf(SCDC_DATASET_INOUT_BUF_PTR(output), "dataset: '%p', cmd: '%s', params: '%s'", dataset, cmd, params);
+    output->total_size = SCDC_DATASET_INOUT_BUF_CURRENT(output);
     output->total_size_given = SCDC_DATASET_INOUT_TOTAL_SIZE_GIVEN_EXACT;
   }
 

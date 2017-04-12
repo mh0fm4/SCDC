@@ -22,6 +22,8 @@
 #include <vector>
 #include <cstdarg>
 
+#define SCDC_TRACE_NOT  !SCDC_TRACE_LOG
+
 #include "config.hh"
 #include "log.hh"
 #include "args.hh"

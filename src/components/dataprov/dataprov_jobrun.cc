@@ -28,6 +28,8 @@
 #include "z_pack.h"
 #include "rapidxml.hpp"
 
+#define SCDC_TRACE_NOT  !SCDC_TRACE_DATAPROV_JOBRUN && 0
+
 #include "config.hh"
 #include "common.hh"
 #include "log.hh"
@@ -82,7 +84,7 @@ class scdc_dataset_jobrun: public scdc_dataset
 
     bool create_job(const string &jobid, scdc_dataprov_jobrun_job_params_t &job_params)
     {
-      SCDC_TRACE("create_job: jobid: '" << jobid << "', nt: " << job_params.nt_min << "-" << job_params.nt_max << "', np: " << job_params.np_min << "-" << job_params.np_max);
+      SCDC_TRACE(__func__ << ": jobid: '" << jobid << "', nt: " << job_params.nt_min << "-" << job_params.nt_max << "', np: " << job_params.np_min << "-" << job_params.np_max);
 
       bool ret = true;
 
@@ -98,7 +100,7 @@ class scdc_dataset_jobrun: public scdc_dataset
 
     bool destroy_job(const string &jobid)
     {
-      SCDC_TRACE("destroy_job: jobid: '" << jobid << "'");
+      SCDC_TRACE(__func__ << ": jobid: '" << jobid << "'");
 
       bool ret = true;
 
@@ -114,7 +116,7 @@ class scdc_dataset_jobrun: public scdc_dataset
 
     bool update_job(const string &jobid, scdc_dataprov_jobrun_job_params_t &job_params)
     {
-      SCDC_TRACE("update_job: jobid: '" << jobid << "', nt: " << job_params.nt_min << "-" << job_params.nt_max << "', np: " << job_params.np_min << "-" << job_params.np_max);
+      SCDC_TRACE(__func__ << ": jobid: '" << jobid << "', nt: " << job_params.nt_min << "-" << job_params.nt_max << "', np: " << job_params.np_min << "-" << job_params.np_max);
 
       bool ret = true;
 
@@ -533,12 +535,12 @@ class scdc_dataset_jobrun_system: public scdc_dataset_jobrun
       {
         if (string(input->format) == "fstar")
         {
-          SCDC_TRACE("do_cmd_put: input to 'fs' in '" << workdir() << "'");
+          SCDC_TRACE(__func__ << ": input to 'fs' in '" << workdir() << "'");
           ret = (scdc_dataset_input_redirect(input, "to:fs", workdir().c_str()) == SCDC_SUCCESS);
 
         } else
         {
-          SCDC_TRACE("do_cmd_put: input to 'file' in '" << workdir() << "'");
+          SCDC_TRACE(__func__ << ": input to 'file' in '" << workdir() << "'");
           ret = (scdc_dataset_input_redirect(input, "to:file", workdir().c_str()) == SCDC_SUCCESS);
         }
       }
@@ -553,7 +555,7 @@ class scdc_dataset_jobrun_system: public scdc_dataset_jobrun
 
       if (output)
       {
-        SCDC_TRACE("do_cmd_get: output from 'fs' in '" << workdir() << "': '" << params << "'");
+        SCDC_TRACE(__func__ << ": output from 'fs' in '" << workdir() << "': '" << params << "'");
 
         ret = (scdc_dataset_output_redirect(output, "from:fs", workdir().c_str(), params.c_str()) == SCDC_SUCCESS);
       }
@@ -686,8 +688,8 @@ class scdc_dataprov_jobrun_sched
 
       dataprov_jobrun->get_job(jobid, job);
 
-      SCDC_TRACE("node_job_get_runable: jobid: '" << jobid << "', jobcmds: '" << job.jobcmds << "', np: " << job.params.np_min << "-" << job.params.np_max);
-      SCDC_TRACE("node_job_get_runable: node: '" << node_data.id << "', free cores: " << node_data.free_cores << " of " << node_data.cores);
+      SCDC_TRACE(__func__ << ": jobid: '" << jobid << "', jobcmds: '" << job.jobcmds << "', np: " << job.params.np_min << "-" << job.params.np_max);
+      SCDC_TRACE(__func__ << ": node: '" << node_data.id << "', free cores: " << node_data.free_cores << " of " << node_data.cores);
 
       if (node_data.free_cores < job.params.np_min * job.params.nt_min) return false;
 
@@ -788,7 +790,7 @@ bool scdc_dataprov_jobrun::open_config_conf(const std::string &conf, scdc_args *
 
     if (args->get<const char *>(SCDC_ARGS_TYPE_CSTR, &s) == SCDC_ARG_REF_NULL)
     {
-      SCDC_ERROR("open: getting parameter for job command");
+      SCDC_ERROR(__func__ << ": getting parameter for job command");
       ret = false;
 
     } else
@@ -812,7 +814,7 @@ bool scdc_dataprov_jobrun::open_config_conf(const std::string &conf, scdc_args *
 
 bool scdc_dataprov_jobrun::open(const char *conf, scdc_args *args)
 {
-  SCDC_TRACE("open: '" << conf << "'");
+  SCDC_TRACE(__func__ << ": '" << conf << "'");
 
   if (!scdc_dataprov::open(conf, args))
   {
@@ -840,7 +842,7 @@ bool scdc_dataprov_jobrun::open(const char *conf, scdc_args *args)
 
 void scdc_dataprov_jobrun::close()
 {
-  SCDC_TRACE("close:");
+  SCDC_TRACE(__func__ << ":");
 
   sched_release();
 
@@ -855,7 +857,7 @@ void scdc_dataprov_jobrun::close()
 template<class DATASET_JOBRUN>
 scdc_dataset *scdc_dataprov_jobrun::dataset_open(const char *path, scdcint_t path_size, scdc_dataset_output_t *output)
 {
-  SCDC_TRACE("dataset_open: '" << string(path, path_size) << "'");
+  SCDC_TRACE(__func__ << ": '" << string(path, path_size) << "'");
 
   scdc_dataset *dataset = 0;
   
@@ -868,7 +870,7 @@ scdc_dataset *scdc_dataprov_jobrun::dataset_open(const char *path, scdcint_t pat
   string s(path, path_size);
   dataset_jobrun->do_cmd_cd(ltrim(s, "/").c_str(), 0, output);
 
-  SCDC_TRACE("dataset_open: return: '" << dataset_jobrun << "'");
+  SCDC_TRACE(__func__ << ": return: '" << dataset_jobrun << "'");
 
   return dataset_jobrun;
 }
@@ -876,19 +878,19 @@ scdc_dataset *scdc_dataprov_jobrun::dataset_open(const char *path, scdcint_t pat
 
 void scdc_dataprov_jobrun::dataset_close(scdc_dataset *dataset, scdc_dataset_output_t *output)
 {
-  SCDC_TRACE("dataset_close: '" << dataset << "'");
+  SCDC_TRACE(__func__ << ": '" << dataset << "'");
 
   if (config_close(dataset, output)) return;
 
   delete dataset;
 
-  SCDC_TRACE("dataset_close: return");
+  SCDC_TRACE(__func__ << ": return");
 }
 
 
 bool scdc_dataprov_jobrun::config_do_cmd_param(const std::string &cmd, const std::string &param, std::string val, scdc_config_result &result, bool &done)
 {
-  SCDC_TRACE("config_do_cmd_param: cmd: '" << cmd << "', param: '" << param << "', val: '" << val << "', result: '" << result << "'");
+  SCDC_TRACE(__func__ << ": cmd: '" << cmd << "', param: '" << param << "', val: '" << val << "', result: '" << result << "'");
 
   done = true;
   bool ret = true;
@@ -1027,7 +1029,7 @@ bool scdc_dataprov_jobrun::do_cmd_info(const std::string &params, scdc_dataset_i
 
 bool scdc_dataprov_jobrun::do_cmd_put(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
 {
-  SCDC_TRACE("do_cmd_put: job: '" << params << "'");
+  SCDC_TRACE(__func__ << ": job: '" << params << "'");
 
   return false;
 }
@@ -1035,7 +1037,7 @@ bool scdc_dataprov_jobrun::do_cmd_put(const std::string &params, scdc_dataset_in
 
 bool scdc_dataprov_jobrun::do_cmd_get(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
 {
-  SCDC_TRACE("do_cmd_get: job: '" << params << "'");
+  SCDC_TRACE(__func__ << ": job: '" << params << "'");
 
   return false;
 }
@@ -1043,7 +1045,7 @@ bool scdc_dataprov_jobrun::do_cmd_get(const std::string &params, scdc_dataset_in
 
 bool scdc_dataprov_jobrun::do_cmd_rm(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
 {
-  SCDC_TRACE("do_cmd_rm: job: '" << params << "'");
+  SCDC_TRACE(__func__ << ": job: '" << params << "'");
 
   return false;
 }
@@ -1051,7 +1053,7 @@ bool scdc_dataprov_jobrun::do_cmd_rm(const std::string &params, scdc_dataset_inp
 
 bool scdc_dataprov_jobrun::add_node(const std::string &nodeid, scdc_dataprov_jobrun_node_t &node)
 {
-  SCDC_TRACE("add_node: nodeid: '" << nodeid << "', cores: " << node.cores << ", max_parallel_jobs: " << node.max_parallel_jobs << ", performance: " << node.performance);
+  SCDC_TRACE(__func__ << ": nodeid: '" << nodeid << "', cores: " << node.cores << ", max_parallel_jobs: " << node.max_parallel_jobs << ", performance: " << node.performance);
 
   pair<nodes_t::iterator, bool> r = nodes.insert(nodes_t::value_type(nodeid, node));
 
@@ -1070,7 +1072,7 @@ bool scdc_dataprov_jobrun::add_node(const std::string &nodeid, scdc_dataprov_job
 
 bool scdc_dataprov_jobrun::del_node(const std::string &nodeid)
 {
-  SCDC_TRACE("del_node: nodeid: '" << nodeid << "'");
+  SCDC_TRACE(__func__ << ": nodeid: '" << nodeid << "'");
 
   nodes_t::iterator i = nodes.find(nodeid);
 
@@ -1096,7 +1098,7 @@ bool scdc_dataprov_jobrun::del_node(const std::string &nodeid)
 
 bool scdc_dataprov_jobrun::get_node(const std::string &nodeid, scdc_dataprov_jobrun_node_t &node)
 {
-  SCDC_TRACE("get_node: nodeid: '" << nodeid << "'");
+  SCDC_TRACE(__func__ << ": nodeid: '" << nodeid << "'");
 
   nodes_t::iterator i = nodes.find(nodeid);
 
@@ -1114,7 +1116,7 @@ bool scdc_dataprov_jobrun::get_node(const std::string &nodeid, scdc_dataprov_job
 
 bool scdc_dataprov_jobrun::set_node(const std::string &nodeid, scdcint_t cores, scdcint_t max_parallel_jobs, double performance)
 {
-  SCDC_TRACE("set_node: nodeid: '" << nodeid << "', cores: '" << cores << "', max_parallel_jobs: '" << max_parallel_jobs << "', performance: '" << performance << "'");
+  SCDC_TRACE(__func__ << ": nodeid: '" << nodeid << "', cores: '" << cores << "', max_parallel_jobs: '" << max_parallel_jobs << "', performance: '" << performance << "'");
 
   nodes_t::iterator i = nodes.find(nodeid);
 
@@ -1136,7 +1138,7 @@ bool scdc_dataprov_jobrun::set_node(const std::string &nodeid, scdcint_t cores, 
 
 bool scdc_dataprov_jobrun::nodes_config(const std::string &cmd, scdcint_t param, std::string &val, scdc_config_result &result)
 {
-  SCDC_TRACE("nodes_config: cmd: '" << cmd << "', param: '" << param << "', val: '" << val << "', result: '" << result << "'");
+  SCDC_TRACE(__func__ << ": cmd: '" << cmd << "', param: '" << param << "', val: '" << val << "', result: '" << result << "'");
 
   bool ret = false;
 
@@ -1365,7 +1367,7 @@ static void build_cmd(const std::string &format, const char *run_time, const std
 {
   cmd = format;
 
-  SCDC_TRACE("build_cmd: format: '" << format << "'");
+  SCDC_TRACE(__func__ << ": format: '" << format << "'");
 
   /* replace $PARAMS$ first so that all following placeholders are also replaced in the params string */
   string_replace_all(cmd, "$PARAMS$", params);
@@ -1399,11 +1401,11 @@ static void build_cmd(const std::string &format, const char *run_time, const std
     tpn << i->nt << ":" << i->np << ":" << i->node;
   }
 
-  SCDC_TRACE("build_cmd: nodes: '" << nodes.str() << "'");
-  SCDC_TRACE("build_cmd: nprocs: '" << nprocs.str() << "'");
-  SCDC_TRACE("build_cmd: nthrds: '" << nthrds.str() << "'");
-  SCDC_TRACE("build_cmd: npt: '" << npt.str() << "'");
-  SCDC_TRACE("build_cmd: tpn: '" << tpn.str() << "'");
+  SCDC_TRACE(__func__ << ": nodes: '" << nodes.str() << "'");
+  SCDC_TRACE(__func__ << ": nprocs: '" << nprocs.str() << "'");
+  SCDC_TRACE(__func__ << ": nthrds: '" << nthrds.str() << "'");
+  SCDC_TRACE(__func__ << ": npt: '" << npt.str() << "'");
+  SCDC_TRACE(__func__ << ": tpn: '" << tpn.str() << "'");
 
   string_replace_all(cmd, "$NODES$", nodes.str());
   string_replace_all(cmd, "$NP$", nprocs.str());
@@ -1472,7 +1474,7 @@ bool scdc_dataprov_jobrun::job_update(const std::string &jobid, scdc_dataprov_jo
 
 bool scdc_dataprov_jobrun::job_run(const std::string &jobid, const std::string &jobcmds, const scdc_dataprov_jobrun_res_t &res)
 {
-  SCDC_TRACE("run_job: jobid: '" << jobid << "', jobcmds: '" << jobcmds << "', res: " << res.size());
+  SCDC_TRACE(__func__ << ": jobid: '" << jobid << "', jobcmds: '" << jobcmds << "', res: " << res.size());
 
   bool ret = true;
 
@@ -1483,7 +1485,7 @@ bool scdc_dataprov_jobrun::job_run(const std::string &jobid, const std::string &
   string s;
   while (cmds.front_pop(s))
   {
-    SCDC_TRACE("run_job: cmd: '" << s << "'");
+    SCDC_TRACE(__func__ << ": cmd: '" << s << "'");
 
     stringlist cmd(' ', s);
     string c = cmd.front_pop();
@@ -1491,13 +1493,13 @@ bool scdc_dataprov_jobrun::job_run(const std::string &jobid, const std::string &
 
     if (c == "jobbegin")
     {
-      SCDC_TRACE("run_job: begin");
+      SCDC_TRACE(__func__ << ": begin");
 
       if (!record) record = true;
 
     } else if (c == "jobend")
     {
-      SCDC_TRACE("run_job: end");
+      SCDC_TRACE(__func__ << ": end");
 
       if (record)
       {
@@ -1516,23 +1518,23 @@ bool scdc_dataprov_jobrun::job_run(const std::string &jobid, const std::string &
 
     } else if (record)
     {
-      SCDC_TRACE("run_job: record: '" << s << "'");
+      SCDC_TRACE(__func__ << ": record: '" << s << "'");
 
       record_jobcmds += s + ";";
 
     } else if (c == "jobwait")
     {
-      SCDC_TRACE("run_job: wait");
+      SCDC_TRACE(__func__ << ": wait");
 
       job_wait_finished(jobid);
 
     } else
     {
-      SCDC_TRACE("run_job: run:");
+      SCDC_TRACE(__func__ << ": run:");
 
       ret = job_do_run(jobid, c, p, res);
 
-      SCDC_TRACE("job_run: run: " << ret);
+      SCDC_TRACE(__func__ << ": run: " << ret);
     }
   }
 
@@ -1554,7 +1556,7 @@ bool scdc_dataprov_jobrun::job_schedule(const std::string &jobid)
 
 bool scdc_dataprov_jobrun::job_wait_running(const std::string &jobid)
 {
-  SCDC_TRACE("job_wait_running: jobid: '" << jobid << "'");
+  SCDC_TRACE(__func__ << ": jobid: '" << jobid << "'");
 
   bool wait = false;
   pthread_t thread;
@@ -1568,7 +1570,7 @@ bool scdc_dataprov_jobrun::job_wait_running(const std::string &jobid)
   }
   pthread_mutex_unlock(&sched_lock);
 
-  SCDC_TRACE("job_wait_running: wait: '" << wait << "'");
+  SCDC_TRACE(__func__ << ": wait: '" << wait << "'");
 
   if (!wait) return false;
 
@@ -1580,7 +1582,7 @@ bool scdc_dataprov_jobrun::job_wait_running(const std::string &jobid)
 
 bool scdc_dataprov_jobrun::job_wait_finished(const std::string &jobid)
 {
-  SCDC_TRACE("job_wait_finished: jobid: '" << jobid << "'");
+  SCDC_TRACE(__func__ << ": jobid: '" << jobid << "'");
 
   scdc_dataprov_jobrun_job_t job;
 
@@ -1613,7 +1615,7 @@ static void *sched_job_routine(void *arg)
 {
   sched_job_arg_t *sched_job_arg = static_cast<sched_job_arg_t *>(arg);
 
-  SCDC_TRACE("sched_job_routine: jobid: '" << sched_job_arg->jobid << "'");
+  SCDC_TRACE(__func__ << ": jobid: '" << sched_job_arg->jobid << "'");
 
   sched_job_arg->dataprov_jobrun->job_run(sched_job_arg->jobid, sched_job_arg->jobcmds.c_str(), sched_job_arg->jobres);
 
@@ -1624,7 +1626,7 @@ static void *sched_job_routine(void *arg)
 
   pthread_cond_signal(&sched_job_arg->dataprov_jobrun->sched_cond);
 
-  SCDC_TRACE("sched_job_routine: return: jobid: '" << sched_job_arg->jobid << "'");
+  SCDC_TRACE(__func__ << ": return: jobid: '" << sched_job_arg->jobid << "'");
 
   delete sched_job_arg;
 
@@ -1634,7 +1636,7 @@ static void *sched_job_routine(void *arg)
 
 static void *sched_run_routine(void *arg)
 {
-  SCDC_TRACE("sched_run_routine: arg: '" << arg << "'");
+  SCDC_TRACE(__func__ << ": arg: '" << arg << "'");
 
   scdc_dataprov_jobrun *dataprov_jobrun = static_cast<scdc_dataprov_jobrun *>(arg);
 
@@ -1646,7 +1648,7 @@ static void *sched_run_routine(void *arg)
 
     pthread_cond_timedwait(&dataprov_jobrun->sched_cond, &dataprov_jobrun->sched_lock, &abstime);
 
-/*    SCDC_TRACE("sched_run: " << time(NULL) << " TICK-TACK");*/
+/*    SCDC_TRACE(__func__ << ": " << time(NULL) << " TICK-TACK");*/
 
     if (!dataprov_jobrun->runjobs) continue;
 
@@ -1684,7 +1686,7 @@ static void *sched_run_routine(void *arg)
   }
   pthread_mutex_unlock(&dataprov_jobrun->sched_lock);
 
-  SCDC_TRACE("sched_run_routine: exit");
+  SCDC_TRACE(__func__ << ": return");
 
   pthread_exit(NULL);
 }
@@ -1692,7 +1694,7 @@ static void *sched_run_routine(void *arg)
 
 void scdc_dataprov_jobrun::sched_init()
 {
-  SCDC_TRACE("sched_init: ");
+  SCDC_TRACE(__func__ << ":");
 
   sched = new scdc_dataprov_jobrun_sched();
   sched->dataprov_jobrun = this;
@@ -1705,13 +1707,13 @@ void scdc_dataprov_jobrun::sched_init()
 
   pthread_create(&sched_run_thread, NULL, sched_run_routine, this);
 
-  SCDC_TRACE("sched_init: return");
+  SCDC_TRACE(__func__ << ": return");
 }
 
 
 void scdc_dataprov_jobrun::sched_release()
 {
-  SCDC_TRACE("sched_release: ");
+  SCDC_TRACE(__func__ << ":");
 
   pthread_mutex_lock(&sched_lock);
   sched_run = false;
@@ -1742,7 +1744,7 @@ void scdc_dataprov_jobrun::sched_release()
 
   delete sched;
 
-  SCDC_TRACE("sched_release: return");
+  SCDC_TRACE(__func__ << ": return");
 }
 
 
@@ -1781,7 +1783,7 @@ static pid_t system_pid(const char *cmd)
 
   execv(cmd_sh, argv);
 
-  SCDC_TRACE("system_pid: executing '/bin/sh -c " << cmd << "' failed (errno = " << errno << ": " << strerror(errno) << ")");
+  SCDC_TRACE(__func__ << ": executing '/bin/sh -c " << cmd << "' failed (errno = " << errno << ": " << strerror(errno) << ")");
 
   exit(1);
 
@@ -1809,14 +1811,14 @@ bool scdc_dataprov_jobrun_system::open_config_conf(const std::string &conf, scdc
 
     if (args->get<const char *>(SCDC_ARGS_TYPE_CSTR, &s) == SCDC_ARG_REF_NULL)
     {
-      SCDC_ERROR("open_config_conf: getting parameter for work directory");
+      SCDC_ERROR(__func__ << ": getting parameter for work directory");
       ret = false;
 
     } else
     {
       if (!z_fs_is_directory(s))
       {
-        SCDC_ERROR("open_config_conf: given work directory '" << s << "' is not a directory");
+        SCDC_ERROR(__func__ << ": given work directory '" << s << "' is not a directory");
         ret = false;
 
       } else
@@ -1839,7 +1841,7 @@ bool scdc_dataprov_jobrun_system::open_config_conf(const std::string &conf, scdc
 
 bool scdc_dataprov_jobrun_system::open(const char *conf, scdc_args *args)
 {
-  SCDC_TRACE("open: conf: '" << conf << "'");
+  SCDC_TRACE(__func__ << ": conf: '" << conf << "'");
 
   bool ret = true;
 
@@ -1860,7 +1862,7 @@ bool scdc_dataprov_jobrun_system::open(const char *conf, scdc_args *args)
     ret = false;
   }
 
-  SCDC_TRACE("open: jobcmd: '" << jobcmd << "', workdir: '" << workdir << "'");
+  SCDC_TRACE(__func__ << ": jobcmd: '" << jobcmd << "', workdir: '" << workdir << "'");
 
 do_quit:
   return ret;
@@ -1869,7 +1871,7 @@ do_quit:
 
 void scdc_dataprov_jobrun_system::close()
 {
-  SCDC_TRACE("close:");
+  SCDC_TRACE(__func__ << ":");
 
   scdc_dataprov_jobrun::close();
 }
@@ -1883,7 +1885,7 @@ scdc_dataset *scdc_dataprov_jobrun_system::dataset_open(const char *path, scdcin
 
 bool scdc_dataprov_jobrun_system::config_do_cmd_param(const std::string &cmd, const std::string &param, std::string val, scdc_config_result &result, bool &done)
 {
-  SCDC_TRACE("config_do_cmd_param: cmd: '" << cmd << "', param: '" << param << "', val: '" << val << "', result: '" << result << "'");
+  SCDC_TRACE(__func__ << ": cmd: '" << cmd << "', param: '" << param << "', val: '" << val << "', result: '" << result << "'");
 
   done = true;
   bool ret = true;
@@ -1974,13 +1976,13 @@ do_quit:
 
 bool scdc_dataprov_jobrun_system::job_do_run(const std::string &jobid, const std::string &cmd, const std::string &params, const scdc_dataprov_jobrun_res_t &res)
 {
-  SCDC_TRACE("job_do_run: jobid: '" << jobid << ", cmd: '" << cmd << "', params: '" << params << "', res: " << res.size());
+  SCDC_TRACE(__func__ << ": jobid: '" << jobid << ", cmd: '" << cmd << "', params: '" << params << "', res: " << res.size());
 
   bool ret = true;
 
   if (cmd == "scdc")
   {
-    SCDC_TRACE("job_do_run: scdc '" << params << "'");
+    SCDC_TRACE(__func__ << ": scdc '" << params << "'");
 
     scdc_dataset_input_t *get_input = NULL;
     scdc_dataset_output_t get_output_, *get_output = &get_output_;
@@ -1997,17 +1999,17 @@ bool scdc_dataprov_jobrun_system::job_do_run(const std::string &jobid, const std
 
   } else if (cmd == "exec")
   {
-    SCDC_TRACE("job_do_run: exec '" << params << "'");
+    SCDC_TRACE(__func__ << ": exec '" << params << "'");
 
     string execmd = "cd " + get_workdir(jobid) + " && " + params;
 
-    SCDC_TRACE("job_do_run: execmd: '" << execmd << "'");
+    SCDC_TRACE(__func__ << ": execmd: '" << execmd << "'");
 
     system(execmd.c_str());
 
   } else if (cmd == "run")
   {
-    SCDC_TRACE("job_do_run: running '" << params << "'");
+    SCDC_TRACE(__func__ << ": running '" << params << "'");
     SCDC_INFO("executing run of job '" << jobid << "'");
 
     string c;
@@ -2025,7 +2027,7 @@ bool scdc_dataprov_jobrun_system::job_do_run(const std::string &jobid, const std
     if (sleep_after_run > 0) ss << "sleep " << sleep_after_run << "; ";
     if (xterm) ss << "exit; \"";
 
-    SCDC_TRACE("job_do_run: executing '" << ss.str() << "'");
+    SCDC_TRACE(__func__ << ": executing '" << ss.str() << "'");
 #if USE_SYSTEM_PID
     pid_t pid = system_pid(ss.str().c_str());
     waitpid(pid, NULL, 0);
@@ -2062,7 +2064,7 @@ scdc_dataprov_jobrun_handler::scdc_dataprov_jobrun_handler()
 
 bool scdc_dataprov_jobrun_handler::open(const char *conf, scdc_args *args)
 {
-  SCDC_TRACE("open: '" << conf << "'");
+  SCDC_TRACE(__func__ << ": '" << conf << "'");
 
   bool ret = true;
 
@@ -2081,7 +2083,7 @@ bool scdc_dataprov_jobrun_handler::open(const char *conf, scdc_args *args)
     ret = false;
   }
 
-  SCDC_TRACE("open: handler: '" << handler_args.handler << "', handler_data: '" << handler_args.data << "'");
+  SCDC_TRACE(__func__ << ": handler: '" << handler_args.handler << "', handler_data: '" << handler_args.data << "'");
 
   open_args_clear();
 
@@ -2094,7 +2096,7 @@ do_quit:
 
 void scdc_dataprov_jobrun_handler::close()
 {
-  SCDC_TRACE("close:");
+  SCDC_TRACE(__func__ << ":");
 
   scdc_dataprov_jobrun::close();
 
@@ -2104,7 +2106,7 @@ void scdc_dataprov_jobrun_handler::close()
 
 bool scdc_dataprov_jobrun_handler::config_do_cmd_param(const std::string &cmd, const std::string &param, std::string val, scdc_config_result &result, bool &done)
 {
-  SCDC_TRACE("config_do_cmd_param: cmd: '" << cmd << "', param: '" << param << "', val: '" << val << "', result: '" << result << "'");
+  SCDC_TRACE(__func__ << ": cmd: '" << cmd << "', param: '" << param << "', val: '" << val << "', result: '" << result << "'");
 
   done = true;
   bool ret = true;
@@ -2152,7 +2154,7 @@ bool scdc_dataprov_jobrun_handler::job_do_run(const std::string &jobid, const st
 
   if (cmd == "run")
   {
-    SCDC_TRACE("job_do_run: running job '" << jobid << "' with '" << params << "'");
+    SCDC_TRACE(__func__ << ": running job '" << jobid << "' with '" << params << "'");
     SCDC_INFO("executing run of job '" << jobid << "'");
 
     string c;

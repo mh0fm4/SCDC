@@ -33,11 +33,13 @@
 
 
 scdc_nodeport_t np_tcp = SCDC_NODEPORT_NULL;
+scdc_nodeport_t np_uds = SCDC_NODEPORT_NULL;
 scdc_nodeport_t np_stream = SCDC_NODEPORT_NULL;
 
 
 #define NODEPORT_TCP     SCDC_NODEPORT_START_ASYNC_UNTIL_CANCEL
-#define NODEPORT_STREAM  SCDC_NODEPORT_START_LOOP_UNTIL_CANCEL
+#define NODEPORT_UDS     SCDC_NODEPORT_START_ASYNC_UNTIL_CANCEL
+/*#define NODEPORT_STREAM  SCDC_NODEPORT_START_LOOP_UNTIL_CANCEL*/
 
 
 void sighandler(int sig)
@@ -94,6 +96,9 @@ int main(int argc, char *argv[])
 #if NODEPORT_TCP
   np_tcp = scdc_nodeport_open("tcp:max_connections", 2);
 #endif
+#if NODEPORT_UDS
+  np_uds = scdc_nodeport_open("uds:max_connections", 2);
+#endif
 #if NODEPORT_STREAM
   np_stream = scdc_nodeport_open("stream:cmd_handler", cmd_handler, NULL);
 #endif
@@ -101,12 +106,21 @@ int main(int argc, char *argv[])
 #if NODEPORT_TCP
   scdc_nodeport_start(np_tcp, NODEPORT_TCP);
 #endif
+#if NODEPORT_UDS
+  scdc_nodeport_start(np_uds, NODEPORT_UDS);
+#endif
 #if NODEPORT_STREAM
   scdc_nodeport_start(np_stream, NODEPORT_STREAM);
 #endif
 
+  printf(PREFIX "Press <ENTER> to quit!\n");
+  getchar();
+
 #if NODEPORT_STREAM
   scdc_nodeport_stop(np_stream);
+#endif
+#if NODEPORT_UDS
+  scdc_nodeport_stop(np_uds);
 #endif
 #if NODEPORT_TCP
   scdc_nodeport_stop(np_tcp);
@@ -114,6 +128,9 @@ int main(int argc, char *argv[])
 
 #if NODEPORT_STREAM
   scdc_nodeport_close(np_stream);
+#endif
+#if NODEPORT_UDS
+  scdc_nodeport_close(np_uds);
 #endif
 #if NODEPORT_TCP
   scdc_nodeport_close(np_tcp);

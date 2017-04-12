@@ -56,8 +56,8 @@ scdc.init()
 
 basepath = "jobR"
 
-dp_job = scdc.dataprov_open(basepath, "jobrun:system:runcmd:workdir", "uname -a; " + os.getcwd() + "/mpirun.sh -hosts $NODES$:$NPROCS$ $PARAMS$", os.getcwd())
-#dp_job = scdc.dataprov_open(basepath, "jobrun:handler:runcmd", jobrun_handler, True, "run hosts: $NODES$:$NPROCS$")
+#dp_job = scdc.dataprov_open(basepath, "jobrun:system:jobcmd:workdir", "uname -a; " + os.getcwd() + "/mpirun.sh -hosts $NODES$:$NPROCS$ $PARAMS$", os.getcwd())
+dp_job = scdc.dataprov_open(basepath, "jobrun:handler:jobcmd", jobrun_handler, True, "run hosts: $NODES$:$NPROCS$")
 
 # configure local jobrun data provider
 #scdc.dataset_cmd(None, "scdc:///" + basepath + "/CONFIG put cores 3", None, None)
@@ -86,7 +86,7 @@ scdc.dataset_cmd(None, url + "/CONFIG put cores local 5", None, None)
 scdc.dataset_cmd(None, url + "/CONFIG put xterm 1", None, None)
 scdc.dataset_cmd(None, url + "/CONFIG put runjobs 0", None, None)
 
-jobs = 3
+jobs = 1
 
 for i in range(0, jobs):
   name = "job" + str(i)

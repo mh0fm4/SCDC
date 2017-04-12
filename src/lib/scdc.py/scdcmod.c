@@ -28,6 +28,8 @@
 #include "scdc.h"
 #include "scdc_intern.h"
 
+#define PYSCDC_TRACE_NOT  1
+
 #include "pylog.h"
 #include "scdcmod.h"
 
@@ -596,7 +598,7 @@ static PyObject *pyscdc_dataset_input_struct2class(scdc_dataset_input_t *input, 
     PYSCDC_TRACE_CALL(pyinput, "pyscdc_dataset_input_struct2class: dataset_input(): ");
   }
 
-  pyinput_buf = PyObject_CallMethod(pyscdc_objs[PYSCDC_OBJ_SCDC], "cbuf", PYSCDC_CPTR_FMT, PYSCDC_CPTR_TO_PY(input->buf));
+  pyinput_buf = PyObject_CallMethod(pyscdc_objs[PYSCDC_OBJ_SCDC], "cbuf", PYSCDC_CPTR_FMT, PYSCDC_CPTR_TO_PY(SCDC_DATASET_INOUT_BUF_PTR(input)));
   PYSCDC_TRACE_CALL(pyinput, "pyscdc_dataset_input_struct2class: cbuf(): ");
 
   pyinput_next = pyinput_data = Py_None;
@@ -621,7 +623,7 @@ static PyObject *pyscdc_dataset_input_struct2class(scdc_dataset_input_t *input, 
   }
 
   pyscdc_ret = PyObject_CallMethod(pyinput, "set_all", "((zO" PYSCDCINT_FMT PYSCDCINT_FMT "c" PYSCDCINT_FMT "OO" PYSCDC_CPTR_FMT "))",
-    input->format, pyinput_buf, input->buf_size, input->total_size, input->total_size_given, input->current_size, pyinput_next, pyinput_data, PYSCDC_CPTR_TO_PY(input->intern));
+    input->format, pyinput_buf, SCDC_DATASET_INOUT_BUF_SIZE(input), input->total_size, input->total_size_given, SCDC_DATASET_INOUT_BUF_CURRENT(input), pyinput_next, pyinput_data, PYSCDC_CPTR_TO_PY(input->intern));
   PYSCDC_TRACE_CALL(pyscdc_ret, "pyscdc_dataset_input_struct2class: set_all: ");
 
   PYSCDC_TRACE_DATASET_PYINPUT(pyinput, "pyscdc_dataset_input_struct2class: pyinput: ");
@@ -647,7 +649,7 @@ static scdc_dataset_input_t *pyscdc_dataset_input_class2struct(PyObject *pyinput
   PYSCDC_TRACE_CALL(pyinput_all, "pyscdc_dataset_input_class2struct: get_all: ");
 
   pyscdc_parseret = PyArg_ParseTuple(pyinput_all, "zO" PYSCDCINT_FMT PYSCDCINT_FMT "c" PYSCDCINT_FMT "OO" PYSCDC_CPTR_FMT,
-    &format, &pyinput_buf, &input->buf_size, &input->total_size, &input->total_size_given, &input->current_size, &pyinput_next, &pyinput_data, &pyinput_intern);
+    &format, &pyinput_buf, &SCDC_DATASET_INOUT_BUF_SIZE(input), &input->total_size, &input->total_size_given, &SCDC_DATASET_INOUT_BUF_CURRENT(input), &pyinput_next, &pyinput_data, &pyinput_intern);
   PYSCDC_TRACE_PARSE("pyscdc_dataset_input_class2struct: pyinput_all: ");
 
   strncpy(input->format, (format)?format:"", sizeof(input->format));
@@ -658,23 +660,23 @@ static scdc_dataset_input_t *pyscdc_dataset_input_class2struct(PyObject *pyinput
     pyscdc_parseret = PyArg_Parse(PyObject_CallMethod(pyinput_buf, "get_c", NULL), PYSCDC_CPTR_FMT, &cptr_buf);
     PYSCDC_TRACE_PARSE("pyscdc_dataset_input_class2struct: ");
 
-    input->buf = (void *) PYSCDC_CPTR_TO_C(cptr_buf);
+    SCDC_DATASET_INOUT_BUF_PTR(input) = (void *) PYSCDC_CPTR_TO_C(cptr_buf);
 
   } else if (parse_buf)
   {
     PYSCDC_TRACE("pyscdc_dataset_input_class2struct: string buf");
-    pyscdc_parseret = PyArg_ParseTuple(PyTuple_Pack(1, pyinput_buf), "z#", &input->buf, &buf_len);
+    pyscdc_parseret = PyArg_ParseTuple(PyTuple_Pack(1, pyinput_buf), "z#", &SCDC_DATASET_INOUT_BUF_PTR(input), &buf_len);
     PYSCDC_TRACE_PARSE("pyscdc_dataset_input_class2struct: ");
 
-    input->buf_size = buf_len;
+    SCDC_DATASET_INOUT_BUF_SIZE(input) = buf_len;
 
   } else
   {
-    input->buf = NULL;
-    input->buf_size = 0;
+    SCDC_DATASET_INOUT_BUF_PTR(input) = NULL;
+    SCDC_DATASET_INOUT_BUF_SIZE(input) = 0;
   }
 
-  PYSCDC_ASSERT(input->buf_size >= input->current_size);
+  PYSCDC_ASSERT(SCDC_DATASET_INOUT_BUF_SIZE(input) >= SCDC_DATASET_INOUT_BUF_CURRENT(input));
 
   input->next = input->data = NULL;
 
@@ -728,7 +730,7 @@ static PyObject *pyscdc_dataset_output_struct2class(scdc_dataset_output_t *outpu
     PYSCDC_TRACE_CALL(pyoutput, "pyscdc_dataset_output_struct2class: dataset_output(): ");
   }
 
-  pyoutput_buf = PyObject_CallMethod(pyscdc_objs[PYSCDC_OBJ_SCDC], "cbuf", PYSCDC_CPTR_FMT, PYSCDC_CPTR_TO_PY(output->buf));
+  pyoutput_buf = PyObject_CallMethod(pyscdc_objs[PYSCDC_OBJ_SCDC], "cbuf", PYSCDC_CPTR_FMT, PYSCDC_CPTR_TO_PY(SCDC_DATASET_INOUT_BUF_PTR(output)));
   PYSCDC_TRACE_CALL(pyoutput, "pyscdc_dataset_output_struct2class: cbuf(): ");
 
   pyoutput_next = pyoutput_data = Py_None;
@@ -753,7 +755,7 @@ static PyObject *pyscdc_dataset_output_struct2class(scdc_dataset_output_t *outpu
   }
 
   pyscdc_ret = PyObject_CallMethod(pyoutput, "set_all", "((zO" PYSCDCINT_FMT PYSCDCINT_FMT "c" PYSCDCINT_FMT "OO" PYSCDC_CPTR_FMT "))",
-    output->format, pyoutput_buf, output->buf_size, output->total_size, output->total_size_given, output->current_size, pyoutput_next, pyoutput_data, PYSCDC_CPTR_TO_PY(output->intern));
+    output->format, pyoutput_buf, SCDC_DATASET_INOUT_BUF_SIZE(output), output->total_size, output->total_size_given, SCDC_DATASET_INOUT_BUF_CURRENT(output), pyoutput_next, pyoutput_data, PYSCDC_CPTR_TO_PY(output->intern));
   PYSCDC_TRACE_CALL(pyscdc_ret, "pyscdc_dataset_output_struct2class: set_all: ");
 
   PYSCDC_TRACE_DATASET_PYOUTPUT(pyoutput, "pyscdc_dataset_output_struct2class: pyoutput: ");
@@ -779,7 +781,7 @@ static scdc_dataset_output_t *pyscdc_dataset_output_class2struct(PyObject *pyout
   PYSCDC_TRACE_CALL(pyoutput_all, "pyscdc_dataset_output_class2struct: get_all: ");
 
   pyscdc_parseret = PyArg_ParseTuple(pyoutput_all, "zO" PYSCDCINT_FMT PYSCDCINT_FMT "c" PYSCDCINT_FMT "OO" PYSCDC_CPTR_FMT,
-    &format, &pyoutput_buf, &output->buf_size, &output->total_size, &output->total_size_given, &output->current_size, &pyoutput_next, &pyoutput_data, &pyoutput_intern);
+    &format, &pyoutput_buf, &SCDC_DATASET_INOUT_BUF_SIZE(output), &output->total_size, &output->total_size_given, &SCDC_DATASET_INOUT_BUF_CURRENT(output), &pyoutput_next, &pyoutput_data, &pyoutput_intern);
   PYSCDC_TRACE_PARSE("pyscdc_dataset_output_class2struct: pyoutput_all: ");
 
   strncpy(output->format, (format)?format:"", sizeof(output->format));
@@ -790,23 +792,23 @@ static scdc_dataset_output_t *pyscdc_dataset_output_class2struct(PyObject *pyout
     pyscdc_parseret = PyArg_Parse(PyObject_CallMethod(pyoutput_buf, "get_c", NULL), PYSCDC_CPTR_FMT, &cptr_buf);
     PYSCDC_TRACE_PARSE("pyscdc_dataset_output_class2struct: ");
 
-    output->buf = (void *) PYSCDC_CPTR_TO_C(cptr_buf);
+    SCDC_DATASET_INOUT_BUF_PTR(output) = (void *) PYSCDC_CPTR_TO_C(cptr_buf);
 
   } else if (parse_buf)
   {
     PYSCDC_TRACE("pyscdc_dataset_output_class2struct: string buf");
-    pyscdc_parseret = PyArg_ParseTuple(PyTuple_Pack(1, pyoutput_buf), "z#", &output->buf, &buf_len);
+    pyscdc_parseret = PyArg_ParseTuple(PyTuple_Pack(1, pyoutput_buf), "z#", &SCDC_DATASET_INOUT_BUF_PTR(output), &buf_len);
     PYSCDC_TRACE_PARSE("pyscdc_dataset_output_class2struct: ");
 
-    output->buf_size = buf_len;
+    SCDC_DATASET_INOUT_BUF_SIZE(output) = buf_len;
 
   } else
   {
-    output->buf = NULL;
-    output->buf_size = 0;
+    SCDC_DATASET_INOUT_BUF_PTR(output) = NULL;
+    SCDC_DATASET_INOUT_BUF_SIZE(output) = 0;
   }
 
-  PYSCDC_ASSERT(output->buf_size >= output->current_size);
+  PYSCDC_ASSERT(SCDC_DATASET_INOUT_BUF_SIZE(output) >= SCDC_DATASET_INOUT_BUF_CURRENT(output));
 
   output->next = output->data = NULL;
 

@@ -27,6 +27,8 @@
 #include <cstring>
 #include <exception>
 
+#define SCDC_TRACE_NOT  !SCDC_TRACE_TRANSPORT_TCP
+
 #include "config.hh"
 #include "log.hh"
 #include "transport_tcp.hh"

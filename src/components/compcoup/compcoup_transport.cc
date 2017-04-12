@@ -23,6 +23,8 @@
 #include <string>
 #include <algorithm>
 
+#define SCDC_TRACE_NOT  !SCDC_TRACE_COMPCOUP_TRANSPORT
+
 #include "config.hh"
 #include "log.hh"
 #include "common.hh"
@@ -34,7 +36,7 @@
 using namespace std;
 
 
-#define SCDC_LOG_PREFIX  "dataset-transport: "
+#define SCDC_LOG_PREFIX  "compcoup-transport: "
 
 
 static const char default_delim = ' ';
@@ -177,7 +179,7 @@ class scdc_dataset_transport: public scdc_dataset
       }
 
       char info[256];
-      scdcint_t n = sprintf(info, "%s|%" scdcint_fmt "|%c|%" scdcint_fmt "|%d", inout->format, inout->total_size, inout->total_size_given, inout->current_size, (inout->next)?1:0);
+      scdcint_t n = sprintf(info, "%s|%" scdcint_fmt "|%c|%" scdcint_fmt "|%d", inout->format, inout->total_size, inout->total_size_given, SCDC_DATASET_INOUT_BUF_CURRENT(inout), (inout->next)?1:0);
 
       if (!write_delim(transport_connection_, info, n, default_delim))
       {
@@ -207,7 +209,7 @@ class scdc_dataset_transport: public scdc_dataset
       inout->format[end] = '\0';
 
       int inext;
-      int r = sscanf(s.c_str() + end, "|%" scdcint_fmt "|%c|%" scdcint_fmt "|%d", &inout->total_size, &inout->total_size_given, &inout->current_size, &inext);
+      int r = sscanf(s.c_str() + end, "|%" scdcint_fmt "|%c|%" scdcint_fmt "|%d", &inout->total_size, &inout->total_size_given, &SCDC_DATASET_INOUT_BUF_CURRENT(inout), &inext);
 
       if (r != 4)
       {
@@ -421,7 +423,7 @@ static scdcint_t read_input_next(scdc_dataset_input_t *input)
   bool next = false, ret = true;
 
   if (transport_connection->current_incoming_input_next || transport_connection->current_incoming_input_size > 0) ret = scdc_compcoup_transport::dataset_input_incoming_recv(transport_connection, input, &next);
-  else input->current_size = 0;
+  else SCDC_DATASET_INOUT_BUF_CURRENT(input) = 0;
 
   if (next)
   {
@@ -459,7 +461,7 @@ static scdcint_t read_output_next(scdc_dataset_output_t *output)
   bool next = false, ret = true;
 
   if (transport_connection->current_incoming_output_next || transport_connection->current_incoming_output_size > 0) ret = scdc_compcoup_transport::dataset_output_incoming_recv(transport_connection, output, &next);
-  else output->current_size = 0;
+  else SCDC_DATASET_INOUT_BUF_CURRENT(output) = 0;
 
   if (next)
   {
@@ -985,7 +987,7 @@ bool scdc_compcoup_transport::dataset_input_incoming_recv(scdc_transport_connect
   SCDC_ASSERT(conn->current_incoming_input_size >= 0);
 
   /* empty input */
-  input->current_size = 0;
+  SCDC_DATASET_INOUT_BUF_CURRENT(input) = 0;
 
   bool cont_recv = true;
 
@@ -1000,14 +1002,14 @@ bool scdc_compcoup_transport::dataset_input_incoming_recv(scdc_transport_connect
         return false;
       }
 
-      conn->current_incoming_input_size = conn->current_incoming_input.current_size;
+      conn->current_incoming_input_size = SCDC_DATASET_INOUT_BUF_CURRENT(&conn->current_incoming_input);
     }
 
     strncpy(input->format, conn->current_incoming_input.format, SCDC_FORMAT_MAX_SIZE);
     input->total_size = conn->current_incoming_input.total_size;
     input->total_size_given = conn->current_incoming_input.total_size_given;
 
-    scdcint_t prev_current_size = input->current_size;
+    scdcint_t prev_current = SCDC_DATASET_INOUT_BUF_CURRENT(input);
 
     if (!conn->transport->recv_incoming_dataset_input(conn, input, conn->current_incoming_input_size, cont_recv))
     {
@@ -1015,13 +1017,13 @@ bool scdc_compcoup_transport::dataset_input_incoming_recv(scdc_transport_connect
       return false;
     }
 
-    conn->current_incoming_input_size -= input->current_size - prev_current_size;
+    conn->current_incoming_input_size -= SCDC_DATASET_INOUT_BUF_CURRENT(input) - prev_current;
 
     *next = (conn->current_incoming_input_next || conn->current_incoming_input_size > 0);
 
-    SCDC_TRACE("dataset_input_incoming_recv: cont: '" << cont_recv << "', next: '" << *next << "', buf: " << input->current_size << " of " << input->buf_size);
+    SCDC_TRACE("dataset_input_incoming_recv: cont: '" << cont_recv << "', next: '" << *next << "', buf: " << SCDC_DATASET_INOUT_BUF_CURRENT(input) << " of " << SCDC_DATASET_INOUT_BUF_SIZE(input));
 
-  } while (cont_recv && *next && input->current_size < input->buf_size);
+  } while (cont_recv && *next && SCDC_DATASET_INOUT_BUF_CURRENT(input) < SCDC_DATASET_INOUT_BUF_SIZE(input));
 
   return true;
 }
@@ -1057,7 +1059,7 @@ bool scdc_compcoup_transport::dataset_output_incoming_recv(scdc_transport_connec
   SCDC_ASSERT(conn->current_incoming_output_size >= 0);
 
   /* empty output */
-  output->current_size = 0;
+  SCDC_DATASET_INOUT_BUF_CURRENT(output) = 0;
 
   bool cont_recv = true;
 
@@ -1071,7 +1073,7 @@ bool scdc_compcoup_transport::dataset_output_incoming_recv(scdc_transport_connec
         return false;
       }
 
-      conn->current_incoming_output_size = conn->current_incoming_output.current_size;
+      conn->current_incoming_output_size = SCDC_DATASET_INOUT_BUF_CURRENT(&conn->current_incoming_output);
 
       SCDC_TRACE("dataset_output_incoming_recv: current_incoming_output_next/size: " << conn->current_incoming_output_next << " / " << conn->current_incoming_output_size);
     }
@@ -1080,7 +1082,7 @@ bool scdc_compcoup_transport::dataset_output_incoming_recv(scdc_transport_connec
     output->total_size = conn->current_incoming_output.total_size;
     output->total_size_given = conn->current_incoming_output.total_size_given;
 
-    scdcint_t prev_current_size = output->current_size;
+    scdcint_t prev_current = SCDC_DATASET_INOUT_BUF_CURRENT(output);
 
     if (!conn->transport->recv_incoming_dataset_output(conn, output, conn->current_incoming_output_size, cont_recv))
     {
@@ -1088,13 +1090,13 @@ bool scdc_compcoup_transport::dataset_output_incoming_recv(scdc_transport_connec
       return false;
     }
 
-    conn->current_incoming_output_size -= output->current_size - prev_current_size;
+    conn->current_incoming_output_size -= SCDC_DATASET_INOUT_BUF_CURRENT(output) - prev_current;
 
     *next = (conn->current_incoming_output_next || conn->current_incoming_output_size > 0);
 
-    SCDC_TRACE("dataset_output_incoming_recv: cont: '" << cont_recv << "', next: '" << *next << "', buf: " << output->current_size << " of " << output->buf_size);
+    SCDC_TRACE("dataset_output_incoming_recv: cont: '" << cont_recv << "', next: '" << *next << "', buf: " << SCDC_DATASET_INOUT_BUF_CURRENT(output) << " of " << SCDC_DATASET_INOUT_BUF_SIZE(output));
  
-  } while (cont_recv && *next && output->current_size < output->buf_size);
+  } while (cont_recv && *next && SCDC_DATASET_INOUT_BUF_CURRENT(output) < SCDC_DATASET_INOUT_BUF_SIZE(output));
 
   return true;
 }

@@ -21,6 +21,8 @@
 #include <cstring>
 #include <string>
 
+#define SCDC_TRACE_NOT  !SCDC_TRACE_DATAPROV_HOOK
+
 #include "config.hh"
 #include "common.hh"
 #include "log.hh"

@@ -38,9 +38,9 @@ scdcint_t input_next(scdc_dataset_input_t *input)
 
   printf(PREFIX "preparing INPUT #%" scdcint_fmt "\n", i);
 
-  ((char *) input->buf)[0] = 0;
+  ((char *) SCDC_DATASET_INOUT_BUF_PTR(input))[0] = 0;
 
-  input->current_size = 0;
+  SCDC_DATASET_INOUT_BUF_CURRENT(input) = 0;
 
   if (i >= 1) input->next = NULL;
 
@@ -56,9 +56,9 @@ scdcint_t output_next(scdc_dataset_output_t *output)
 
 
   if (strcmp(output->format, "text") == 0 || strcmp(output->format, "fslist") == 0)
-    printf(PREFIX "processing OUTPUT #%" scdcint_fmt ": '%.*s'\n", i, (int) output->current_size, (char *) output->buf);
+    printf(PREFIX "processing OUTPUT #%" scdcint_fmt ": '%.*s'\n", i, (int) SCDC_DATASET_INOUT_BUF_CURRENT(output), (char *) SCDC_DATASET_INOUT_BUF_PTR(output));
   else
-    printf(PREFIX "processing OUTPUT #%" scdcint_fmt": %" scdcint_fmt " bytes\n", i, output->current_size);
+    printf(PREFIX "processing OUTPUT #%" scdcint_fmt": %" scdcint_fmt " bytes\n", i, SCDC_DATASET_INOUT_BUF_CURRENT(output));
 
   output->data = (void *) (intptr_t) (i + 1);
 
@@ -82,12 +82,11 @@ void do_dataset_cmd(scdc_dataset_t dataset, const char *cmd)
 
   strcpy(input.format, "data");
 
-  input.buf_size = DEFAULT_INPUT_BUF_SIZE;
-  input.buf = input_buf;
-
+  SCDC_DATASET_INOUT_BUF_PTR(&input) = input_buf;
+  SCDC_DATASET_INOUT_BUF_SIZE(&input) = DEFAULT_INPUT_BUF_SIZE;
+  SCDC_DATASET_INOUT_BUF_CURRENT(&input) = 0;
   input.total_size = 0;
   input.total_size_given = SCDC_DATASET_INOUT_TOTAL_SIZE_GIVEN_AT_LEAST;
-  input.current_size = 0;
 
   input.next = input_next;
   input.data = (void *) 0;
@@ -97,8 +96,8 @@ void do_dataset_cmd(scdc_dataset_t dataset, const char *cmd)
   /* prepare command output */
   scdc_dataset_output_unset(&output);
 
-  output.buf_size = DEFAULT_OUTPUT_BUF_SIZE;
-  output.buf = output_buf;
+  SCDC_DATASET_INOUT_BUF_PTR(&output) = output_buf;
+  SCDC_DATASET_INOUT_BUF_SIZE(&output) = DEFAULT_OUTPUT_BUF_SIZE;
 
   output.next = 0;
   output.data = (void *) 0;
@@ -146,7 +145,10 @@ int main(int argc, char *argv[])
 #if 0
   strcpy(scheme, "scdc");
   strcpy(authority, "");
-#else
+#elif 0
+  strcpy(scheme, "scdc+udp");
+  strcpy(authority, "");
+#elif 1
   strcpy(scheme, "scdc+tcp");
   strcpy(authority, "localhost");
 #endif

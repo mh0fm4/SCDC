@@ -47,12 +47,12 @@ extern const scdc_dataset_inout_intern_t scdc_dataset_inout_intern_null;
 #define SCDC_DATASET_OUTPUT_INTERN_NULL  scdc_dataset_inout_intern_null
 
 
-#define SCDC_DATASET_OUTPUT_STR(_d_)                    ((_d_)?(((_d_)->buf)?std::string(static_cast<char *>((_d_)->buf), (_d_)->current_size):""):"<null>")
+#define SCDC_DATASET_OUTPUT_STR(_d_)                    ((_d_)?((SCDC_DATASET_INOUT_BUF_PTR(_d_))?std::string(static_cast<char *>(SCDC_DATASET_INOUT_BUF_PTR(_d_)), SCDC_DATASET_INOUT_BUF_CURRENT(_d_)):""):"<null>")
 #define SCDC_DATASET_OUTPUT_CLEAR(_d_)                  Z_MOP(\
   if (_d_) { \
+    SCDC_DATASET_INOUT_BUF_CURRENT(_d_) = 0; \
     (_d_)->total_size = 0; \
     (_d_)->total_size_given = SCDC_DATASET_INOUT_TOTAL_SIZE_GIVEN_NONE; \
-    (_d_)->current_size = 0; \
     (_d_)->data = 0; \
     (_d_)->next = 0; \
   } )

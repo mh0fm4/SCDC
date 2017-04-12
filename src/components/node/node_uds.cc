@@ -18,6 +18,8 @@
  */
 
 
+#define SCDC_TRACE_NOT  !SCDC_TRACE_NODE_UDS
+
 #include "config.hh"
 #include "common.hh"
 #include "log.hh"

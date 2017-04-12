@@ -22,11 +22,4 @@
 #define __LIBLAPACK_SCDC_H__
 
 
-void liblapack_scdc_init();
-void liblapack_scdc_release();
-
-void scdc_sgesv_(int *N, int *NRHS, float *A, int *LDA, int *IPIV, float *B, int *LDB, int *INFO);
-void scdc_sgesv(int N, int NRHS, float *A, int LDA, int *IPIV, float *B, int LDB, int INFO);
-
-
-#endif /* __LAPACK_CALL_H__ */
+#endif /* __LIBLAPACK_SCDC_H__ */

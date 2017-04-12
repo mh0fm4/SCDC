@@ -27,6 +27,8 @@
 #include <cerrno>
 #include <exception>
 
+#define SCDC_TRACE_NOT  !SCDC_TRACE_TRANSPORT_UDS
+
 #include "config.hh"
 #include "log.hh"
 #include "transport_uds.hh"

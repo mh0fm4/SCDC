@@ -24,6 +24,8 @@
 #include <iostream>
 #include <typeinfo>
 
+#define SCDC_TRACE_NOT  !SCDC_TRACE_DATASET
+
 #include "config.hh"
 #include "log.hh"
 #include "common.hh"

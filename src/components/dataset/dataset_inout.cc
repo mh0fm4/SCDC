@@ -27,6 +27,8 @@
 
 #include "z_pack.h"
 
+#define SCDC_TRACE_NOT  !SCDC_TRACE_DATASET_INOUT
+
 #include "config.hh"
 #include "common.hh"
 #include "log.hh"
@@ -66,27 +68,34 @@ using namespace std;
 #define SCDC_DATASET_INOUT_TYPE_CONSUME      14
 
 
+const scdc_buf_t scdc_buf_none = { 0, 0, 0 };
+
+
 const scdc_dataset_inout_intern_t scdc_dataset_inout_intern_null =
 {
-  0, SCDC_DATASET_INOUT_TYPE_NULL,
-  NULL, NULL,
-  NULL,
+  0, /* alloc_size */
+  SCDC_DATASET_INOUT_TYPE_NULL, /* type */
+  0, 0, /* buf, data */
+  0, /* destroy */
 };
 
 
-#define INOUT_INTERN_BACKUP(_io_)   Z_MOP(if ((_io_)->intern) { (_io_)->intern->buf = (_io_)->buf; (_io_)->intern->data = (_io_)->data; })
-#define INOUT_INTERN_RESTORE(_io_)  Z_MOP(if ((_io_)->intern) { (_io_)->buf = (_io_)->intern->buf; (_io_)->data = (_io_)->intern->data; })
+#define INOUT_INTERN_BACKUP(_io_)   Z_MOP(if ((_io_)->intern) { (_io_)->intern->buf = SCDC_DATASET_INOUT_BUF_PTR(_io_); (_io_)->intern->data = (_io_)->data; })
+#define INOUT_INTERN_RESTORE(_io_)  Z_MOP(if ((_io_)->intern) { SCDC_DATASET_INOUT_BUF_PTR(_io_) = (_io_)->intern->buf; (_io_)->data = (_io_)->intern->data; })
 
 
 const scdc_dataset_inout_t scdc_dataset_inout_none =
 {
   "", /* format */
-  0, NULL, /* buf_size, buf */
-  0, /* current size */
+#if !SCDC_DEPRECATED
+  { 0, 0, 0 }, /* buf { ptr, size, current } */
+#else /* !SCDC_DEPRECATED */
+  0, 0, 0, /* buf, buf_size, current size */
+#endif /* !SCDC_DEPRECATED */
   0, SCDC_DATASET_INOUT_TOTAL_SIZE_GIVEN_NONE, /* total_size, total_size_given */
-  NULL, /* next */
-  NULL, /* data */
-  NULL, NULL, /* intern, intern_data */
+  0, /* next */
+  0, /* data */
+  0, 0, /* intern, intern_data */
 };
 
 
@@ -101,12 +110,15 @@ static scdcint_t scdc_dataset_inout_endl_next(scdc_dataset_inout_t *inout)
 const scdc_dataset_inout_t scdc_dataset_inout_endl =
 {
   "", /* format */
-  0, NULL, /* buf_size, buf */
-  0, /* current size */
+#if !SCDC_DEPRECATED
+  { 0, 0, 0 }, /* buf { ptr, size, current } */
+#else /* !SCDC_DEPRECATED */
+  0, 0, 0, /* buf, buf_size, current size */
+#endif /* !SCDC_DEPRECATED */
   0, SCDC_DATASET_INOUT_TOTAL_SIZE_GIVEN_NONE, /* total_size, total_size_given */
   scdc_dataset_inout_endl_next, /* next */
-  NULL, /* data */
-  NULL, NULL, /* intern, intern_data */
+  0, /* data */
+  0, 0, /* intern, intern_data */
 };
 
 
@@ -202,20 +214,20 @@ static void scdc_args_va_release(scdc_args_t *args)
 
 void scdc_dataset_output_printf(int append, scdc_dataset_output_t *output, const char *fmt, ...)
 {
-  if (!output || !output->buf) return;
+  if (!output || !SCDC_DATASET_INOUT_BUF_PTR(output)) return;
 
   strncpy(output->format, "text", SCDC_FORMAT_MAX_SIZE);
 
   if (!append)
   {
+    SCDC_DATASET_INOUT_BUF_CURRENT(output) = 0;
     output->total_size = 0;
-    output->current_size = 0;
   }
 
-  char *buf = static_cast<char *>(output->buf);
-  buf += output->current_size;
+  char *buf = static_cast<char *>(SCDC_DATASET_INOUT_BUF_PTR(output));
+  buf += SCDC_DATASET_INOUT_BUF_CURRENT(output);
 
-  scdcint_t buf_size = output->buf_size - output->current_size;
+  scdcint_t buf_size = SCDC_DATASET_INOUT_BUF_SIZE(output) - SCDC_DATASET_INOUT_BUF_CURRENT(output);
 
   va_list argptr;
   va_start(argptr, fmt);
@@ -224,7 +236,7 @@ void scdc_dataset_output_printf(int append, scdc_dataset_output_t *output, const
 
   n = min(buf_size, n);
 
-  output->current_size += n;
+  SCDC_DATASET_INOUT_BUF_CURRENT(output) += n;
   output->total_size += n;
 
   output->total_size_given = SCDC_DATASET_INOUT_TOTAL_SIZE_GIVEN_EXACT;
@@ -243,9 +255,9 @@ static void scdc_dataset_inout_prn(scdc_dataset_inout_t *inout, const char *pref
   if (inout)
   {
     prn("format: '%s', buf: %" scdcint_fmt " at %p, total_size: %" scdcint_fmt ", total_size_given: %c, current_size: %" scdcint_fmt ", next: %p, data: %p, intern: %p",
-      inout->format, inout->buf_size, inout->buf, inout->total_size, inout->total_size_given, inout->current_size, inout->next, inout->data, inout->intern);
+      inout->format, SCDC_DATASET_INOUT_BUF_SIZE(inout), SCDC_DATASET_INOUT_BUF_PTR(inout), inout->total_size, inout->total_size_given, SCDC_DATASET_INOUT_BUF_CURRENT(inout), inout->next, inout->data, inout->intern);
 
-    if (strcmp(inout->format, "text") == 0) prn(", content: '%.*s'", (int) inout->current_size, (char *) inout->buf);
+    if (strcmp(inout->format, "text") == 0) prn(", content: '%.*s'", (int) SCDC_DATASET_INOUT_BUF_CURRENT(inout), (char *) SCDC_DATASET_INOUT_BUF_PTR(inout));
   }
 
   prn(">");
@@ -282,13 +294,12 @@ void scdc_dataset_inout_unset(scdc_dataset_inout_t *inout)
 
   inout->format[0] = '\0';
 
-  inout->buf_size = 0;
-  inout->buf = 0;
+  SCDC_DATASET_INOUT_BUF_PTR(inout) = 0;
+  SCDC_DATASET_INOUT_BUF_SIZE(inout) = 0;
+  SCDC_DATASET_INOUT_BUF_CURRENT(inout) = 0;
 
   inout->total_size = 0;
   inout->total_size_given = SCDC_DATASET_INOUT_TOTAL_SIZE_GIVEN_NONE;
-
-  inout->current_size = 0;
 
   inout->data = 0;
   inout->next = 0;
@@ -327,9 +338,8 @@ static bool scdc_dataset_inout_alloc(scdc_dataset_inout_t *inout, scdcint_t buf_
 
   if (buf_size > 0)
   {
-    inout->buf_size = buf_size;
-    inout->buf = b;
-    b += buf_size;
+    SCDC_DATASET_INOUT_BUF_PTR(inout) = b;
+    SCDC_DATASET_INOUT_BUF_SIZE(inout) = buf_size;
   }
 
   return true;
@@ -342,7 +352,7 @@ static void scdc_dataset_inout_free(scdc_dataset_inout_t *inout)
   
   inout->intern = 0;
   
-  inout->buf = 0;
+  SCDC_DATASET_INOUT_BUF_PTR(inout) = 0;
 
   inout->data = 0;
 }
@@ -484,14 +494,14 @@ static scdc_dataset_input_t *scdc_dataset_input_buffer_create(scdc_dataset_input
   input->intern->type = SCDC_DATASET_INOUT_TYPE_BUFFER;
   input->intern->destroy = scdc_dataset_input_buffer_destroy;
 
-  input->buf_size = buffer.buf_size;
-  input->buf = buffer.buf;
+  SCDC_DATASET_INOUT_BUF_PTR(input) = buffer.buf;
+  SCDC_DATASET_INOUT_BUF_SIZE(input) = buffer.buf_size;
 
   strcpy(input->format, "data");
 
-  input->total_size = input->buf_size;
+  SCDC_DATASET_INOUT_BUF_CURRENT(input) = SCDC_DATASET_INOUT_BUF_SIZE(input);
+  input->total_size = SCDC_DATASET_INOUT_BUF_SIZE(input);
   input->total_size_given = SCDC_DATASET_INOUT_TOTAL_SIZE_GIVEN_EXACT;
-  input->current_size = input->buf_size;
 
   return input;
 }
@@ -520,8 +530,8 @@ static scdc_dataset_output_t *scdc_dataset_output_buffer_create(scdc_dataset_out
   output->intern->type = SCDC_DATASET_INOUT_TYPE_BUFFER;
   output->intern->destroy = scdc_dataset_output_buffer_destroy;
 
-  output->buf = v.buf;
-  output->buf_size = v.buf_size;
+  SCDC_DATASET_INOUT_BUF_PTR(output) = v.buf;
+  SCDC_DATASET_INOUT_BUF_SIZE(output) = v.buf_size;
 
   strcpy(output->format, "data");
 
@@ -700,18 +710,18 @@ static scdcint_t input_FX_next(scdc_dataset_input_t *input)
 {
   inout_FX_data_t<T> *data = static_cast<inout_FX_data_t<T> *>(input->data);
 
-  size_t n = input->buf_size;
+  size_t n = SCDC_DATASET_INOUT_BUF_SIZE(input);
 
   if (data->chunk_size >= 0) n = z_min(static_cast<scdcint_t>(n), data->chunk_size);
 
   if (data->size_left >= 0) n = z_min(static_cast<scdcint_t>(n), data->size_left);
 
-  n = data->read(input->buf, n);
+  n = data->read(SCDC_DATASET_INOUT_BUF_PTR(input), n);
 
   data->size_left -= n;
 
   /* set to the number of bytes read in buf */
-  input->current_size = n;
+  SCDC_DATASET_INOUT_BUF_CURRENT(input) = n;
 
   if (input->total_size_given == SCDC_DATASET_INOUT_TOTAL_SIZE_GIVEN_AT_LEAST) input->total_size += n;
 
@@ -736,7 +746,7 @@ static scdc_dataset_inout_t *scdc_dataset_input_FX_create(scdc_dataset_input_t *
   scdcint_t offset = 0;
   scdcint_t size = -1;
   scdcint_t chunk_size = -1;
-  scdc_args_buf_t buffer = { DEFAULT_DATASET_INOUT_BUF_SIZE, 0 };
+  scdc_args_buf_t buffer = { 0, DEFAULT_DATASET_INOUT_BUF_SIZE };
 
   stringlist confs(':', conf);
   scdc_args xargs(args);
@@ -744,8 +754,8 @@ static scdc_dataset_inout_t *scdc_dataset_input_FX_create(scdc_dataset_input_t *
   scdc_dataset_inout_t *inout_redirect = 0;
   if (xargs.get<scdc_dataset_inout_t *>(SCDC_ARGS_TYPE_DATASET_INOUT_REDIRECT_PTR, &inout_redirect) != SCDC_ARG_REF_NULL && inout_redirect)
   {
-    buffer.buf_size = inout_redirect->buf_size;
-    buffer.buf = inout_redirect->buf;
+    buffer.buf = SCDC_DATASET_INOUT_BUF_PTR(inout_redirect);
+    buffer.buf_size = SCDC_DATASET_INOUT_BUF_SIZE(inout_redirect);
   }
 
   string c;
@@ -817,8 +827,8 @@ static scdc_dataset_inout_t *scdc_dataset_input_FX_create(scdc_dataset_input_t *
 
   if (buffer.buf)
   {
-    input->buf_size = buffer.buf_size;
-    input->buf = buffer.buf;
+    SCDC_DATASET_INOUT_BUF_PTR(input) = buffer.buf;
+    SCDC_DATASET_INOUT_BUF_SIZE(input) = buffer.buf_size;
   }
 
   input->intern->type = SCDC_DATASET_INOUT_TYPE_NONE;
@@ -864,7 +874,7 @@ static scdc_dataset_inout_t *scdc_dataset_input_FX_create(scdc_dataset_input_t *
     }
   }
 
-  input->current_size = 0;
+  SCDC_DATASET_INOUT_BUF_CURRENT(input) = 0;
 
   input->next = input_FX_next<T>;
 
@@ -894,13 +904,13 @@ static scdcint_t output_FX_next(scdc_dataset_output_t *output)
 {
   inout_FX_data_t<T> *data = static_cast<inout_FX_data_t<T> *>(output->data);
 
-  size_t n = output->current_size;
+  size_t n = SCDC_DATASET_INOUT_BUF_CURRENT(output);
 
   if (data->chunk_size >= 0) n = z_min(static_cast<scdcint_t>(n), data->chunk_size);
 
   if (data->size_left >= 0) n = z_min(static_cast<scdcint_t>(n), data->size_left);
 
-  n = data->write(output->buf, n);
+  n = data->write(SCDC_DATASET_INOUT_BUF_PTR(output), n);
 
 #if SYNC_AFTER_WRITE
   data->sync();
@@ -909,7 +919,7 @@ static scdcint_t output_FX_next(scdc_dataset_output_t *output)
   data->size_left -= n;
 
   /* set to the nuber of bytes that have been written */
-  output->current_size = n;
+  SCDC_DATASET_INOUT_BUF_CURRENT(output) = n;
 
   if (data->size_left == 0)
   {
@@ -933,7 +943,7 @@ static scdc_dataset_output_t *scdc_dataset_output_FX_create(scdc_dataset_output_
   scdcint_t offset = 0;
   scdcint_t size = -1;
   scdcint_t chunk_size = -1;
-  scdc_args_buf_t buffer = { DEFAULT_DATASET_INOUT_BUF_SIZE, 0 };
+  scdc_args_buf_t buffer = { 0, DEFAULT_DATASET_INOUT_BUF_SIZE };
   bool trunc = false;
 
   stringlist confs(':', conf);
@@ -942,8 +952,8 @@ static scdc_dataset_output_t *scdc_dataset_output_FX_create(scdc_dataset_output_
   scdc_dataset_inout_t *inout_redirect = 0;
   if (xargs.get<scdc_dataset_inout_t *>(SCDC_ARGS_TYPE_DATASET_INOUT_REDIRECT_PTR, &inout_redirect) != SCDC_ARG_REF_NULL && inout_redirect)
   {
-    buffer.buf_size = inout_redirect->buf_size;
-    buffer.buf = inout_redirect->buf;
+    buffer.buf = SCDC_DATASET_INOUT_BUF_PTR(inout_redirect);
+    buffer.buf_size = SCDC_DATASET_INOUT_BUF_SIZE(inout_redirect);
   }
 
   string c;
@@ -1019,8 +1029,8 @@ static scdc_dataset_output_t *scdc_dataset_output_FX_create(scdc_dataset_output_
 
   if (buffer.buf)
   {
-    output->buf_size = buffer.buf_size;
-    output->buf = buffer.buf;
+    SCDC_DATASET_INOUT_BUF_PTR(output) = buffer.buf;
+    SCDC_DATASET_INOUT_BUF_SIZE(output) = buffer.buf_size;
   }
 
   output->intern->type = SCDC_DATASET_INOUT_TYPE_NONE;
@@ -1646,7 +1656,7 @@ typedef struct _input_fslist_dir_data_t
   char pathname[MAX_PATHNAME];
   bool follow_links;
   DIR *dir;
-  struct dirent ent, *result;
+  struct dirent *result;
 
 } input_fslist_dir_data_t;
 
@@ -1657,10 +1667,10 @@ static scdcint_t input_fslist_dir_next(scdc_dataset_input_t *input)
 
   bool first = true;
 
-  char *buf = static_cast<char *>(input->buf);
-  scdcint_t buf_size = input->buf_size;
+  char *buf = static_cast<char *>(SCDC_DATASET_INOUT_BUF_PTR(input));
+  scdcint_t buf_size = SCDC_DATASET_INOUT_BUF_SIZE(input);
 
-  input->current_size = 0;
+  SCDC_DATASET_INOUT_BUF_CURRENT(input) = 0;
 
   do {
 
@@ -1686,15 +1696,15 @@ static scdcint_t input_fslist_dir_next(scdc_dataset_input_t *input)
         buf += n;
         buf_size -= n;
 
+        SCDC_DATASET_INOUT_BUF_CURRENT(input) += n;
         input->total_size += n;
-        input->current_size += n;
 
         first = false;
 
       } else break;
     }
 
-    readdir_r(data->dir, &data->ent, &data->result);
+    data->result = readdir(data->dir);
 
   } while (data->result);
 
@@ -1738,7 +1748,7 @@ static scdc_dataset_inout_t *scdc_dataset_input_fslist_dir_create(scdc_dataset_i
 
   input->intern->type = SCDC_DATASET_INOUT_TYPE_FSLIST_DIR;
 
-  input->current_size = 0;
+  SCDC_DATASET_INOUT_BUF_CURRENT(input) = 0;
   input->total_size = 0;
   input->total_size_given = SCDC_DATASET_INOUT_TOTAL_SIZE_GIVEN_AT_LEAST;
 
@@ -1777,9 +1787,9 @@ static scdc_dataset_inout_t *scdc_dataset_input_fslist_file_create(scdc_dataset_
 
   input->intern->type = SCDC_DATASET_INOUT_TYPE_FSLIST_FILE;
 
-  scdcint_t n = snprintf(static_cast<char *>(input->buf), input->buf_size, "f:%" scdcint_fmt "|", z_fs_get_file_size(pathname));
+  scdcint_t n = snprintf(static_cast<char *>(SCDC_DATASET_INOUT_BUF_PTR(input)), SCDC_DATASET_INOUT_BUF_SIZE(input), "f:%" scdcint_fmt "|", z_fs_get_file_size(pathname));
 
-  input->current_size = n;
+  SCDC_DATASET_INOUT_BUF_CURRENT(input) = n;
   input->total_size = n;
   input->total_size_given = SCDC_DATASET_INOUT_TOTAL_SIZE_GIVEN_EXACT;
 
@@ -1816,13 +1826,13 @@ static scdc_dataset_inout_t *scdc_dataset_input_fslist_link_create(scdc_dataset_
 
   scdcint_t n = 0;
 
-  n += snprintf(static_cast<char *>(input->buf) + n, input->buf_size - n, "l:");
+  n += snprintf(static_cast<char *>(SCDC_DATASET_INOUT_BUF_PTR(input)) + n, SCDC_DATASET_INOUT_BUF_SIZE(input) - n, "l:");
 
-  n += z_fs_get_link_target(pathname, static_cast<char *>(input->buf) + n, input->buf_size - n - 1);
+  n += z_fs_get_link_target(pathname, static_cast<char *>(SCDC_DATASET_INOUT_BUF_PTR(input)) + n, SCDC_DATASET_INOUT_BUF_SIZE(input) - n - 1);
 
-  n += snprintf(static_cast<char *>(input->buf) + n, input->buf_size - n, "|");
+  n += snprintf(static_cast<char *>(SCDC_DATASET_INOUT_BUF_PTR(input)) + n, SCDC_DATASET_INOUT_BUF_SIZE(input) - n, "|");
 
-  input->current_size = n;
+  SCDC_DATASET_INOUT_BUF_CURRENT(input) = n;
   input->total_size = n;
   input->total_size_given = SCDC_DATASET_INOUT_TOTAL_SIZE_GIVEN_EXACT;
 
@@ -1911,11 +1921,11 @@ static scdcint_t input_produce_next(scdc_dataset_input_t *input)
 {
   input_produce_data_t *data = static_cast<input_produce_data_t *>(input->data);
 
-  input->current_size = (data->total_size_left < input->buf_size)?data->total_size_left:input->buf_size;
+  SCDC_DATASET_INOUT_BUF_CURRENT(input) = min(data->total_size_left, SCDC_DATASET_INOUT_BUF_SIZE(input));
 
-  memset(input->buf, 0, input->current_size);
+  memset(SCDC_DATASET_INOUT_BUF_PTR(input), 0, SCDC_DATASET_INOUT_BUF_CURRENT(input));
 
-  data->total_size_left -= input->current_size;
+  data->total_size_left -= SCDC_DATASET_INOUT_BUF_CURRENT(input);
 
   if (data->total_size_left <= 0) input->next = 0;
 
@@ -1952,7 +1962,7 @@ static scdc_dataset_inout_t *scdc_dataset_input_produce_create(scdc_dataset_inpu
 
   strcpy(input->format, "data");
 
-  input->current_size = 0;
+  SCDC_DATASET_INOUT_BUF_CURRENT(input) = 0;
   input->total_size = total_size;
   input->total_size_given = SCDC_DATASET_INOUT_TOTAL_SIZE_GIVEN_EXACT;
 
@@ -1979,7 +1989,7 @@ static void scdc_dataset_input_produce_destroy(scdc_dataset_input_t *input)
 /* type: output consume */
 static scdcint_t output_consume_next(scdc_dataset_output_t *output)
 {
-  SCDC_TRACE("consuming output of size = " << output->current_size);
+  SCDC_TRACE("consuming output of size = " << SCDC_DATASET_INOUT_BUF_CURRENT(output));
 
   return SCDC_SUCCESS;
 }
@@ -2061,7 +2071,7 @@ static scdcint_t autodestroy_next(scdc_dataset_input_t *inout)
   } else
   {
     if (inout->intern && inout->intern->destroy) inout->intern->destroy(inout);
-    inout->current_size = 0;
+    SCDC_DATASET_INOUT_BUF_CURRENT(inout) = 0;
     ret = SCDC_SUCCESS;
   }
 
@@ -2341,23 +2351,23 @@ static void inout2inout(scdc_dataset_inout_t *src, scdc_dataset_inout_t *dst, bo
 {
   strncpy(dst->format, src->format, SCDC_FORMAT_MAX_SIZE);
 
-  scdcint_t size = src->current_size;
+  scdcint_t size = SCDC_DATASET_INOUT_BUF_CURRENT(src);
 
   if (copy)
   {
-    size = min(size, dst->buf_size);
-    memcpy(dst->buf, src->buf, size);
+    size = min(size, SCDC_DATASET_INOUT_BUF_SIZE(dst));
+    memcpy(SCDC_DATASET_INOUT_BUF_PTR(dst), SCDC_DATASET_INOUT_BUF_PTR(src), size);
 
   } else
   {
-    dst->buf = src->buf;
-    dst->buf_size = src->buf_size;
+    SCDC_DATASET_INOUT_BUF_PTR(dst) = SCDC_DATASET_INOUT_BUF_PTR(src);
+    SCDC_DATASET_INOUT_BUF_SIZE(dst) = SCDC_DATASET_INOUT_BUF_SIZE(src);
   }
 
   dst->total_size = src->total_size;
   dst->total_size_given = src->total_size_given;
 
-  dst->current_size = size;
+  SCDC_DATASET_INOUT_BUF_CURRENT(dst) = size;
 }
 
 
@@ -2420,14 +2430,14 @@ static scdcint_t scdc_dataset_inout_redirect_to(scdc_dataset_inout_t *inout, con
       }
 
 #if 0
-      scdcint_t size = inout->current_size - output->current_size;
+      scdcint_t size = SCDC_DATASET_INOUT_BUF_CURRENT(inout) - SCDC_DATASET_INOUT_BUF_CURRENT(output);
 #endif
 
       /* update given inout */
       inout2inout(output, inout, false);
 
 #if 0
-      inout->current_size = size;
+      SCDC_DATASET_INOUT_BUF_CURRENT(inout) = size;
 #endif
 
       if (!inout->next) break;
@@ -2446,7 +2456,7 @@ static scdcint_t scdc_dataset_inout_redirect_to(scdc_dataset_inout_t *inout, con
     inout2inout(inout, output, true);
 
     /* set current_size of source to the size of the processed data */
-    inout->current_size = output->current_size;
+    SCDC_DATASET_INOUT_BUF_CURRENT(inout) = SCDC_DATASET_INOUT_BUF_CURRENT(output);
   }
 
   scdc_dataset_output_destroy(output);

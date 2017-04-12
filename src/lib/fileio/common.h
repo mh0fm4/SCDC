@@ -50,7 +50,7 @@ int original_fprintf(FILE *stream, const char *format, ...);
 #if HAVE_ASSERT
 # define ASSERT(_b_)      Z_MOP(if (!(_b_)) fprintf(stderr, "ASSERT: '" #_b_ "' failed!\n");)
 #else
-# define ASERT(_b_)       Z_NOP()
+# define ASSERT(_b_)      Z_NOP()
 #endif
 
 typedef long long dsint_t;

@@ -59,7 +59,7 @@ void pyscdc_pyerr_log_cout_print(void);
 # define PYSCDC_INFO(_x_...)  Z_NOP()
 #endif
 
-#if HAVE_PYSCDC_TRACE && !defined(PYSCDC_TRACE_NOT)
+#if HAVE_PYSCDC_TRACE && !PYSCDC_TRACE_NOT
 # define PYSCDC_TRACE_PREFIX                          "PYSCDC-TRACE: "
 # define PYSCDC_TRACE(_x_...)                         scdc_log_cout_printf_nl(PYSCDC_TRACE_PREFIX _x_)
 # define PYSCDC_TRACE_N(_x_...)                       scdc_log_cout_printf(PYSCDC_TRACE_PREFIX _x_)

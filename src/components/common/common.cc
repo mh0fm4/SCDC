@@ -26,7 +26,7 @@
 #include <cmath>
 #include <vector>
 
-#define SCDC_TRACE_NOT  0
+#define SCDC_TRACE_NOT  !SCDC_TRACE_COMMON
 
 #include "config.hh"
 #include "log.hh"

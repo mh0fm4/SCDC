@@ -20,6 +20,8 @@
 
 #include <pthread.h>
 
+#define SCDC_TRACE_NOT  !SCDC_TRACE_COMPCOUP_DIRECT
+
 #include "config.hh"
 #include "log.hh"
 #include "dataset.hh"

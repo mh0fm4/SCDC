@@ -18,34 +18,107 @@
 #  
 
 
+NAME:=LAPACK
+name:=lapack
+
+LIB:=lib$(name)_scdc.a
+LIBSO:=lib$(name)_scdc.so
+EXEC:=lib$(name)_scdc_srv test_$(name)_native test_$(name)_scdc test_$(name)_scdc_linked
+EXEC_FILTER:=test_$(name)%
+
 HFILES:=$(wildcard *.h)
-CFILES:=$(wildcard *lapack_*.c)
-OFILES:=$(addsuffix .o,$(basename $(CFILES)))
+CFILES:=$(wildcard *.c)
+HXXFILES:=$(wildcard *.hh)
+CXXFILES:=$(wildcard *.cc)
 
-LIB:=liblapack_scdc.a
-EXEC:=liblapack_scdc_srv test_sgesv
+HFILES_EXEC:=$(filter $(addsuffix %,$(EXEC)) $(EXEC_FILTER),$(HFILES))
+CFILES_EXEC:=$(filter $(addsuffix %,$(EXEC)) $(EXEC_FILTER),$(CFILES))
+HXXFILES_EXEC:=$(filter $(addsuffix %,$(EXEC)) $(EXEC_FILTER),$(HXXFILES))
+CXXFILES_EXEC:=$(filter $(addsuffix %,$(EXEC)) $(EXEC_FILTER),$(CXXFILES))
 
-LIBS:=$(LIB)
-LIBS+=-lopenblas
+HFILES_LIB:=$(filter-out $(HFILES_EXEC), $(HFILES))
+CFILES_LIB:=$(filter-out $(CFILES_EXEC), $(CFILES))
+HXXFILES_LIB:=$(filter-out $(HXXFILES_EXEC), $(HXXFILES))
+CXXFILES_LIB:=$(filter-out $(CXXFILES_EXEC), $(CXXFILES))
+
+OFILES:=$(addsuffix .o,$(basename $(CFILES) $(CXXFILES)))
+OFILES_LIB:=$(addsuffix .o,$(basename $(CFILES_LIB) $(CXXFILES_LIB)))
+OFILES_EXEC:=$(addsuffix .o,$(basename $(CFILES_EXEC) $(CXXFILES_EXEC)))
+
+$(NAME)_LDFLAGS:=
+$(NAME)_LIBS:=-llapack
+
+REDIRECT_DEPENDS:=../redirect/redirect_call.h ../redirect/libredirect_scdc.a
+REDIRECT_CPPFLAGS:=-I../redirect
+REDIRECT_LDFLAGS:=-L../redirect
+REDIRECT_LIBS:=-lredirect_scdc
 
 -include Makefile.in
 
+DEPS+=Makefile Makefile.in $(REDIRECT_DEPENDS)
+#CPPFLAGS+=-DLIB$(NAME)_SCDC_PREFIX=1
+CPPFLAGS+=$(REDIRECT_CPPFLAGS)
+CFLAGS+=-fPIC #-std=c99
+#CFLAGS+=-Wpedantic
+LDFLAGS+=
 
-all: $(LIB) $(EXEC)
+$(NAME)_SCDC_DEPENDS:=$(LIB) $(LIBSO)
+$(NAME)_SCDC_CPPFLAGS:=
+$(NAME)_SCDC_LDFLAGS:=$(REDIRECT_LDFLAGS) $($(NAME)_LDFLAGS)
+$(NAME)_SCDC_A_LIBS:=lib$(name)_scdc.a -ldl $(REDIRECT_LIBS) $($(NAME)_LIBS)
+$(NAME)_SCDC_SO_LIBS:=lib$(name)_scdc.so -ldl
 
-$(LIB): $(OFILES)
-	$(AR) r $@ $(OFILES)
+LIBS+=-lm
 
-%.o: %.c $(HFILES) Makefile
+
+all: $(LIB) $(LIBSO) $(EXEC)
+
+%.o: %.c $(HFILES) $(DEPS)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
-%: %.c $(LIB)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIBS)
+%.o: %.cc $(HFILES) $(HXXFILES) $(DEPS)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c -o $@ $<
+
+$(LIB): $(OFILES_LIB)
+	$(AR) r $@ $(OFILES_LIB)
+
+$(LIBSO): $(OFILES_LIB)
+	$(LD) $(LDFLAGS) $($(NAME)_SCDC_LDFLAGS) -shared -o $@ $(OFILES_LIB) $($(NAME)_SCDC_A_LIBS) $(LIBS)
+
+lib$(name)_scdc_srv: lib$(name)_scdc_srv.c $(CFILES_EXEC) $(DEPS) $($(NAME)_SCDC_DEPENDS)
+	$(CC) $(CPPFLAGS) $(LDFLAGS) $($(NAME)_SCDC_LDFLAGS) -o $@ $< $($(NAME)_SCDC_A_LIBS) $(LIBS)
+
+%_native: %.c $(CFILES_EXEC) $(DEPS)
+	$(CC) $(CPPFLAGS) -DLIB$(NAME)_SCDC=0 $(LDFLAGS) $($(NAME)_LDFLAGS) -o $@ $(wildcard $(basename $<)*.c) $($(NAME)_LIBS) $(LIBS)
+
+%_scdc: %.c $(CFILES_EXEC) $($(NAME)_SCDC_DEPENDS) $(DEPS)
+	$(CC) $(CPPFLAGS) -DLIB$(NAME)_SCDC=1 $(LDFLAGS) $($(NAME)_SCDC_LDFLAGS) -o $@ $(wildcard $(basename $<)*.c) $($(NAME)_SCDC_A_LIBS) $(LIBS)
+
+%_scdc_linked: %.c $(CFILES_EXEC) $($(NAME)_SCDC_DEPENDS) $(DEPS)
+	$(CC) $(CPPFLAGS) -DLIB$(NAME)_SCDC=1 $(LDFLAGS) $($(NAME)_SCDC_LDFLAGS) -o $@ $(wildcard $(basename $<)*.c) $($(NAME)_SCDC_SO_LIBS) $(LIBS)
 
 clean: Makefile
-	rm -rf $(OFILES) $(LIB) $(EXEC)
+	rm -rf $(OFILES) $(LIB) $(LIBSO) $(EXEC)
 
 info: 
 	@echo "HFILES: $(HFILES)"
 	@echo "CFILES: $(CFILES)"
+	@echo "HXXFILES: $(HXXFILES)"
+	@echo "CXXFILES: $(CXXFILES)"
 	@echo "OFILES: $(OFILES)"
+	@echo "HFILES_LIB: $(HFILES_LIB)"
+	@echo "CFILES_LIB: $(CFILES_LIB)"
+	@echo "HXXFILES_LIB: $(HXXFILES_LIB)"
+	@echo "CXXFILES_LIB: $(CXXFILES_LIB)"
+	@echo "OFILES_LIB: $(OFILES_LIB)"
+	@echo "HFILES_EXEC: $(HFILES_EXEC)"
+	@echo "CFILES_EXEC: $(CFILES_EXEC)"
+	@echo "HXXFILES_EXEC: $(HXXFILES_EXEC)"
+	@echo "CXXFILES_EXEC: $(CXXFILES_EXEC)"
+	@echo "OFILES_EXEC: $(OFILES_EXEC)"
+	@echo "DEPS: $(DEPS)"
+	@echo "CPPFLAGS: $(CPPFLAGS)"
+	@echo "CFLAGS: $(CFLAGS)"
+	@echo "CXXFLAGS: $(CXXFLAGS)"
+	@echo "LDFLAGS: $(LDFLAGS)"
+	@echo "LIBS: $(LIBS)"

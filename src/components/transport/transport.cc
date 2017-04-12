@@ -24,6 +24,8 @@
 #include <list>
 #include <algorithm>
 
+#define SCDC_TRACE_NOT  !SCDC_TRACE_TRANSPORT
+
 #include "config.hh"
 #include "log.hh"
 #include "dataset_inout.h"
@@ -717,7 +719,7 @@ void scdc_transport::release_outgoing_dataset_output(scdc_transport_connection_t
 
 static bool incoming_dataset_inout_has_buf(scdc_transport_connection_t *conn, scdc_dataset_inout_t *inout)
 {
-  return (inout->buf && inout->buf_size > 0 && !conn->incoming.ptr_inside(inout->buf));
+  return (SCDC_DATASET_INOUT_BUF_PTR(inout) && SCDC_DATASET_INOUT_BUF_SIZE(inout) > 0 && !conn->incoming.ptr_inside(SCDC_DATASET_INOUT_BUF_PTR(inout)));
 }
 
 
@@ -725,11 +727,11 @@ static bool recv_incoming_dataset_inout_extern(scdc_transport_connection_t *conn
 {
   bool ret = true;
 
-  char *dst = static_cast<char *>(inout->buf);
-  scdcint_t dst_size = inout->buf_size;
+  char *dst = static_cast<char *>(SCDC_DATASET_INOUT_BUF_PTR(inout));
+  scdcint_t dst_size = SCDC_DATASET_INOUT_BUF_SIZE(inout);
 
-  dst += inout->current_size;
-  dst_size -= inout->current_size;
+  dst += SCDC_DATASET_INOUT_BUF_CURRENT(inout);
+  dst_size -= SCDC_DATASET_INOUT_BUF_CURRENT(inout);
 
   if (max_recv > 0)
   {
@@ -747,7 +749,7 @@ static bool recv_incoming_dataset_inout_extern(scdc_transport_connection_t *conn
     dst_size -= n;
 
     max_recv -= n;
-    inout->current_size += n;
+    SCDC_DATASET_INOUT_BUF_CURRENT(inout) += n;
   }
 
   if (max_recv > 0)
@@ -774,7 +776,7 @@ static bool recv_incoming_dataset_inout_extern(scdc_transport_connection_t *conn
       dst_size -= n;
 
       max_recv -= n;
-      inout->current_size += n;
+      SCDC_DATASET_INOUT_BUF_CURRENT(inout) += n;
     }
 
     ret = ret && (n >= 0);
@@ -790,7 +792,7 @@ static bool recv_incoming_dataset_inout_intern(scdc_transport_connection_t *conn
 {
   bool ret = true;
 
-  if (inout->current_size != 0)
+  if (SCDC_DATASET_INOUT_BUF_CURRENT(inout) != 0)
   {
     SCDC_FATAL("recv_incoming_dataset_inout_intern: non-empty inout during internal receive through incoming buffer");
     return false;
@@ -802,13 +804,13 @@ static bool recv_incoming_dataset_inout_intern(scdc_transport_connection_t *conn
 
     scdcint_t n = min(conn->incoming.get_read_pos_buf_size(), max_recv);
 
-    inout->buf = conn->incoming.get_read_pos_buf();
-    inout->buf_size = n;
+    SCDC_DATASET_INOUT_BUF_PTR(inout) = conn->incoming.get_read_pos_buf();
+    SCDC_DATASET_INOUT_BUF_SIZE(inout) = n;
 
     conn->incoming.inc_read_pos(n);
 
     max_recv -= n;
-    inout->current_size += n;
+    SCDC_DATASET_INOUT_BUF_CURRENT(inout) += n;
   }
 
   cont_recv = false;
@@ -837,11 +839,11 @@ static bool send_outgoing_dataset_inout(scdc_transport_connection_t *conn, scdc_
 {
   bool ret = true;
 
-  scdcint_t mx = inout->current_size;
-  inout->current_size = 0;
+  scdcint_t mx = SCDC_DATASET_INOUT_BUF_CURRENT(inout);
+  SCDC_DATASET_INOUT_BUF_CURRENT(inout) = 0;
 
-  const char *src = static_cast<char *>(inout->buf);
-  scdcint_t src_size = inout->buf_size;
+  const char *src = static_cast<char *>(SCDC_DATASET_INOUT_BUF_PTR(inout));
+  scdcint_t src_size = SCDC_DATASET_INOUT_BUF_SIZE(inout);
 
   if (mx > 0)
   {
@@ -862,7 +864,7 @@ static bool send_outgoing_dataset_inout(scdc_transport_connection_t *conn, scdc_
       src_size -= n;
 
       mx -= n;
-      inout->current_size += n;
+      SCDC_DATASET_INOUT_BUF_CURRENT(inout) += n;
     }
   }
 
@@ -893,7 +895,7 @@ static bool send_outgoing_dataset_inout(scdc_transport_connection_t *conn, scdc_
       src_size -= n;
 
       mx -= n;
-      inout->current_size += n;
+      SCDC_DATASET_INOUT_BUF_CURRENT(inout) += n;
     }
 
     ret = ret && (n >= 0);

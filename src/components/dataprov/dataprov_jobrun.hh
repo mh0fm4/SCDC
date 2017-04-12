@@ -196,6 +196,14 @@ class scdc_dataprov_jobrun_system: public scdc_dataprov_jobrun
 };
 
 
+class scdc_dataprov_jobrun_remote: public scdc_dataprov_jobrun
+{
+  public:
+    scdc_dataprov_jobrun_remote();
+};
+
+
+
 class scdc_dataprov_jobrun_handler: public scdc_dataprov_jobrun
 {
   public:

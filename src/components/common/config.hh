@@ -67,8 +67,6 @@
 #endif
 
 
-#define TRACE_DATA_SIZE_MAX  1024
-
 #define TRANSPORT_TCP_LISTEN_BACKLOG  16
 
 #define NODE_TCP_HOST_DEFAULT  "localhost"
@@ -79,5 +77,45 @@
 #define NODE_UDS_SOCKETFILE_DEFAULT  "/tmp/scdc_%s.uds"
 #define NODE_UDS_SOCKETNAME_DEFAULT  "default"
 
+
+#define TRACE_DATA_SIZE_MAX  1024
+
+/* logging */
+#define SCDC_TRACE_COMMON  0
+
+#define SCDC_TRACE_LOG  0
+
+#define SCDC_TRACE_DATA  0
+
+#define SCDC_TRACE_TRANSPORT         0
+#define SCDC_TRACE_TRANSPORT_UDS     0
+#define SCDC_TRACE_TRANSPORT_TCP     0
+#define SCDC_TRACE_TRANSPORT_MPI     0
+#define SCDC_TRACE_TRANSPORT_STREAM  0
+
+#define SCDC_TRACE_COMPCOUP            0
+#define SCDC_TRACE_COMPCOUP_DIRECT     0
+#define SCDC_TRACE_COMPCOUP_TRANSPORT  0
+
+#define SCDC_TRACE_NODEPORT       0
+#define SCDC_TRACE_NODEPORT_POOL  0
+
+#define SCDC_TRACE_NODECONN       0
+#define SCDC_TRACE_NODECONN_POOL  0
+
+#define SCDC_TRACE_NODE_UDS     0
+#define SCDC_TRACE_NODE_TCP     0
+#define SCDC_TRACE_NODE_MPI     0
+#define SCDC_TRACE_NODE_STREAM  0
+
+#define SCDC_TRACE_DATAPROV         0
+#define SCDC_TRACE_DATAPROV_POOL    0
+#define SCDC_TRACE_DATAPROV_HOOK    0
+#define SCDC_TRACE_DATAPROV_JOBRUN  0
+
+#define SCDC_TRACE_DATASET          0
+#define SCDC_TRACE_DATASET_INOUT    0
+
+#define SCDC_TRACE_LIBSCDC  0
 
 #endif /* __SCDC_CONFIG_HH__ */

@@ -36,7 +36,19 @@ extern "C" {
 #endif
 
 
+#define SCDC_DEPRECATED  HAVE_SCDC_DEPRECATED
+
 #define SCDC_DEBUG  HAVE_SCDC_DEBUG
+
+
+/* fallback definition, see "6.47 Function Names as Strings" in gcc-4.9 doc */
+#if __STDC_VERSION__ < 199901L && !defined(__func__)
+# if __GNUC__ >= 2
+#  define __func__ __FUNCTION__
+# else
+#  define __func__ "<unknown>"
+# endif
+#endif
 
 
 /* basic constants and types */
@@ -62,10 +74,19 @@ typedef long long scdcint_t;
 
 #define SCDC_FORMAT_MAX_SIZE  16
 
+#define SCDC_DATASET_INOUT_BUF_MULTIPLE  0
+
 #define SCDC_DATASET_INOUT_TOTAL_SIZE_GIVEN_EXACT     'x'
 #define SCDC_DATASET_INOUT_TOTAL_SIZE_GIVEN_AT_LEAST  'l'
 #define SCDC_DATASET_INOUT_TOTAL_SIZE_GIVEN_AT_MOST   'm'
 #define SCDC_DATASET_INOUT_TOTAL_SIZE_GIVEN_NONE      'n'
+
+typedef struct _scdc_buf_t
+{
+  void *ptr;
+  scdcint_t size, current;
+
+} scdc_buf_t;
 
 struct _scdc_dataset_inout_t;
 
@@ -77,10 +98,15 @@ typedef struct _scdc_dataset_inout_t
 {
   char format[SCDC_FORMAT_MAX_SIZE];
 
-  scdcint_t buf_size;
+#if !SCDC_DEPRECATED
+  scdc_buf_t buf;
+#else /* !SCDC_DEPRECATED */
   void *buf;
+  scdcint_t buf_size;
+  scdcint_t current_size;
+#endif /* !SCDC_DEPRECATED */
 
-  scdcint_t current_size, total_size;
+  scdcint_t total_size;
   char total_size_given;
 
   scdc_dataset_inout_next_f *next;
@@ -91,6 +117,26 @@ typedef struct _scdc_dataset_inout_t
   void *intern_data;
 
 } scdc_dataset_inout_t;
+
+#if !SCDC_DEPRECATED
+# define SCDC_DATASET_INOUT_BUF_PTR(_inout_)      (_inout_)->buf.ptr
+# define SCDC_DATASET_INOUT_BUF_SIZE(_inout_)     (_inout_)->buf.size
+# define SCDC_DATASET_INOUT_BUF_CURRENT(_inout_)  (_inout_)->buf.current
+#else /* !SCDC_DEPRECATED */
+# define SCDC_DATASET_INOUT_BUF_PTR(_inout_)      (_inout_)->buf
+# define SCDC_DATASET_INOUT_BUF_SIZE(_inout_)     (_inout_)->buf_size
+# define SCDC_DATASET_INOUT_BUF_CURRENT(_inout_)  (_inout_)->current_size
+#endif /* !SCDC_DEPRECATED */
+#define SCDC_DATASET_INOUT_BUF_SET_C(_inout_, _c_)  (SCDC_DATASET_INOUT_BUF_CURRENT(_inout_) = (_c_))
+#define SCDC_DATASET_INOUT_BUF_GET_C(_inout_)       (SCDC_DATASET_INOUT_BUF_CURRENT(_inout_) > 0)?SCDC_DATASET_INOUT_BUF_CURRENT(_inout_):0)
+
+#if SCDC_DATASET_INOUT_BUF_MULTIPLE
+# define SCDC_DATASET_INOUT_BUF_M_PTR(_inout_, _m_)      ((scdc_buf_t *) SCDC_DATASET_INOUT_BUF_PTR(_inout_))[_m_].ptr
+# define SCDC_DATASET_INOUT_BUF_M_SIZE(_inout_, _m_)     ((scdc_buf_t *) SCDC_DATASET_INOUT_BUF_PTR(_inout_))[_m_].size
+# define SCDC_DATASET_INOUT_BUF_M_CURRENT(_inout_, _m_)  ((scdc_buf_t *) SCDC_DATASET_INOUT_BUF_PTR(_inout_))[_m_].current
+# define SCDC_DATASET_INOUT_BUF_M_SET_C(_inout_, _c_)    (SCDC_DATASET_INOUT_BUF_CURRENT(_inout_) = -(_c_))
+# define SCDC_DATASET_INOUT_BUF_M_GET_C(_inout_)         (SCDC_DATASET_INOUT_BUF_CURRENT(_inout_) < 0)?-SCDC_DATASET_INOUT_BUF_CURRENT(_inout_):0)
+#endif /* SCDC_DATASET_INOUT_BUF_MULTIPLE */
 
 typedef scdc_dataset_inout_t scdc_dataset_input_t;
 typedef scdc_dataset_inout_t scdc_dataset_output_t;

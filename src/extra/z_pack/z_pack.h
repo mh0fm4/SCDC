@@ -23,7 +23,11 @@
 
 
 #ifdef __cplusplus
-extern "C" {
+# define Z_DECLARE_FUNCTION_BEGIN  extern "C" {
+# define Z_DECLARE_FUNCTION_END    }
+#else
+# define Z_DECLARE_FUNCTION_BEGIN
+# define Z_DECLARE_FUNCTION_END
 #endif
 
 
@@ -59,6 +63,15 @@ extern "C" {
 #define Z_STRINGIFY(_a_)   Z_STRINGIFY_(_a_)
 #define Z_STRINGIFY_(_a_)  #_a_
 
+/* fallback definition, see "6.47 Function Names as Strings" in gcc-4.9 doc */
+#if __STDC_VERSION__ < 199901L && !defined(__func__)
+# if __GNUC__ >= 2
+#  define __func__ __FUNCTION__
+# else
+#  define __func__ "<unknown>"
+# endif
+#endif
+
 
 #ifdef Z_PACK_MPI
 
@@ -72,6 +85,7 @@ extern "C" {
 #  define zcomm_val(_c_)  (((_c_) != MPI_COMM_NULL)?"valid":"null")
 # endif
 
+Z_DECLARE_FUNCTION_BEGIN
 void z_mpi_remap_cart_topology(int from_ndims, int *from_dims, int *from_torus, int *from_pos, int to_ndims, int *to_dims, int *to_torus, int *to_pos);
 void z_mpi_get_cart_topology(int *ndims, int *dims, int *torus, int *pos);
 void z_mpi_get_grid4d(int *dims, int *pos);
@@ -89,10 +103,12 @@ void z_mpi_get_grid4d(int *dims, int *pos);
 #define z_abs(_a_)                (((_a_) >= 0)?(_a_):-(_a_))
 #define z_swap(_a_, _b_, _t_)     do { (_t_) = (_a_); (_a_) = (_b_); (_b_) = (_t_); } while (0)
 
-#ifdef __cplusplusFIXME
-# include <cmath>
-#else
-# include <math.h>
+#if HAVE_MATH_H
+# ifdef __cplusplus
+#  include <cmath>
+# else
+#  include <math.h>
+# endif
 #endif
 
 #if defined(HAVE_ROUND) || (defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L)
@@ -132,10 +148,12 @@ void z_mpi_get_grid4d(int *dims, int *pos);
 
 #ifdef Z_PACK_DEBUG
 
-#ifdef __cplusplus
-# include <cstdio>
-#else
-# include <stdio.h>
+#if HAVE_STDIO_H || STDC_HEADERS
+# ifdef __cplusplus
+#  include <cstdio>
+# else
+#  include <stdio.h>
+# endif
 #endif
 
 extern FILE *z_notice_fstream, *z_error_fstream, *z_debug_fstream;
@@ -243,29 +261,35 @@ extern FILE *z_notice_fstream, *z_error_fstream, *z_debug_fstream;
 
 #ifdef Z_PACK_ALLOC
 
-#ifdef __cplusplus
-# include <cstdlib>
-#else
-# include <stdlib.h>
+#if HAVE_STDLIB_H || STDC_HEADERS
+# ifdef __cplusplus
+#  include <cstdlib>
+# else
+#  include <stdlib.h>
+# endif
 #endif
 
 #ifndef z_alloc_hook
 # define z_alloc_hook_func(_n_, _s_, _r_, _fi_, _li_, _fu_)  (_r_)
 #else
+Z_DECLARE_FUNCTION_BEGIN
 inline static void *z_alloc_hook_func(z_int_t n, z_int_t s, void *r, const char *fi, int li, const char *fu)
 {
   z_alloc_hook(n, s, r, fi, li, fu);
   return r;
 }
+Z_DECLARE_FUNCTION_END
 #endif
 #ifndef z_realloc_hook_func
 # define z_realloc_hook_func(_p_, _n_, _s_, _r_, _fi_, _li_, _fu_)  (_r_)
 #else
+Z_DECLARE_FUNCTION_BEGIN
 inline static void *z_realloc_hook_func(void *p, z_int_t n, z_int_t s, void *r, const char *fi, int li, const char *fu)
 {
   z_realloc_hook(p, n, s, r, fi, li, fu);
   return r;
 }
+Z_DECLARE_FUNCTION_END
 #endif
 #ifndef z_free_hook
 # define z_free_hook(_p_)
@@ -284,17 +308,21 @@ inline static void *z_realloc_hook_func(void *p, z_int_t n, z_int_t s, void *r, 
 #ifndef z_alloca_hook
 # define z_alloca_hook_func(_n_, _s_, _p_, _fi_, _li_, _fu_)  (_p_)
 #else
+Z_DECLARE_FUNCTION_BEGIN
 inline static void *z_alloca_hook_func(z_int_t n, z_int_t s, void *p, const char *fi, int li, const char *fu)
 {
   z_alloca_hook(n, s, p, fi, li, fu);
   return p;
 }
+Z_DECLARE_FUNCTION_END
 #endif
 #ifndef z_freea_hook
 # define z_freea_hook(_p_)
 #endif
 
-#include <alloca.h>
+#ifdef HAVE_ALLOCA_H
+# include <alloca.h>
+#endif
 
 #define z_alloca(_n_, _s_)  z_alloca_hook_func((z_int_t) _n_, (z_int_t) _s_, alloca((_n_) * (_s_)), __FILE__, __LINE__, __func__)
 #ifdef Z_ALLOC_DEBUG
@@ -313,24 +341,32 @@ typedef double z_time_t;
 # define z_time_save(_t_)            (_t_ = MPI_Wtime())
 # define z_time_diff_s(_f_, _t_)     ((_t_) - (_f_))
 # define z_time_get_s()              (MPI_Wtime())
+Z_DECLARE_FUNCTION_BEGIN
 inline static double z_time_wtime() { return MPI_Wtime(); }
+Z_DECLARE_FUNCTION_END
 #else
-# ifdef __cplusplus
-#  include <cstddef>
-# else
-#  include <stddef.h>
+# if HAVE_STDDEF_H
+#  ifdef __cplusplus
+#   include <cstddef>
+#  else
+#   include <stddef.h>
+#  endif
 # endif
-# include <sys/time.h>
+# if HAVE_SYS_TIME_H
+#  include <sys/time.h>
+# endif
 typedef struct timeval z_time_t;
 # define z_time_save(_t_)            (gettimeofday(&(_t_), NULL))
 # define z_time_diff_s(_f_, _t_)     ((double) (((_t_).tv_sec - (_f_).tv_sec) + ((_t_).tv_usec - (_f_).tv_usec) / 1000000.0))
 # define z_time_get_s()              (z_time_wtime())
+Z_DECLARE_FUNCTION_BEGIN
 inline static double z_time_wtime()
 {
   struct timeval tv;
   gettimeofday(&tv, NULL);
   return (double) tv.tv_sec + (tv.tv_usec * 1e-6);
 }
+Z_DECLARE_FUNCTION_END
 #endif
 
 #endif /* Z_PACK_TIME */
@@ -356,8 +392,15 @@ inline static double z_time_wtime()
 # define Z_TIMING_PRINT_PREFIX                    "TIMING: "
 #endif
 
-#include <stdio.h>
+#if HAVE_STDIO_H || STDC_HEADERS
+# ifdef __cplusplus
+#  include <cstdio>
+# else
+#  include <stdio.h>
+# endif
+#endif
 
+Z_DECLARE_FUNCTION_BEGIN
 inline static void z_timing_print_default(int id, const char *s, z_int_t n, double *v, int rank)
 {
   int i;
@@ -365,6 +408,7 @@ inline static void z_timing_print_default(int id, const char *s, z_int_t n, doub
   for (i = 0; i < n; ++i) printf(" %f", v[i]);
   printf("\n");
 }
+Z_DECLARE_FUNCTION_END
 
 #else
 
@@ -387,21 +431,35 @@ inline static void z_timing_print_default(int id, const char *s, z_int_t n, doub
 # undef Z_RAND_MIN
 # undef Z_RAND_MAX
 # if defined(HAVE_RANDOM) && !defined(__STRICT_ANSI__)
-#  include <stdlib.h>
+#  if HAVE_STDLIB_H || STDC_HEADERS
+#   ifdef __cplusplus
+#    include <cstdlib>
+#   else
+#    include <stdlib.h>
+#   endif
+#  endif
 #  define Z_RAND_MIN    0
 #  define Z_RAND_MAX    RAND_MAX
 #  define z_srand(_s_)  srandom(_s_)
 #  define z_rand()      random()
 # elif defined(HAVE_RAND)
-#  include <stdlib.h>
+#  if HAVE_STDLIB_H || STDC_HEADERS
+#   ifdef __cplusplus
+#    include <cstdlib>
+#   else
+#    include <stdlib.h>
+#   endif
+#  endif
 #  define Z_RAND_MIN    0
 #  define Z_RAND_MAX    RAND_MAX
 #  define z_srand(_s_)  srand(_s_)
 #  define z_rand()      rand()
 # else
 #  define Z_RANDOM_REQUIRED
+Z_DECLARE_FUNCTION_BEGIN
 void z_srandom(unsigned long seed);
 unsigned long z_random();
+Z_DECLARE_FUNCTION_END
 #  define Z_RAND_MIN    0
 #  define Z_RAND_MAX    0xFFFFFFFF
 #  define z_srand(_s_)  z_srandom(_s_)
@@ -425,6 +483,7 @@ unsigned long z_random();
 # define z_rand_01_lt()  ((double) (z_rand() - (Z_RAND_MIN)) / (double) ((Z_RAND_MAX) - (Z_RAND_MIN) + 1.0))
 #endif
 
+Z_DECLARE_FUNCTION_BEGIN
 void z_srandom64(unsigned long seed);
 long long z_random64();
 long long z_random64_minmax(long long min, long long max);
@@ -435,12 +494,14 @@ void z_nrandom_seed(unsigned long s);
 double z_nrandom();
 void z_urandom_seed(unsigned long s);
 double z_urandom();
+Z_DECLARE_FUNCTION_END
 
 #endif /* Z_PACK_RANDOM */
 
 
 #ifdef Z_PACK_DIGEST
 
+Z_DECLARE_FUNCTION_BEGIN
 z_int_t z_digest_sum_buffer(const void *buffer, z_int_t length, void *sum);
 #if HAVE_GCRYPT_H
 extern int z_digest_hash_gcrypt_algo;
@@ -449,6 +510,7 @@ void z_digest_hash_open(void **hdl);
 void z_digest_hash_close(void *hdl);
 void z_digest_hash_write(void *hdl, const void *buffer, z_int_t length);
 z_int_t z_digest_hash_read(void *hdl, void *hash);
+Z_DECLARE_FUNCTION_END
 
 #endif /* Z_PACK_DIGEST */
 
@@ -458,11 +520,13 @@ z_int_t z_digest_hash_read(void *hdl, void *hash);
 extern const z_int_t z_crc32_table_size;
 extern const z_crc32_t z_crc32_table[];
 
+Z_DECLARE_FUNCTION_BEGIN
 void z_crc32_make_table(z_crc32_t *tbl);
 void z_crc32_print_table(z_crc32_t *tbl);
 
 z_crc32_t z_crc32_buffer_update(z_crc32_t crc, const void *buffer, z_int_t length);
 z_crc32_t z_crc32_buffer(const void *buffer, z_int_t length);
+Z_DECLARE_FUNCTION_END
 
 #endif /* Z_CRC32 */
 
@@ -473,10 +537,12 @@ z_crc32_t z_crc32_buffer(const void *buffer, z_int_t length);
 # include <gmp.h>
 #endif
 
+Z_DECLARE_FUNCTION_BEGIN
 void z_gmp_mpz_set_ull(mpz_t z, unsigned long long v);
 void z_gmp_mpz_set_sll(mpz_t z, long long v);
 unsigned long long z_gmp_mpz_get_ull(mpz_t z);
 long long z_gmp_mpz_get_sll(mpz_t z);
+Z_DECLARE_FUNCTION_END
 
 #endif /* Z_PACK_GMP && HAVE_GMP_H */
 
@@ -489,6 +555,7 @@ typedef struct
 
 } z_fs_stat_t;
 
+Z_DECLARE_FUNCTION_BEGIN
 z_int_t z_fs_exists(const char *pathname);
 z_int_t z_fs_is_directory(const char *pathname);
 z_int_t z_fs_is_file(const char *pathname);
@@ -500,24 +567,24 @@ z_int_t z_fs_mkdir(const char *pathname);
 z_int_t z_fs_mkdir_p(const char *pathname);
 z_int_t z_fs_rm(const char *pathname);
 z_int_t z_fs_rm_r(const char *pathname);
+Z_DECLARE_FUNCTION_END
 
 #endif /* Z_PACK_FS */
 
 
 #ifdef Z_PACK_STDIO
 
-#if HAVE_STDIO_H
-# include <stdio.h>
+#if HAVE_STDIO_H || STDC_HEADERS
+#  ifdef __cplusplus
+#   include <cstdio>
+#  else
+#   include <stdio.h>
+#  endif
 #endif
 
 int z_snscanf(const char *str, size_t size, const char *format, ...);
 
 #endif /* Z_PACK_STDIO */
-
-
-#ifdef __cplusplus
-}
-#endif
 
 
 #endif /* __Z_PACK_H__ */

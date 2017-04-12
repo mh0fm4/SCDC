@@ -29,6 +29,7 @@ DEBUG:=1
 USE_DEBUG:=1
 USE_PROFILE:=1
 USE_PERFOPT:=1
+USE_DEPRECATED:=1
 
 USE_INFO:=1   # info messages
 USE_TRACE:=1  # trace messages
@@ -146,6 +147,13 @@ ifneq ($(USE_DEBUG),)
 # PYTHON:=$(PYTHON)-dbg
 endif
 
+ifneq ($(USE_PROFILE),)
+ CFLAGS+=-pg
+ CXXFLAGS+=-pg
+ LDFLAGS+=-pg
+ LDCXXFLAGS+=-pg
+endif
+
 ifneq ($(USE_PERFOPT),)
  CPPFLAGS+=-DHAVE_SCDC_PERFOPT=1
  CFLAGS+=-O3
@@ -155,11 +163,9 @@ ifneq ($(USE_PERFOPT),)
  SCDC_PY_MACROS+=HAVE_SCDC_PERFOPT=1
 endif
 
-ifneq ($(USE_PROFILE),)
- CFLAGS+=-pg
- CXXFLAGS+=-pg
- LDFLAGS+=-pg
- LDCXXFLAGS+=-pg
+ifneq ($(USE_DEPRECATED),)
+ CPPFLAGS+=-DHAVE_SCDC_DEPRECATED=1
+ SCDC_PY_MACROS+=HAVE_SCDC_DEPRECATED=1
 endif
 
 LIBSCDC_LIBS+=-lpthread

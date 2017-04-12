@@ -116,7 +116,7 @@ static inline std::string scdc_log_timestamp()
 # define SCDC_INFO(_x_)    Z_NOP()
 #endif
 
-#if HAVE_SCDC_TRACE && !SCDC_TRACE_NOT
+#if HAVE_SCDC_TRACE && !(SCDC_TRACE_NOT)
 # define SCDC_TRACE_DECL(_x_)                    _x_
 # define SCDC_TRACE_CMD(_x_)                     Z_MOP(_x_)
 # define SCDC_TRACE_PREFIX                       "SCDC-TRACE: "

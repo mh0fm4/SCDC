@@ -23,6 +23,8 @@
 #include <sstream>
 #include <set>
 
+#define SCDC_TRACE_NOT  !SCDC_TRACE_LIBSCDC
+
 #include "config.hh"
 #include "common.hh"
 #include "log.hh"
@@ -52,7 +54,7 @@ typedef struct _scdc_args_data_va_t
 
 static void *scdc_dataprov_hook_open_intern(void *intern_data, const char *conf, scdc_args_t *args, scdcint_t *ret)
 {
-  SCDC_TRACE("scdc_dataprov_hook_open_intern: intern_data: " << intern_data << ", conf: '" << conf << "', args: " << args);
+  SCDC_TRACE(__func__ << ": intern_data: " << intern_data << ", conf: '" << conf << "', args: " << args);
 
   scdc_dataprov_hook_open_f *open = reinterpret_cast<scdc_dataprov_hook_open_f *>(intern_data);
 
@@ -83,7 +85,7 @@ static scdc_arg_ref_t scdc_args_get_va(void *data, scdcint_t type, void *v)
 {
   scdc_args_data_va_t *args_data_va = static_cast<scdc_args_data_va_t *>(data);
 
-  SCDC_TRACE("scdc_args_get_va: data: '" << args_data_va << "' (arg: '" << args_data_va->arg << "', ap: '" << args_data_va->ap << "'), type: '" << type << "', v: " << v);
+  SCDC_TRACE(__func__ << ": data: '" << args_data_va << "' (arg: '" << args_data_va->arg << "', ap: '" << args_data_va->ap << "'), type: '" << type << "', v: " << v);
 
   switch (type)
   {
@@ -146,7 +148,7 @@ static scdc_arg_ref_t scdc_args_get_va(void *data, scdcint_t type, void *v)
       return SCDC_ARG_REF_NONE;
   }
 
-  SCDC_TRACE("scdc_args_get_va: error: unknown type '" << type << "'");
+  SCDC_TRACE(__func__ << ": error: unknown type '" << type << "'");
 
   return SCDC_ARG_REF_NULL;
 }
@@ -156,7 +158,7 @@ static scdc_arg_ref_t scdc_args_set_va(void *data, scdcint_t type, void *v, scdc
 {
   SCDC_TRACE_DECL(scdc_args_data_va_t *args_data_va = static_cast<scdc_args_data_va_t *>(data);)
 
-  SCDC_TRACE("scdc_args_set_va: data: '" << args_data_va << "' (arg: '" << ((args_data_va)?args_data_va->arg:-1) << "', ap: '" << ((args_data_va)?args_data_va->ap:0) << "'), type: '" << type << "', v: '" << v << "', arg_ref: '" << arg_ref << "'");
+  SCDC_TRACE(__func__ << ": data: '" << args_data_va << "' (arg: '" << ((args_data_va)?args_data_va->arg:-1) << "', ap: '" << ((args_data_va)?args_data_va->ap:0) << "'), type: '" << type << "', v: '" << v << "', arg_ref: '" << arg_ref << "'");
 
   return SCDC_ARG_REF_NULL;
 }
@@ -166,7 +168,7 @@ void scdc_args_free_va(void *data, scdcint_t type, void *v, scdc_arg_ref_t arg_r
 {
   SCDC_TRACE_DECL(scdc_args_data_va_t *args_data_va = static_cast<scdc_args_data_va_t *>(data);)
 
-  SCDC_TRACE("scdc_args_free_va: data: '" << args_data_va << "' (arg: '" << ((args_data_va)?args_data_va->arg:-1) << "', ap: '" << ((args_data_va)?args_data_va->ap:0) << "'), type: '" << type << "', v: '" << v << "', arg_ref: '" << arg_ref << "'");
+  SCDC_TRACE(__func__ << ": data: '" << args_data_va << "' (arg: '" << ((args_data_va)?args_data_va->arg:-1) << "', ap: '" << ((args_data_va)?args_data_va->ap:0) << "'), type: '" << type << "', v: '" << v << "', arg_ref: '" << arg_ref << "'");
 }
 
 
@@ -245,9 +247,9 @@ class scdc_context
 
     bool init(const char *conf, scdc_args_t *args)
     {
-      SCDC_TRACE("scdc_context: init: '" << conf << "'");
+      SCDC_TRACE("scdc-context: " << __func__ << ": '" << conf << "'");
 
-      SCDC_TRACE("scdc_context: init: data: " << data);
+      SCDC_TRACE("scdc-context: " << __func__ << ": data: " << data);
 
       if (data) return false;
 
@@ -264,7 +266,7 @@ class scdc_context
         else if (c == "no_direct") no_direct = true;
         else if (c.size() > 0)
         {
-          SCDC_TRACE("unknown parameter '" << c << "'");
+          SCDC_TRACE("scdc-context: " << __func__ << ": unknown parameter '" << c << "'");
         }
       }
 
@@ -293,14 +295,14 @@ class scdc_context
 
     void release()
     {
-      SCDC_TRACE("scdc_context: release");
+      SCDC_TRACE("scdc-context: " << __func__);
 
       if (!data) return;
 
 #if SCDC_DEBUG
       for (set<scdc_dataset_t>::iterator i = data->datasets.begin(); i != data->datasets.end(); ++i)
       {
-        SCDC_FAIL("scdc_release_intern: dateset '" << *i << "' was not closed");
+        SCDC_FAIL("scdc-context: " << __func__ << ": dataset '" << *i << "' was not closed");
       }
 #endif
 
@@ -320,7 +322,7 @@ class scdc_context
 
       delete data; data = 0;
 
-      SCDC_TRACE("scdc_context: release: return");
+      SCDC_TRACE("scdc-context: " << __func__ << ": return");
     }
 };
 
@@ -331,7 +333,7 @@ scdc_log *scdc_main_context_log = &scdc_main_context.log;
 
 static scdcint_t scdc_main_config_hook_config(void *dataprov, const char *cmd, const char *param, const char *val, scdcint_t val_size, char **res, scdcint_t *res_size)
 {
-  SCDC_TRACE("scdc_main_config_hook_config: cmd: '" << cmd << "', param: '" << param << "', val: " << string(val, val_size) << ", result size: " << *res_size);
+  SCDC_TRACE(__func__ << ": cmd: '" << cmd << "', param: '" << param << "', val: " << string(val, val_size) << ", result size: " << *res_size);
 
   string c(cmd), p(param);
 
@@ -408,7 +410,7 @@ static scdcint_t scdc_main_config_hook_config(void *dataprov, const char *cmd, c
 
   if (!done || (done && !ret))
   {
-    SCDC_FAIL("scdc_main_config_hook_config: command '" << cmd << "' failed");
+    SCDC_FAIL(__func__ << ": command '" << cmd << "' failed");
     return SCDC_FAILURE;
   }
 
@@ -424,11 +426,11 @@ static scdcint_t scdc_main_config_hook_config(void *dataprov, const char *cmd, c
 
 scdcint_t scdc_init_intern(const char *conf, scdc_args_t *args)
 {
-  SCDC_TRACE("scdc_init_intern: conf: '" << conf << "'");
+  SCDC_TRACE(__func__ << ": conf: '" << conf << "'");
 
   scdcint_t ret = (scdc_main_context.init(conf, args))?SCDC_SUCCESS:SCDC_FAILURE;
 
-  SCDC_TRACE("scdc_init_intern: return: '" << ret << "'");
+  SCDC_TRACE(__func__ << ": return: '" << ret << "'");
 
   return ret;
 }
@@ -436,7 +438,7 @@ scdcint_t scdc_init_intern(const char *conf, scdc_args_t *args)
 
 scdcint_t scdc_init(const char *conf, ...)
 {
-  SCDC_TRACE("scdc_init: conf: '" << conf << "'");
+  SCDC_TRACE(__func__ << ": conf: '" << conf << "'");
 
   scdc_args_t args;
 
@@ -451,7 +453,7 @@ scdcint_t scdc_init(const char *conf, ...)
 
   va_end(ap);
 
-  SCDC_TRACE("scdc_init: return '" << ret << "'");
+  SCDC_TRACE(__func__ << ": return '" << ret << "'");
 
   return ret;
 }
@@ -459,21 +461,21 @@ scdcint_t scdc_init(const char *conf, ...)
 
 void scdc_release_intern()
 {
-  SCDC_TRACE("scdc_release_intern:");
+  SCDC_TRACE(__func__ << ":");
 
   scdc_main_context.release();
 
-  SCDC_TRACE("scdc_release_intern: return");
+  SCDC_TRACE(__func__ << ": return");
 }
 
 
 void scdc_release()
 {
-  SCDC_TRACE("scdc_release:");
+  SCDC_TRACE(__func__ << ":");
 
   scdc_release_intern();
 
-  SCDC_TRACE("scdc_release: return");
+  SCDC_TRACE(__func__ << ": return");
 
   scdc_log_release_intern();
 }
@@ -492,11 +494,11 @@ void scdc_main_log_init(const char *conf, ...)
 
 scdcint_t scdc_log_init_intern(const char *conf, scdc_args_t *args)
 {
-  SCDC_TRACE("scdc_log_init_intern: conf: '" << conf << "'");
+  SCDC_TRACE(__func__ << ": conf: '" << conf << "'");
 
   bool ret = SCDC_MAIN_LOG()->init(conf, args);
 
-  SCDC_TRACE("scdc_log_init_intern: return");
+  SCDC_TRACE(__func__ << ": return");
 
   return (ret)?SCDC_SUCCESS:SCDC_FAILURE;
 }
@@ -504,7 +506,7 @@ scdcint_t scdc_log_init_intern(const char *conf, scdc_args_t *args)
 
 scdcint_t scdc_log_init(const char *conf, ...)
 {
-  SCDC_TRACE("scdc_log_init: conf: '" << conf << "'");
+  SCDC_TRACE(__func__ << ": conf: '" << conf << "'");
 
   scdc_args_t args;
 
@@ -519,7 +521,7 @@ scdcint_t scdc_log_init(const char *conf, ...)
 
   va_end(ap);
 
-  SCDC_TRACE("scdc_log_init: return '" << ret << "'");
+  SCDC_TRACE(__func__ << ": return '" << ret << "'");
 
   return ret;
 }
@@ -527,21 +529,21 @@ scdcint_t scdc_log_init(const char *conf, ...)
 
 void scdc_log_release_intern()
 {
-  SCDC_TRACE("scdc_log_release_intern:");
+  SCDC_TRACE(__func__ << ":");
 
   SCDC_MAIN_LOG()->release();
 
-  SCDC_TRACE("scdc_log_release_intern: return");
+  SCDC_TRACE(__func__ << ": return");
 }
 
 
 void scdc_log_release()
 {
-  SCDC_TRACE("scdc_log_release:");
+  SCDC_TRACE(__func__ << ":");
 
   scdc_log_release_intern();
   
-  SCDC_TRACE("scdc_log_release: return");
+  SCDC_TRACE(__func__ << ": return");
 }
 
 
@@ -559,7 +561,7 @@ scdc_dataprov_t scdc_dataprov_open_intern(const char *base_path, const char *con
 
 scdc_dataprov_t scdc_dataprov_open(const char *base_path, const char *conf, ...)
 {
-  SCDC_TRACE("scdc_dataprov_open:");
+  SCDC_TRACE(__func__ << ":");
 
   va_list ap;
   va_start(ap, conf);
@@ -573,7 +575,7 @@ scdc_dataprov_t scdc_dataprov_open(const char *base_path, const char *conf, ...)
   scdc_args_va_release(&args);
   va_end(ap);
 
-  SCDC_TRACE("scdc_dataprov_open: return '" << dataprov << "'");
+  SCDC_TRACE(__func__ << ": return '" << dataprov << "'");
 
   return dataprov;
 }
@@ -581,13 +583,13 @@ scdc_dataprov_t scdc_dataprov_open(const char *base_path, const char *conf, ...)
 
 void scdc_dataprov_close(scdc_dataprov_t dataprov)
 {
-  SCDC_TRACE("scdc_dataprov_close: dataprov: '" << dataprov << "'");
+  SCDC_TRACE(__func__ << ": dataprov: '" << dataprov << "'");
 
   if (dataprov == SCDC_DATAPROV_NULL) return;
 
   scdc_main_context.data->dataprovs.close(static_cast<scdc_dataprov *>(dataprov));
 
-  SCDC_TRACE("scdc_dataprov_close: return");
+  SCDC_TRACE(__func__ << ": return");
 }
 
 
@@ -605,7 +607,7 @@ scdc_nodeport_t scdc_nodeport_open_intern(const char *conf, scdc_args_t *args)
 
 scdc_nodeport_t scdc_nodeport_open(const char *conf, ...)
 {
-  SCDC_TRACE("scdc_nodeport_open: conf: '" << conf << "'");
+  SCDC_TRACE(__func__ << ": conf: '" << conf << "'");
 
   va_list ap;
   va_start(ap, conf);
@@ -619,7 +621,7 @@ scdc_nodeport_t scdc_nodeport_open(const char *conf, ...)
   scdc_args_va_release(&args);
   va_end(ap);
 
-  SCDC_TRACE("scdc_nodeport_open: return '" << nodeport << "'");
+  SCDC_TRACE(__func__ << ": return '" << nodeport << "'");
 
   return nodeport;
 }
@@ -627,19 +629,19 @@ scdc_nodeport_t scdc_nodeport_open(const char *conf, ...)
 
 void scdc_nodeport_close(scdc_nodeport_t nodeport)
 {
-  SCDC_TRACE("scdc_nodeport_close: nodeport: '" << nodeport << "'");
+  SCDC_TRACE(__func__ << ": nodeport: '" << nodeport << "'");
 
   if (nodeport == SCDC_NODEPORT_NULL) return;
 
   scdc_main_context.data->nodeports.close(static_cast<scdc_nodeport *>(nodeport));
 
-  SCDC_TRACE("scdc_nodeport_close: return");
+  SCDC_TRACE(__func__ << ": return");
 }
 
 
 scdcint_t scdc_nodeport_start(scdc_nodeport_t nodeport, scdcint_t mode)
 {
-  SCDC_TRACE("scdc_nodeport_start: nodeport: '" << nodeport << "', mode: '" << mode << "'");
+  SCDC_TRACE(__func__ << ": nodeport: '" << nodeport << "', mode: '" << mode << "'");
 
   if (nodeport == SCDC_NODEPORT_NULL) return SCDC_FAILURE;
 
@@ -647,7 +649,7 @@ scdcint_t scdc_nodeport_start(scdc_nodeport_t nodeport, scdcint_t mode)
 
   static_cast<scdc_nodeport *>(nodeport)->start(mode);
 
-  SCDC_TRACE("scdc_nodeport_start: return");
+  SCDC_TRACE(__func__ << ": return");
 
   return SCDC_SUCCESS;
 }
@@ -655,7 +657,7 @@ scdcint_t scdc_nodeport_start(scdc_nodeport_t nodeport, scdcint_t mode)
 
 scdcint_t scdc_nodeport_stop(scdc_nodeport_t nodeport)
 {
-  SCDC_TRACE("scdc_nodeport_stop: nodeport: '" << nodeport << "'");
+  SCDC_TRACE(__func__ << ": nodeport: '" << nodeport << "'");
 
   if (nodeport == SCDC_NODEPORT_NULL) return SCDC_FAILURE;
 
@@ -663,7 +665,7 @@ scdcint_t scdc_nodeport_stop(scdc_nodeport_t nodeport)
 
   static_cast<scdc_nodeport *>(nodeport)->set_dataprovs(0);
 
-  SCDC_TRACE("scdc_nodeport_stop: return");
+  SCDC_TRACE(__func__ << ": return");
 
   return SCDC_SUCCESS;
 }
@@ -671,13 +673,13 @@ scdcint_t scdc_nodeport_stop(scdc_nodeport_t nodeport)
 
 scdcint_t scdc_nodeport_cancel(scdc_nodeport_t nodeport, scdcint_t interrupt)
 {
-  SCDC_TRACE("scdc_nodeport_cancel: nodeport: '" << nodeport << "'");
+  SCDC_TRACE(__func__ << ": nodeport: '" << nodeport << "'");
 
   if (nodeport == SCDC_NODEPORT_NULL) return SCDC_FAILURE;
 
   static_cast<scdc_nodeport *>(nodeport)->cancel(interrupt);
 
-  SCDC_TRACE("scdc_nodeport_cancel: return");
+  SCDC_TRACE(__func__ << ": return");
 
   return SCDC_SUCCESS;
 }
@@ -705,7 +707,7 @@ const char *scdc_nodeport_authority_intern(const char *conf, scdc_args_t *args)
 
 const char *scdc_nodeport_authority(const char *conf, ...)
 {
-  SCDC_TRACE("scdc_nodeport_authority: conf: '" << conf << "'");
+  SCDC_TRACE(__func__ << ": conf: '" << conf << "'");
 
   va_list ap;
   va_start(ap, conf);
@@ -719,7 +721,7 @@ const char *scdc_nodeport_authority(const char *conf, ...)
   scdc_args_va_release(&args);
   va_end(ap);
 
-  SCDC_TRACE("scdc_nodeport_authority_intern: return '" << authority << "'");
+  SCDC_TRACE(__func__ << ": return '" << authority << "'");
 
   return authority;
 }
@@ -739,7 +741,7 @@ scdcint_t scdc_nodeport_supported_intern(const char *uri, scdc_args_t *args)
 
 scdcint_t scdc_nodeport_supported(const char *uri, ...)
 {
-  SCDC_TRACE("scdc_nodeport_supported: uri: '" << uri << "'");
+  SCDC_TRACE(__func__ << ": uri: '" << uri << "'");
 
   va_list ap;
   va_start(ap, uri);
@@ -753,7 +755,7 @@ scdcint_t scdc_nodeport_supported(const char *uri, ...)
   scdc_args_va_release(&args);
   va_end(ap);
 
-  SCDC_TRACE("scdc_nodeport_supported_intern: return '" << supported << "'");
+  SCDC_TRACE(__func__ << ": return '" << supported << "'");
 
   return supported;
 }
@@ -782,7 +784,7 @@ struct _scdc_dataset_t
 
 scdc_dataset_t scdc_dataset_open_intern(const char *uri, scdc_args_t *args)
 {
-  SCDC_TRACE("scdc_dataset_open_intern: uri: '" << uri << "'");
+  SCDC_TRACE(__func__ << ": uri: '" << uri << "'");
 
   scdc_dataset_t dataset = new _scdc_dataset_t;
 
@@ -795,7 +797,7 @@ scdc_dataset_t scdc_dataset_open_intern(const char *uri, scdc_args_t *args)
 
   if (!dataset->nodeconn)
   {
-    SCDC_TRACE("scdc_dataset_open_intern: failed: open connection failed");
+    SCDC_TRACE(__func__ << ": failed: open connection failed");
     delete dataset;
     return SCDC_DATASET_NULL;
   }
@@ -809,7 +811,7 @@ scdc_dataset_t scdc_dataset_open_intern(const char *uri, scdc_args_t *args)
 
   if (!dataset->dataset)
   {
-    SCDC_FAIL("scdc_dataset_open_intern: failed");
+    SCDC_FAIL(__func__ << ": failed");
     scdc_main_context.data->nodeconns.close(dataset->nodeconn);
     delete dataset;
     return SCDC_DATASET_NULL;
@@ -819,7 +821,7 @@ scdc_dataset_t scdc_dataset_open_intern(const char *uri, scdc_args_t *args)
   scdc_main_context.data->datasets.insert(dataset);
 #endif
 
-  SCDC_TRACE("scdc_dataset_open_intern: return '" << dataset << "'");
+  SCDC_TRACE(__func__ << ": return '" << dataset << "'");
 
   SCDC_INFO("opening dataset " << dataset << " with uri '" << uri << "'");
 
@@ -829,7 +831,7 @@ scdc_dataset_t scdc_dataset_open_intern(const char *uri, scdc_args_t *args)
 
 scdc_dataset_t scdc_dataset_open(const char *uri, ...)
 {
-  SCDC_TRACE("scdc_dataset_open: uri: '" << uri << "'");
+  SCDC_TRACE(__func__ << ": uri: '" << uri << "'");
 
   scdc_args_t args;
 
@@ -844,7 +846,7 @@ scdc_dataset_t scdc_dataset_open(const char *uri, ...)
 
   va_end(ap);
 
-  SCDC_TRACE("scdc_dataset_open: return '" << dataset << "'");
+  SCDC_TRACE(__func__ << ": return '" << dataset << "'");
 
   return dataset;
 }
@@ -852,7 +854,7 @@ scdc_dataset_t scdc_dataset_open(const char *uri, ...)
 
 void scdc_dataset_close(scdc_dataset_t dataset)
 {
-  SCDC_TRACE("scdc_dataset_close: '" << dataset << "'");
+  SCDC_TRACE(__func__ << ": '" << dataset << "'");
 
   if (dataset == SCDC_DATASET_NULL) return;
 
@@ -861,7 +863,7 @@ void scdc_dataset_close(scdc_dataset_t dataset)
 #if SCDC_DEBUG
   if (scdc_main_context.data->datasets.erase(dataset) != 1)
   {
-    SCDC_FAIL("scdc_dataset_close: no valid dataset handle given");
+    SCDC_FAIL(__func__ << ": no valid dataset handle given");
     return;
   }
 #endif
@@ -881,7 +883,7 @@ void scdc_dataset_close(scdc_dataset_t dataset)
 
 scdcint_t scdc_dataset_cmd_intern(scdc_dataset_t dataset, const char *cmd, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_args_t *args)
 {
-  SCDC_TRACE("scdc_dataset_cmd_intern: dataset: '" << dataset << "', cmd = '" << string(cmd) << "'" << ", input = " << static_cast<void *>(input) << ", output = " << static_cast<void *>(output));
+  SCDC_TRACE(__func__ << ": dataset: '" << dataset << "', cmd = '" << string(cmd) << "'" << ", input = " << static_cast<void *>(input) << ", output = " << static_cast<void *>(output));
 
   scdcint_t cmd_size = strlen(cmd);
 
@@ -900,7 +902,7 @@ scdcint_t scdc_dataset_cmd_intern(scdc_dataset_t dataset, const char *cmd, scdc_
     if (suri.size() <= 0)
     {
       SCDC_DATASET_OUTPUT_PRINTF(output, "no URI given");
-      SCDC_FAIL("scdc_dataset_cmd_intern: no URI given!");
+      SCDC_FAIL(__func__ << ": no URI given!");
       delete dataset;
       return SCDC_FAILURE;
     }
@@ -915,7 +917,7 @@ scdcint_t scdc_dataset_cmd_intern(scdc_dataset_t dataset, const char *cmd, scdc_
     if (!dataset->nodeconn)
     {
       SCDC_DATASET_OUTPUT_PRINTF(output, "open connection failed");
-      SCDC_FAIL("scdc_dataset_cmd_intern: failed: open connection failed!");
+      SCDC_FAIL(__func__ << ": failed: open connection failed!");
       delete dataset;
       return SCDC_FAILURE;
     }
@@ -929,7 +931,7 @@ scdcint_t scdc_dataset_cmd_intern(scdc_dataset_t dataset, const char *cmd, scdc_
     cmd_size = adhoc_cmd.size();
   }
 
-  SCDC_TRACE("scdc_dataset_cmd_intern: adhoc command: '" << adhoc_cmd << "'");
+  SCDC_TRACE(__func__ << ": adhoc command: '" << adhoc_cmd << "'");
 
   scdc_dataset_input_t input_null = *SCDC_DATASET_INPUT_NONE;
   if (!input) input = &input_null;
@@ -953,7 +955,7 @@ scdcint_t scdc_dataset_cmd_intern(scdc_dataset_t dataset, const char *cmd, scdc_
 
   cmd_timing = z_time_wtime() - cmd_timing;
 
-  SCDC_TRACE("scdc_dataset_cmd_intern: timing: " << cmd_timing);
+  SCDC_TRACE(__func__ << ": timing: " << cmd_timing);
 
   SCDC_TRACE_DATASET_INPUT(input, "scdc_dataset_cmd_intern: OUT input: ");
   SCDC_TRACE_DATASET_OUTPUT(output, "scdc_dataset_cmd_intern: OUT output: ");
@@ -961,7 +963,7 @@ scdcint_t scdc_dataset_cmd_intern(scdc_dataset_t dataset, const char *cmd, scdc_
   /* if there was an output next given, but the resulting cmd output is different */
   if (output_given.next && (output_given.next != output->next || output_given.data != output->data || output_given.intern != output->intern))
   {
-    SCDC_TRACE("scdc_dataset_cmd_intern: redirecting cmd output to given output");
+    SCDC_TRACE(__func__ << ": redirecting cmd output to given output");
     scdc_dataset_output_redirect(output, "to:outputsink", &output_given);
 
     /* restore original output */
@@ -972,11 +974,11 @@ scdcint_t scdc_dataset_cmd_intern(scdc_dataset_t dataset, const char *cmd, scdc_
 
   if (ret)
   {
-    SCDC_TRACE("scdc_dataset_cmd_intern: successful");
+    SCDC_TRACE(__func__ << ": successful");
 
 /*    SCDC_INFO("scdc_dataset_cmd: timing: " << cmd_timing << ", input: " << ((input)?input->total_size:0) / cmd_timing * 1e-6 << " MB/s, output: " << ((output)?output->total_size:0) / cmd_timing * 1e-6 << " MB/s");*/
 
-  } else SCDC_TRACE("scdc_dataset_cmd_intern: failed: '" << SCDC_DATASET_OUTPUT_STR(output) << "'");
+  } else SCDC_TRACE(__func__ << ": failed: '" << SCDC_DATASET_OUTPUT_STR(output) << "'");
 
   if (!dataset->dataset)
   {
@@ -986,7 +988,7 @@ scdcint_t scdc_dataset_cmd_intern(scdc_dataset_t dataset, const char *cmd, scdc_
     dataset = SCDC_DATASET_NULL;
   }
 
-  if (ret) SCDC_INFO("using dataset " << dataset << " to execute command '" << cmd << "'");
+/*  if (ret) SCDC_INFO("using dataset " << dataset << " to execute command '" << cmd << "'");*/
 
   return (ret)?SCDC_SUCCESS:SCDC_FAILURE;
 }
@@ -994,7 +996,7 @@ scdcint_t scdc_dataset_cmd_intern(scdc_dataset_t dataset, const char *cmd, scdc_
 
 scdcint_t scdc_dataset_cmd(scdc_dataset_t dataset, const char *cmd, scdc_dataset_input_t *input, scdc_dataset_output_t *output, ...)
 {
-  SCDC_TRACE("scdc_dataset_cmd: dataset: '" << dataset << "', cmd = '" << string(cmd) << "'" << ", input = " << static_cast<void *>(input) << ", output = " << static_cast<void *>(output));
+  SCDC_TRACE(__func__ << ": dataset: '" << dataset << "', cmd = '" << string(cmd) << "'" << ", input = " << static_cast<void *>(input) << ", output = " << static_cast<void *>(output));
 
   scdc_args_t args;
 
@@ -1009,7 +1011,7 @@ scdcint_t scdc_dataset_cmd(scdc_dataset_t dataset, const char *cmd, scdc_dataset
 
   va_end(ap);
 
-  SCDC_TRACE("scdc_dataset_cmd: return '" << ret << "'");
+  SCDC_TRACE(__func__ << ": return '" << ret << "'");
 
   return ret;
 }

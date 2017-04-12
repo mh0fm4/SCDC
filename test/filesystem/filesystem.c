@@ -121,14 +121,14 @@ int main(int argc, char *argv[])
   /* inspect target */
   cmd = "ls " TARGET;
   scdc_dataset_output_unset(&_op);
-  _op.buf_size = 32;
-  void *buf = _op.buf = malloc(_op.buf_size);
+  SCDC_DATASET_INOUT_BUF_SIZE(&_op) = 32;
+  void *buf = SCDC_DATASET_INOUT_BUF_PTR(&_op) = malloc(SCDC_DATASET_INOUT_BUF_SIZE(&_op));
   if (scdc_dataset_cmd(ds, cmd, NULL, &_op) != SCDC_SUCCESS)
   {
     printf("ERROR: command '%s' failed!\n", cmd);
     goto quit;
 
-  } else printf("inspecting target with command '%s': OK -> '%.*s'\n", cmd, (int) _op.current_size, (const char *) _op.buf);
+  } else printf("inspecting target with command '%s': OK -> '%.*s'\n", cmd, (int) SCDC_DATASET_INOUT_BUF_CURRENT(&_op), (const char *) SCDC_DATASET_INOUT_BUF_PTR(&_op));
   while (_op.next) _op.next(&_op);
   free(buf);
 

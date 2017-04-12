@@ -24,6 +24,8 @@
 #include <sstream>
 #include <typeinfo>
 
+#define SCDC_TRACE_NOT  !SCDC_TRACE_DATAPROV_JOBRUN_RELAY
+
 #include "config.hh"
 #include "common.hh"
 #include "log.hh"

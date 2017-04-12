@@ -233,9 +233,9 @@ scdcint_t fileio_scdc_sync_buf(fileio_scdc_t *fio)
   scdc_dataset_input_t input;
 
   scdc_dataset_input_unset(&input);
-  input.buf_size = n;
-  input.buf = fio->buf.ptr + fio->buf.mod_begin;
-  input.current_size = n;
+  SCDC_DATASET_INOUT_BUF_PTR(&input) = fio->buf.ptr + fio->buf.mod_begin;
+  SCDC_DATASET_INOUT_BUF_SIZE(&input) = n;
+  SCDC_DATASET_INOUT_BUF_CURRENT(&input) = n;
   input.total_size = n;
   input.total_size_given = SCDC_DATASET_INOUT_TOTAL_SIZE_GIVEN_EXACT;
 
@@ -244,7 +244,7 @@ scdcint_t fileio_scdc_sync_buf(fileio_scdc_t *fio)
 
 #if FILEIO_SCDC_TRACE_SCDC_CTRL
   double cmd_t = z_time_wtime();
-  scdcint_t cmd_size = input.current_size;
+  scdcint_t cmd_size = SCDC_DATASET_INOUT_BUF_CURRENT(&input);
 #endif
 
   if (scdc_dataset_cmd(fio->dataset, cmd, &input, NULL) != SCDC_SUCCESS)
@@ -509,23 +509,23 @@ static scdcint_t read_dataset_output(scdc_dataset_output_t *output, char *buf, s
 
   do
   {
-    scdcint_t n = z_min(output->current_size, size_left);
+    scdcint_t n = z_min(SCDC_DATASET_INOUT_BUF_CURRENT(output), size_left);
 
-    if (output->buf != buf) memcpy(buf, output->buf, n);
+    if (SCDC_DATASET_INOUT_BUF_PTR(output) != buf) memcpy(buf, SCDC_DATASET_INOUT_BUF_PTR(output), n);
 
     /* inc. dest. */
     buf += n;
     size_left -= n;
 
     /* inc. source */
-    output->buf_size -= n;
-    output->buf = ((char *) output->buf) + n;
-    output->current_size -= n;
+    SCDC_DATASET_INOUT_BUF_PTR(output) = ((char *) SCDC_DATASET_INOUT_BUF_PTR(output)) + n;
+    SCDC_DATASET_INOUT_BUF_SIZE(output) -= n;
+    SCDC_DATASET_INOUT_BUF_CURRENT(output) -= n;
 
     if (!output->next || (read_size_only && size_left <= 0)) break;
 
-    output->buf_size = size_left;
-    output->buf = buf;
+    SCDC_DATASET_INOUT_BUF_PTR(output) = buf;
+    SCDC_DATASET_INOUT_BUF_SIZE(output) = size_left;
 
     if (output->next(output) == SCDC_FAILURE) return -1;
 
@@ -654,8 +654,8 @@ scdcint_t fileio_scdc_read(fileio_scdc_t *fio, void *buf, scdcint_t size, scdcin
     output = &output_;
 
     scdc_dataset_output_unset(output);
-    output->buf_size = nleft;
-    output->buf = nbuf;
+    SCDC_DATASET_INOUT_BUF_PTR(output) = nbuf;
+    SCDC_DATASET_INOUT_BUF_SIZE(output) = nleft;
 
     if (scdc_dataset_cmd(fio->dataset, cmd, NULL, output) != SCDC_SUCCESS)
     {
@@ -893,9 +893,9 @@ scdcint_t fileio_scdc_write(fileio_scdc_t *fio, const void *buf, scdcint_t size)
   scdc_dataset_input_t input;
 
   scdc_dataset_input_unset(&input);
-  input.buf_size = n;
-  input.buf = (void *) nbuf;
-  input.current_size = n;
+  SCDC_DATASET_INOUT_BUF_PTR(&input) = (void *) nbuf;
+  SCDC_DATASET_INOUT_BUF_SIZE(&input) = n;
+  SCDC_DATASET_INOUT_BUF_CURRENT(&input) = n;
   input.total_size = n;
   input.total_size_given = SCDC_DATASET_INOUT_TOTAL_SIZE_GIVEN_EXACT;
 
@@ -913,7 +913,7 @@ scdcint_t fileio_scdc_write(fileio_scdc_t *fio, const void *buf, scdcint_t size)
 
 #if FILEIO_SCDC_TRACE_SCDC_WR
   double cmd_t = z_time_wtime();
-  scdcint_t cmd_size = input.current_size;
+  scdcint_t cmd_size = SCDC_DATASET_INOUT_BUF_CURRENT(&input);
 #endif
 
   if (scdc_dataset_cmd(fio->dataset, cmd, &input, NULL) != SCDC_SUCCESS)
@@ -1000,8 +1000,8 @@ scdcint_t fileio_scdc_seek(fileio_scdc_t *fio, scdcint_t offset, int whence, int
     scdc_dataset_output_t output;
 
     scdc_dataset_output_unset(&output);
-    output.buf_size = sizeof(buf) - 1;
-    output.buf = buf;
+    SCDC_DATASET_INOUT_BUF_PTR(&output) = buf;
+    SCDC_DATASET_INOUT_BUF_SIZE(&output) = sizeof(buf) - 1;
 
     if (scdc_dataset_cmd(fio->dataset, "ls", NULL, &output) != SCDC_SUCCESS)
     {
@@ -1009,7 +1009,7 @@ scdcint_t fileio_scdc_seek(fileio_scdc_t *fio, scdcint_t offset, int whence, int
       goto do_return;
     }
 
-    z_snscanf(output.buf, output.current_size, "f:%" scdcint_fmt "|", &fio->offset);
+    z_snscanf(SCDC_DATASET_INOUT_BUF_PTR(&output), SCDC_DATASET_INOUT_BUF_CURRENT(&output), "f:%" scdcint_fmt "|", &fio->offset);
     whence = SEEK_CUR;
 
     while (output.next) output.next(&output);
@@ -1041,7 +1041,7 @@ do_return:
 
 static void ls2stat(scdc_dataset_output_t *output, fileio_scdc_stat_t *buf)
 {
-  z_snscanf(output->buf, output->current_size, "f:%" scdcint_fmt "|", &buf->size);
+  z_snscanf(SCDC_DATASET_INOUT_BUF_PTR(output), SCDC_DATASET_INOUT_BUF_CURRENT(output), "f:%" scdcint_fmt "|", &buf->size);
 
   while (output->next) output->next(output);
 }
@@ -1059,8 +1059,8 @@ scdcint_t fileio_scdc_stat(fileio_scdc_t *fio, fileio_scdc_stat_t *buf, int *err
   scdc_dataset_output_t output;
 
   scdc_dataset_output_unset(&output);
-  output.buf_size = sizeof(output_buf) - 1;
-  output.buf = output_buf;
+  SCDC_DATASET_INOUT_BUF_PTR(&output) = output_buf;
+  SCDC_DATASET_INOUT_BUF_SIZE(&output) = sizeof(output_buf) - 1;
 
   if (scdc_dataset_cmd(SCDC_DATASET_NULL, "ls", NULL, &output) != SCDC_SUCCESS)
   {
@@ -1094,8 +1094,8 @@ scdcint_t fileio_scdc_stat_path(const char *path, fileio_scdc_stat_t *buf, int *
   scdc_dataset_output_t output;
 
   scdc_dataset_output_unset(&output);
-  output.buf_size = sizeof(output_buf) - 1;
-  output.buf = output_buf;
+  SCDC_DATASET_INOUT_BUF_PTR(&output) = output_buf;
+  SCDC_DATASET_INOUT_BUF_SIZE(&output) = sizeof(output_buf) - 1;
 
   if (scdc_dataset_cmd(SCDC_DATASET_NULL, cmd, NULL, &output) != SCDC_SUCCESS)
   {

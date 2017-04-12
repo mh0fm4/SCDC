@@ -63,8 +63,8 @@ typedef struct { scdc_dataprov_jobrun_handler_f *handler; void *data; } scdc_dat
 
 typedef struct
 {
-  scdcint_t buf_size;
   void *buf;
+  scdcint_t buf_size;
 
 } scdc_args_buf_t;
 

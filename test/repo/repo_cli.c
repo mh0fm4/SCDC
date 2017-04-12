@@ -50,17 +50,17 @@ scdcint_t manual_input_next(scdc_dataset_input_t *input)
 
   printf("INPUT #%" scdcint_fmt " + <Enter>: ", i);
 
-  ((char *) input->buf)[0] = 0;
+  ((char *) SCDC_DATASET_INOUT_BUF_PTR(input))[0] = 0;
 
-  fgets(input->buf, input->buf_size, stdin);
+  fgets(SCDC_DATASET_INOUT_BUF_PTR(input), SCDC_DATASET_INOUT_BUF_SIZE(input), stdin);
 
-  input->current_size = strlen(input->buf);
+  SCDC_DATASET_INOUT_BUF_CURRENT(input) = strlen(SCDC_DATASET_INOUT_BUF_PTR(input));
 
-  if (!feof(stdin)) --input->current_size;
+  if (!feof(stdin)) --SCDC_DATASET_INOUT_BUF_CURRENT(input);
 
-  input->total_size += input->current_size;
+  input->total_size += SCDC_DATASET_INOUT_BUF_CURRENT(input);
 
-  if (feof(stdin) || input->current_size <= 0) input->next = NULL;
+  if (feof(stdin) || SCDC_DATASET_INOUT_BUF_CURRENT(input) <= 0) input->next = NULL;
 
   input->data = (void *) (intptr_t) (i + 1);
 
@@ -73,9 +73,9 @@ scdcint_t manual_output_next(scdc_dataset_output_t *output)
   scdcint_t i = (intptr_t) output->data;
 
   if (strcmp(output->format, "text") == 0 || strcmp(output->format, "fslist") == 0)
-    printf("OUTPUT #%" scdcint_fmt ": '%.*s'\n", i, (int) output->current_size, (char *) output->buf);
+    printf("OUTPUT #%" scdcint_fmt ": '%.*s'\n", i, (int) SCDC_DATASET_INOUT_BUF_CURRENT(output), (char *) SCDC_DATASET_INOUT_BUF_PTR(output));
   else
-    printf("OUTPUT #%" scdcint_fmt": %" scdcint_fmt " bytes\n", i, output->current_size);
+    printf("OUTPUT #%" scdcint_fmt": %" scdcint_fmt " bytes\n", i, SCDC_DATASET_INOUT_BUF_CURRENT(output));
 
   output->data = (void *) (intptr_t) (i + 1);
 
@@ -154,12 +154,12 @@ void prepare_dataset_cmd(const char *cmdline, char *cmd, scdc_dataset_input_t **
 
       strcpy((*input)->format, "text");
 
-      (*input)->buf_size = DEFAULT_INPUT_BUF_SIZE;
-      (*input)->buf = default_input_buf;
+      SCDC_DATASET_INOUT_BUF_PTR(*input) = default_input_buf;
+      SCDC_DATASET_INOUT_BUF_SIZE(*input) = DEFAULT_INPUT_BUF_SIZE;
 
+      SCDC_DATASET_INOUT_BUF_CURRENT(*input) = 0;
       (*input)->total_size = 0;
       (*input)->total_size_given = SCDC_DATASET_INOUT_TOTAL_SIZE_GIVEN_AT_LEAST;
-      (*input)->current_size = 0;
 
       (*input)->next = manual_input_next;
 
@@ -220,8 +220,8 @@ void prepare_dataset_cmd(const char *cmdline, char *cmd, scdc_dataset_input_t **
 
       scdc_dataset_output_unset(*output);
 
-      (*output)->buf_size = DEFAULT_OUTPUT_BUF_SIZE;
-      (*output)->buf = default_output_buf;
+      SCDC_DATASET_INOUT_BUF_PTR(*output) = default_output_buf;
+      SCDC_DATASET_INOUT_BUF_SIZE(*output) = DEFAULT_OUTPUT_BUF_SIZE;
 
       (*output)->next = manual_output_next;
 
@@ -236,8 +236,8 @@ void prepare_dataset_cmd(const char *cmdline, char *cmd, scdc_dataset_input_t **
 
     scdc_dataset_output_unset(*output);
 
-    (*output)->buf_size = DEFAULT_OUTPUT_BUF_SIZE;
-    (*output)->buf = default_output_buf;
+    SCDC_DATASET_INOUT_BUF_PTR(*output) = default_output_buf;
+    SCDC_DATASET_INOUT_BUF_SIZE(*output) = DEFAULT_OUTPUT_BUF_SIZE;
   }
 
   strcpy(cmd, cmdline);

@@ -19,6 +19,9 @@
 
 
 #include <cstdio>
+#include <cstring>
+
+#define SCDC_TRACE_NOT  !SCDC_TRACE_NODE_TCP
 
 #include "config.hh"
 #include "common.hh"

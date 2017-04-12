@@ -26,6 +26,7 @@
 
 #define DBSTORE      0
 #define DAVSTORE     0
+#define NFSSTORE     0
 #define TARGET       "store_test"
 #define INPUT_FILE   TARGET ".in"
 #define OUTPUT_FILE  TARGET ".out"
@@ -38,12 +39,14 @@ int main(int argc, char *argv[])
     "scdc:/storeDB";
 #elif DAVSTORE
     "scdc:/storeDAV";
+#elif NFSSTORE
+    "scdc:/storeNFS";
 #else
     "scdc:/storeFS";
 #endif
   const char *cmd;
   char path[256], *e;
-  scdc_dataprov_t dpFS, dpDB, dpDAV;
+  scdc_dataprov_t dpFS, dpDB, dpDAV, dpNFS;
   scdc_dataset_t ds;
   scdc_dataset_input_t _ip, *ip = &_ip;
   scdc_dataset_output_t _op, *op = &_op;
@@ -56,6 +59,7 @@ int main(int argc, char *argv[])
   dpFS = scdc_dataprov_open("storeFS", "fs", (e = getenv("MERGE_SCDC_REPO_PATH"), sprintf(path, "%s%s", (e?e:""), "store/"), path));
   dpDB = scdc_dataprov_open("storeDB", "mysql", getenv("MERGE_SCDC_MYSQL_CREDENTIALS"));
   dpDAV = scdc_dataprov_open("storeDAV", "webdav");
+  dpNFS = scdc_dataprov_open("storeNFS", "nfs");
 
 
   /* open dataset */
@@ -171,6 +175,7 @@ quit:
   scdc_dataprov_close(dpFS);
   scdc_dataprov_close(dpDB);
   scdc_dataprov_close(dpDAV);
+  scdc_dataprov_close(dpNFS);
 
   scdc_release();
 
