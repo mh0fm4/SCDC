@@ -1202,7 +1202,7 @@ bool scdc_dataprov_fs_store::open(const char *conf, scdc_args *args)
 
 scdc_dataset *scdc_dataprov_fs_store::dataset_open(const char *path, scdcint_t path_size, scdc_dataset_output_t *output)
 {
-  return scdc_dataprov_fs::dataset_open<scdc_dataset_fs_access>(path, path_size, output);
+  return scdc_dataprov_fs::dataset_open<scdc_dataset_fs_store>(path, path_size, output);
 }
 
 
