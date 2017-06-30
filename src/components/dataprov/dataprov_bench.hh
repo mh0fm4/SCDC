@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2014, 2015, 2016 Michael Hofmann
+ *  Copyright (C) 2014, 2015, 2016, 2017 Michael Hofmann
  *  
  *  This file is part of the Simulation Component and Data Coupling (SCDC) library.
  *  

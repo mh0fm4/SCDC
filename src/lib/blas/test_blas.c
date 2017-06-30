@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2014, 2015, 2016 Michael Hofmann
+ *  Copyright (C) 2014, 2015, 2016, 2017 Michael Hofmann
  *  
  *  This file is part of the Simulation Component and Data Coupling (SCDC) library.
  *  
@@ -39,6 +39,51 @@
 #define PRINT_DATA  1
 
 #define GLOBAL_F 1
+
+
+void test_bench()
+{
+  const int M = 4 * GLOBAL_F;
+  const int N = 3 * GLOBAL_F;
+
+
+  const int INCX = 2;
+
+  double *DX = malloc(N * INCX * sizeof(double));
+
+  dvector_init(N, DX, INCX);
+
+#if LIBBLAS_SCDC
+
+  MANGLE_BLAS(dvin_)(&N, DX, &INCX);
+
+  MANGLE_BLAS(dvout_)(&N, DX, &INCX);
+
+  MANGLE_BLAS(dvinout_)(&N, DX, &INCX);
+
+#endif
+
+  free(DX);
+
+
+  const int LDA = M + 1;
+
+  double *A = malloc(LDA * N * sizeof(double));
+
+  dmatrix_cmo_init(M, N, A, LDA);
+
+#if LIBBLAS_SCDC
+
+  MANGLE_BLAS(dgein_)(&M, &N, A, &LDA);
+
+  MANGLE_BLAS(dgeout_)(&M, &N, A, &LDA);
+
+  MANGLE_BLAS(dgeinout_)(&M, &N, A, &LDA);
+
+#endif
+
+  free(A);
+}
 
 
 void test_idamax()
@@ -381,6 +426,10 @@ int main(int argc, char *argv[])
 {
 #if RANDOM
   srandom(RANDOM);
+#endif
+
+#if 0
+  test_bench();
 #endif
 
 #if 1

@@ -1,5 +1,5 @@
 #  
-#  Copyright (C) 2014, 2015, 2016 Michael Hofmann
+#  Copyright (C) 2014, 2015, 2016, 2017 Michael Hofmann
 #  
 #  This file is part of the Simulation Component and Data Coupling (SCDC) library.
 #  
@@ -44,6 +44,7 @@ CXXFILES_LIB:=$(filter-out $(CXXFILES_EXEC), $(CXXFILES))
 OFILES:=$(addsuffix .o,$(basename $(CFILES) $(CXXFILES)))
 OFILES_LIB:=$(addsuffix .o,$(basename $(CFILES_LIB) $(CXXFILES_LIB)))
 OFILES_EXEC:=$(addsuffix .o,$(basename $(CFILES_EXEC) $(CXXFILES_EXEC)))
+OFILES_EXEC_COMMON:=$(foreach f,$(basename $(CFILES_EXEC) $(CXXFILES_EXEC)),$(filter $(f)_%.o,$(OFILES_EXEC)))
 
 $(NAME)_LDFLAGS:=
 $(NAME)_LIBS:=-llapack
@@ -88,14 +89,14 @@ $(LIBSO): $(OFILES_LIB)
 lib$(name)_scdc_srv: lib$(name)_scdc_srv.c $(CFILES_EXEC) $(DEPS) $($(NAME)_SCDC_DEPENDS)
 	$(CC) $(CPPFLAGS) $(LDFLAGS) $($(NAME)_SCDC_LDFLAGS) -o $@ $< $($(NAME)_SCDC_A_LIBS) $(LIBS)
 
-%_native: %.c $(CFILES_EXEC) $(DEPS)
-	$(CC) $(CPPFLAGS) -DLIB$(NAME)_SCDC=0 $(LDFLAGS) $($(NAME)_LDFLAGS) -o $@ $(wildcard $(basename $<)*.c) $($(NAME)_LIBS) $(LIBS)
+%_native: %.c $(OFILES_EXEC_COMMON) $(DEPS)
+	$(CC) $(CPPFLAGS) -DLIB$(NAME)_SCDC=0 $(LDFLAGS) $($(NAME)_LDFLAGS) -o $@ $< $(OFILES_EXEC_COMMON) $($(NAME)_LIBS) $(LIBS)
 
-%_scdc: %.c $(CFILES_EXEC) $($(NAME)_SCDC_DEPENDS) $(DEPS)
-	$(CC) $(CPPFLAGS) -DLIB$(NAME)_SCDC=1 $(LDFLAGS) $($(NAME)_SCDC_LDFLAGS) -o $@ $(wildcard $(basename $<)*.c) $($(NAME)_SCDC_A_LIBS) $(LIBS)
+%_scdc: %.c $(OFILES_EXEC_COMMON) $($(NAME)_SCDC_DEPENDS) $(DEPS)
+	$(CC) $(CPPFLAGS) -DLIB$(NAME)_SCDC=1 $(LDFLAGS) $($(NAME)_SCDC_LDFLAGS) -o $@ $< $(OFILES_EXEC_COMMON) $($(NAME)_SCDC_A_LIBS) $(LIBS)
 
-%_scdc_linked: %.c $(CFILES_EXEC) $($(NAME)_SCDC_DEPENDS) $(DEPS)
-	$(CC) $(CPPFLAGS) -DLIB$(NAME)_SCDC=1 $(LDFLAGS) $($(NAME)_SCDC_LDFLAGS) -o $@ $(wildcard $(basename $<)*.c) $($(NAME)_SCDC_SO_LIBS) $(LIBS)
+%_scdc_linked: %.c $(OFILES_EXEC_COMMON) $($(NAME)_SCDC_DEPENDS) $(DEPS)
+	$(CC) $(CPPFLAGS) -DLIB$(NAME)_SCDC=1 $(LDFLAGS) $($(NAME)_SCDC_LDFLAGS) -o $@ $< $(OFILES_EXEC_COMMON) $($(NAME)_SCDC_SO_LIBS) $(LIBS)
 
 clean: Makefile
 	rm -rf $(OFILES) $(LIB) $(LIBSO) $(EXEC)
@@ -116,6 +117,7 @@ info:
 	@echo "HXXFILES_EXEC: $(HXXFILES_EXEC)"
 	@echo "CXXFILES_EXEC: $(CXXFILES_EXEC)"
 	@echo "OFILES_EXEC: $(OFILES_EXEC)"
+	@echo "OFILES_EXEC_COMMON: $(OFILES_EXEC_COMMON)"
 	@echo "DEPS: $(DEPS)"
 	@echo "CPPFLAGS: $(CPPFLAGS)"
 	@echo "CFLAGS: $(CFLAGS)"

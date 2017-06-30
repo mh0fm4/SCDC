@@ -1,0 +1,222 @@
+
+SCDC general: init and release
+------------------------------
+
+ret scdc_init(conf, ...)
+- conf: const char * (C) | string (Python)
+- ret: scdcint_t SCDC_SUCCESS/SCDC_FAILURE (C) | bool True/False (Python)
+- initialize the SCDC library using configuration string conf (leave empty for default configuration)
+- open a direct access port (see below) with an empty id as default (i.e., the local node can always be accessed with URI 'scdc:///...')
+
+scdc_release()
+- release the SCDC library
+
+
+SCDC service: data providers
+----------------------------
+
+dataprov scdc_dataprov_open(base_path, conf, ...)
+- base_path: const char * (C) | string (Python)
+- conf: const char * (C) | string (Python)
+- dataprov: scdc_dataprov_t (C)
+- open a data provider that will be available with URI-path base_path
+- return a handle to the new data provider or SCDC_DATAPROV_NULL (C) | False (Python) if open it fails
+- configuration string conf and the subsequent arguments select type and parameters of the data provider:
+  - file system (conf = "fs"): accesses the local file system, first parameter: string specifying the root path
+  - generator (conf = "gen"): generate test data, no parameters
+  - MySQL data base (conf = "mysql"): access a MySQL data base, first parameter: string "<dbhost>:<dbuser>:<dbpasswd>:<dbname>" specifying the data base access credentials
+  - hook (conf = "hook"): arbitrary data provider configured with hook functions, first parameter: pointer to struct scdc_dataprov_hook_t (C) | class dataprov_hook (Python) with references to hook functions
+    - required hook functions: open, close, dataset_open, dataset_close, dataset_cmd, dataset_open_read_state, dataset_close_write_state
+
+scdc_dataprov_close(dataprov)
+- dataprov: scdc_dataprov_t (C)
+- closes data provider with handle dataprov
+
+- file system access: "fs" or "fs_access"
+- MySQL database: "mysql" or "mysql_store"
+- non-hierarchical folder-oriented storage: "fs_store" or "fs_mysql"
+
+
+SCDC service: node ports
+------------------------
+
+nodeport scdc_nodeport_open(conf, ...)
+- conf: const char * (C) | string (Python)
+- nodeport: scdc_nodeport_t (C)
+- open an access port on the local node
+- return a handle to the new access port or SCDC_NODEPORT_NULL (C) | False (Python) if open it fails
+- configuration string conf and the subsequent arguments select type and parameters of the access port:
+  - direct access (conf = "direct"): access through direct function calls with URI 'scdc://<id>/', first parameter: string specifying the <id> under which the direct access can be performed
+  - UNIX domain socket (conf = "uds"): access by communication through a local UNIX domain socket with URI 'scdc+uds://<id>/', first parameter: socket name <id> (not implemented, yet)
+  - TCP socket (conf = "tcp"): access by network communication through a TCP socket with URI 'scdc+tcp://<host>:<port>/', no parameters
+  - file stream (conf = "stream"): access by communication through stdin with URI 'scdc+stream:///', not fully implemented, only used to keep a local service running by waiting for input on stdin
+
+scdc_nodeport_close(nodeport)
+- nodeport: scdc_nodeport_t (C)
+- close the access port on the local node with handle nodeport
+
+ret scdc_nodeport_start(nodeport, mode)
+- nodeport: scdc_nodeport_t (C)
+- mode: scdcint_t (C) | int (Python), predefined values: SCDC_NODEPORT_START_LOOP_UNTIL_CANCEL, SCDC_NODEPORT_START_ASYNC_UNTIL_CANCEL
+- ret: scdcint_t SCDC_SUCCESS/SCDC_FAILURE (C) | bool True/False (Python)
+- start the access port nodeport, mode specifies whether the function blocks in a loop until canceled or is started asynchronously
+
+ret scdc_nodeport_stop(nodeport)
+- nodeport: scdc_nodeport_t (C)
+- ret: scdcint_t SCDC_SUCCESS/SCDC_FAILURE (C) | bool True/False (Python)
+- stop the access port nodeport
+
+ret scdc_nodeport_cancel(nodeport, interrupt)
+- nodeport: scdc_nodeport_t (C)
+- ret: scdcint_t SCDC_SUCCESS/SCDC_FAILURE (C) | bool True/False (Python)
+- interrupt: scdcint_t 1/0 (C) | bool True/False (Python)
+- cancel the access port nodeport if it was started with mode = SCDC_NODEPORT_START_LOOP_UNTIL_CANCEL, interrupt 'hard' if interrupt = 1 (C) | True (Python)
+
+ret scdc_nodeport_authority(conf, ...)
+- conf: const char * (C) | string (Python)
+- return an authority string for the access port specified with configuration string conf and the subsequent arguments (see scdc_nodeport_open)
+
+
+SCDC client: data sets
+----------------------
+
+dataset scdc_dataset_open(string uri, ...)
+- uri: const char * (C) | string (Python)
+- dataset: scdc_dataset_t (C)
+- open a data set with URI uri, if the authority part of the URI is '%s', then the authority is read as string from an optional argument
+- return a handle to the new data set or SCDC_DATASET_NULL
+
+scdc_dataset_close(dataset)
+- dataset: scdc_dataset_t (C)
+- close the data set with handle dataset
+
+ret scdc_dataset_cmd(dataset, cmd, input, output, ...)
+- dataset: scdc_dataset_t (C)
+- close the data set with handle dataset
+- cmd: const char * (C) | string (Python)
+- input: pointer to struct scdc_dataset_input_t (C) | class dataset_input
+- output: pointer to struct scdc_dataset_output_t (C) | class dataset_output
+- execute command cmd on data set with handle dataset, use input and output as input data and output data for the command (see below)
+- if handle dataset is SCDC_DATASET_NULL (C) or None (Python), then the first part of cmd (i.e. up to the first space) is used as URI for the dataset on which the remaining part of cmd is executed as command, the authority of this URI can be specified with an optional argument (see scdc_dataset_open)
+- return SCDC_SUCCESS/SCDC_FAILURE (C) | True/False if successful or not
+
+
+SCDC general: dataset input/output
+----------------------------------
+- struct scdc_dataset_input_t/scdc_dataset_output_t (C) | class dataset_input/dataset_output (Python)
+- members:
+  - format: string describing the data format
+  - buf: data buffer
+  - buf_size: size of the data buffer
+  - total_size: currently known total size of the input/output
+  - total_size_given: defines how to interpret the given total_size value, predefined values: SCDC_DATASET_INOUT_TOTAL_SIZE_GIVEN_EXACT, SCDC_DATASET_INOUT_TOTAL_SIZE_GIVEN_AT_LEAST, SCDC_DATASET_INOUT_TOTAL_SIZE_GIVEN_AT_MOST, SCDC_DATASET_INOUT_TOTAL_SIZE_GIVEN_NONE
+  - current_size: size of the currently available data within the data buffer
+  - next: handler to a function to get the next input or to produce more output
+  - data: arbitrary data field (e.g., to store state information)
+
+ret scdc_dataset_input_create(input, conf, ...)
+- input: scdc_dataset_input_t * (C)
+- conf: const char * (C) | string (Python)
+- ret: the pointer of the input object or NULL (C) | the input object or None (Python)
+- create a dataset input object according to the give configuration conf
+- conf is a colon-separated list that contains the type of the input to create and further optional parameters
+- supported types and optional parameters:
+  - "none": no input
+  - "alloc": allocate an input buffer (without content), if the optional parameter "size" is specified, then the buffer size can be specified with the list of variable arguments
+  - "buffer": use an existing memory buffer as input, the pointer and the size of the memory buffer have to be specified with the list of variable arguments
+  - "stream": use an I/O stream as input, the pointer to the corresponding FILE object has to be specified with the list of variable arguments
+  - "file": use a local file as input, the path of the file has to be specified with the list of variable arguments
+  - "fs": use a file system object (e.g., file or directory) as input, the path of the object has to be specified with the list of variable arguments
+  - "fslist": use a string listing local files and directories as input, the path to the directory to be listed has to be specified with the list of variable arguments
+
+scdc_dataset_input_destroy(input)
+- input: scdc_dataset_input_t * (C) | class dataset_input
+- destroy an dataset input object that was created with scdc_dataset_input_create
+
+scdc_dataset_input_redirect(input, conf, ...)
+- input: scdc_dataset_input_t * (C)
+- conf: const char * (C) | string (Python)
+- redirect an existing dataset input object according to the given configuration conf
+- conf is a colon-separated list describing the redirection,
+  - if the first list entry is "from", then the existing input is replaced with a new input source, the subsequent entries describing the source can be the same as for scdc_dataset_input_create
+  - if the first list entry is "to" (or at least not "from"), then the existing input is redirected to the given destination, the subsequent entries describing the destination can be the same as for scdc_dataset_output_create
+
+ret scdc_dataset_output_create(output, conf, ...)
+- output: scdc_dataset_output_t * (C)
+- conf: const char * (C) | string (Python)
+- ret: the pointer of the output object or NULL (C) | the output object or None (Python)
+- create a dataset output object according to the give configuration conf
+- conf is a colon-separated list that contains the type of the output to create and further optional parameters
+- supported types and optional parameters:
+  - "none": no output
+  - "alloc": allocate an output buffer, if the optional parameter "size" is specified, then the buffer size can be specified with the list of variable arguments
+  - "buffer": use an existing memory buffer as output, the pointer and the size of the memory buffer have to be specified with the list of variable arguments
+  - "stream": use an I/O stream as output, the pointer to the corresponding FILE object has to be specified with the list of variable arguments
+  - "file": use a local file as output, the path of the file has to be specified with the list of variable arguments
+  - "fs": use a local directory to store file system objects (e.g., file or directory) given as output, the path of the object has to be specified with the list of variable arguments
+  - "consume" or "none": consume the given output without further processing
+
+scdc_dataset_output_destroy(output)
+- output: scdc_dataset_output_t * (C) | class dataset_output
+- destroy an dataset output object that was created with scdc_dataset_output_create
+
+scdc_dataset_output_redirect(output, conf, ...)
+- output: scdc_dataset_output_t * (C)
+- conf: const char * (C) | string (Python)
+- redirect an existing dataset output object according to the given configuration conf
+- conf is a colon-separated list describing the redirection,
+  - if the first list entry is "from", then the existing output is replaced with a new output source, the subsequent entries describing the source can be the same as for scdc_dataset_input_create
+  - if the first list entry is "to" (or at least not "from"), then the existing output is redirected to the given destination, the subsequent entries describing the destination can be the same as for scdc_dataset_output_create
+
+
+SCDC general: command interface
+-------------------------------
+
+main:
+- config commands path: "/CONFIG/dataprov"
+  - open <path> <conf> <params> -> <id>
+  - close <id>
+  - ls -> <id>,...
+  - info <id> -> <path>
+
+data provider: *
+- config commands path: "<dataprov_path>/CONFIG"
+  - put <param> <val>
+  - get <param> -> <val>
+  - info -> <type>:<state>
+  - info <param> -> <string> or FAIL
+  - ls -> <params>
+  - cd -> SUCCESS
+  - cd <param> -> SUCCESS or FAIL
+
+data provider: register
+- regular commands:
+  - put <url> -> SUCCESS or FAIL
+  - get <url> -> SUCCESS or FAIL
+  - info -> #urls
+  - info <url> -> <type>:<state>
+  - rm <url>
+  - ls [<type>] -> <url>,...
+
+data provider: relay (register)
+- config commands path: "/CONFIG/relay"
+  - put <path> <url> -> <path>
+  - get <path> -> <url> or FAIL
+  - info -> #paths
+  - info <path> -> `register.info <url>`
+  - rm <path>
+  - ls [<type>] -> <path>,...
+- regular commands:
+  - mapped to data providers
+
+data provider: jobrun
+- regular commands:
+  - cd -> SUCCESS
+  - cd <jobid> -> change to <jobid>, SUCCESS or FAIL
+  - ls
+  - ls <jobid>
+  - info
+  - info <jobid>
+  - put <jobid> <cmds>
+  - get <jobid> <files>
+

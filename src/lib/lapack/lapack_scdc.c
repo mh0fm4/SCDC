@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2014, 2015, 2016 Michael Hofmann
+ *  Copyright (C) 2014, 2015, 2016, 2017 Michael Hofmann
  *  
  *  This file is part of the Simulation Component and Data Coupling (SCDC) library.
  *  
@@ -25,24 +25,43 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lapack.h"
+#define LIBLAPACK_SCDC_REMOTE  1
+
 #include "common.h"
+#include "lapack.h"
 #include "lapack_call.h"
 #include "lapack_scdc.h"
+#include "lapack_timing.h"
 
 
 #define TRACE_PREFIX  "lapack_scdc: "
 
 
-#if LIBBLAS_SCDC_PREFIX
+#if LIBLAPACK_SCDC_PREFIX
 
-#else /* LIBBLAS_SCDC_PREFIX */
+#else /* LIBLAPACK_SCDC_PREFIX */
 
 # define LAPACK_ORIG_ENABLED  1
 
-#endif /* LIBBLAS_SCDC_PREFIX */
+#endif /* LIBLAPACK_SCDC_PREFIX */
 
 #include "lapack_orig.h"
+
+
+#if LIBLAPACK_SCDC_TIMING_REMOTE
+# undef LAPACK_TIMING_PREFIX
+# define LAPACK_TIMING_PREFIX  TRACE_PREFIX  "TIMING: "
+# define LIBLAPACK_SCDC_TIMING_REMOTE_X  5
+int liblapack_scdc_timing_remote_i;
+double liblapack_scdc_timing_remote[LIBLAPACK_SCDC_TIMING_REMOTE_X];
+#endif
+#define LAPACK_TIMING_INIT_()  LAPACK_TIMING_INIT(liblapack_scdc_timing_remote, liblapack_scdc_timing_remote_i, LIBLAPACK_SCDC_TIMING_REMOTE_X)
+
+#if LIBLAPACK_SCDC_TIMING_REDIRECT_REMOTE
+# define LAPACK_TIMING_REMOTE_PUT(_bc_, _t_)  LAPACK_CALL(put_output_conf_double)(_bc_, "TIMING", _t_);
+#else
+# define LAPACK_TIMING_REMOTE_PUT(_bc_, _t_)  Z_NOP()
+#endif
 
 
 #if LAPACK_SGESV
@@ -51,17 +70,19 @@ static void do_sgesv(lapack_call_t *lc)
 {
   TRACE_F("%s: %p", __func__, lc);
 
+  LAPACK_TIMING_INIT_();
+
   int N, NRHS;
   LAPACK_CALL(get_input_conf_int)(lc, "N", &N);
   LAPACK_CALL(get_input_conf_int)(lc, "NRHS", &NRHS);
 
   float *A = 0, *B = 0;
-  int LDA, oa, LDB, ob;
-  LAPACK_CALL(get_input_param_matrix_float)(lc, "A", N, N, &A, &LDA, &oa);
-  LAPACK_CALL(get_input_param_matrix_float)(lc, "B", N, NRHS, &B, &LDB, &ob);
+  int LDA = 0, rcma, LDB = 0, rcmb;
+  LAPACK_CALL(get_inout_param_matrix_float)(lc, "A", N, N, &A, &LDA, &rcma);
+  LAPACK_CALL(get_inout_param_matrix_float)(lc, "B", N, NRHS, &B, &LDB, &rcmb);
 
-  ASSERT(oa == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
-  ASSERT(ob == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
+  ASSERT(rcma == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
+  ASSERT(rcmb == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
 
   int *IPIV = 0;
   LAPACK_CALL(get_output_param_vector_int)(lc, "IPIV", N, &IPIV); /* output buffer 'IPIV' anfordern */
@@ -71,16 +92,22 @@ static void do_sgesv(lapack_call_t *lc)
   TRACE_F("%s: N: %d, NRHS: %d, A: %p, LDA: %d, IPIV: %p, B: %p, LDB: %d, INFO: %d", __func__, N, NRHS, A, LDA, IPIV, B, LDB, INFO);
 
   LAPACK_ORIG_F_INIT(sgesv_);
+  LAPACK_TIMING_START(liblapack_scdc_timing_remote[0]);
   LAPACK_ORIG_F(MANGLE_LAPACK(sgesv_))(&N, &NRHS, A, &LDA, IPIV, B, &LDB, &INFO);
+  LAPACK_TIMING_STOP(liblapack_scdc_timing_remote[0]);
 
   TRACE_F("%s: N: %d, NRHS: %d, A: %p, LDA: %d, IPIV: %p, B: %p, LDB: %d, INFO: %d", __func__, N, NRHS, A, LDA, IPIV, B, LDB, INFO);
 
-  LAPACK_CALL(put_output_param_matrix_float)(lc, "A", N, N, A, LDA, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
-  LAPACK_CALL(put_output_param_matrix_float)(lc, "B", N, NRHS, B, LDB, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
+  LAPACK_CALL(put_output_param_matrix_float)(lc, "A", N, N, A, LDA, rcma);
+  LAPACK_CALL(put_output_param_matrix_float)(lc, "B", N, NRHS, B, LDB, rcmb);
 
   LAPACK_CALL(put_output_param_vector_int)(lc, "IPIV", N, IPIV);
 
   LAPACK_CALL(put_output_conf_int)(lc, "INFO", INFO);
+
+  LAPACK_TIMING_REMOTE_PUT(lc, liblapack_scdc_timing_remote[0]);
+
+  LAPACK_TIMING_PRINT_F("%s: %f", __func__, liblapack_scdc_timing_remote[0]);
 
   TRACE_F("%s: return", __func__);
 }
@@ -94,6 +121,8 @@ static void do_strsv(lapack_call_t *lc)
 {
   TRACE_F("%s: %p", __func__, lc);
 
+  LAPACK_TIMING_INIT_();
+
   char UPLO, TRANS, DIAG;
   LAPACK_CALL(get_input_conf_char)(lc, "UPLO", &UPLO);
   LAPACK_CALL(get_input_conf_char)(lc, "TRANS", &TRANS);
@@ -103,21 +132,29 @@ static void do_strsv(lapack_call_t *lc)
   LAPACK_CALL(get_input_conf_int)(lc, "N", &N);
   
   float *A = 0;
-  int LDA;
-  LAPACK_CALL(get_input_param_matrix_float)(lc, "A", N, N, &A, &LDA, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
+  int LDA = 0, rcma;
+  LAPACK_CALL(get_input_param_matrix_float)(lc, "A", N, N, &A, &LDA, &rcma);
+
+  ASSERT(rcma == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
 
   float *X = 0;
-  int INCX;
+  int INCX = 0;
   LAPACK_CALL(get_input_param_vector_float)(lc, "X", N, &X, &INCX);
 
   TRACE_F("%s: UPLO: %c, TRANS: %c, DIAG: %c, N: %d, A: %p, LDA: %d, X: %p, INCX: %d", __func__, UPLO, TRANS, DIAG, N, A, LDA, X, INCX);
 
   LAPACK_ORIG_F_INIT(strsv_);
+  LAPACK_TIMING_START(liblapack_scdc_timing_remote[0]);
   LAPACK_ORIG_F(MANGLE_LAPACK(strsv_))(&UPLO, &TRANS, &DIAG, &N, A, &LDA, X, &INCX);
+  LAPACK_TIMING_STOP(liblapack_scdc_timing_remote[0]);
 
   TRACE_F("%s: UPLO: %c, TRANS: %c, DIAG: %c, N: %d, A: %p, LDA: %d, X: %p, INCX: %d", __func__, UPLO, TRANS, DIAG, N, A, LDA, X, INCX);
 
   LAPACK_CALL(put_output_param_vector_float)(lc, "X", N, X, INCX);
+
+  LAPACK_TIMING_REMOTE_PUT(bc, liblapack_scdc_timing_remote[0]);
+
+  LAPACK_TIMING_PRINT_F("%s: %f", __func__, liblapack_scdc_timing_remote[0]);
 
   TRACE_F("%s: return", __func__);
 }

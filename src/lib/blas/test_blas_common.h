@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2014, 2015, 2016 Michael Hofmann
+ *  Copyright (C) 2014, 2015, 2016, 2017 Michael Hofmann
  *  
  *  This file is part of the Simulation Component and Data Coupling (SCDC) library.
  *  
@@ -22,14 +22,50 @@
 #define __TEST_BLAS_COMMON_H__
 
 
-void dvector_init(const int n, double *x, const int incx);
-void dvector_print(const int n, double *x, const int incx);
-void dmatrix_cmo_init(const int nrows, const int ncols, double *a, const int lda);
-void dmatrix_cmo_print(const int nrows, const int ncols, double *a, const int lda);
-void dmatvec_lgs_init(const char UPLO, const char TRANS, const char DIAG, const int n, double *a, const int lda, double *x, const int incx);
-void dmatvec_lgs_print(const char UPLO, const char TRANS, const char DIAG, const int n, double *a, const int lda, double *x, const int incx);
-void dmatmat_lgs_init(const char SIDE, const char UPLO, const char TRANS, const char DIAG, const int m, const int n, double *a, const int lda, double *b, const int ldb);
-void dmatmat_lgs_print(const char SIDE, const char UPLO, const char TRANS, const char DIAG, const int m, const int n, double *a, const int lda, double *b, const int ldb);
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
+#define DECLARE_FLOAT_VECTOR(_t_, _tn_) \
+  void _tn_ ## vector_init_one(const int n, _t_ *x, const int incx); \
+  void _tn_ ## vector_init_rand(const int n, _t_ *x, const int incx); \
+  void _tn_ ## vector_init(const int n, _t_ *x, const int incx); \
+  void _tn_ ## vector_print(const int n, _t_ *x, const int incx);
+
+#define DECLARE_FLOAT_MATRIX(_t_, _tn_) \
+  void _tn_ ## matrix_cmo_init_one(const int nrows, const int ncols, _t_ *a, const int lda); \
+  void _tn_ ## matrix_cmo_init_rand(const int nrows, const int ncols, _t_ *a, const int lda); \
+  void _tn_ ## matrix_cmo_init(const int nrows, const int ncols, _t_ *a, const int lda); \
+  void _tn_ ## matrix_cmo_print(const int nrows, const int ncols, _t_ *a, const int lda);
+
+#define DECLARE_FLOAT_MATVEC(_t_, _tn_) \
+  void _tn_ ## matvec_lgs_init_one(const char UPLO, const char TRANS, const char DIAG, const int n, _t_ *a, const int lda, _t_ *x, const int incx); \
+  void _tn_ ## matvec_lgs_init_rand(const char UPLO, const char TRANS, const char DIAG, const int n, _t_ *a, const int lda, _t_ *x, const int incx); \
+  void _tn_ ## matvec_lgs_init(const char UPLO, const char TRANS, const char DIAG, const int n, _t_ *a, const int lda, _t_ *x, const int incx); \
+  void _tn_ ## matvec_lgs_print(const char UPLO, const char TRANS, const char DIAG, const int n, _t_ *a, const int lda, _t_ *x, const int incx); \
+
+#define DECLARE_FLOAT_MATMAT(_t_, _tn_) \
+  void _tn_ ## matmat_lgs_init_one(const char SIDE, const char UPLO, const char TRANS, const char DIAG, const int m, const int n, _t_ *a, const int lda, _t_ *b, const int ldb); \
+  void _tn_ ## matmat_lgs_init_rand(const char SIDE, const char UPLO, const char TRANS, const char DIAG, const int m, const int n, _t_ *a, const int lda, _t_ *b, const int ldb); \
+  void _tn_ ## matmat_lgs_init(const char SIDE, const char UPLO, const char TRANS, const char DIAG, const int m, const int n, _t_ *a, const int lda, _t_ *b, const int ldb); \
+  void _tn_ ## matmat_lgs_print(const char SIDE, const char UPLO, const char TRANS, const char DIAG, const int m, const int n, _t_ *a, const int lda, _t_ *b, const int ldb); \
+
+
+#define DECLARE_FLOAT(_t_, _tn_, _fmt_) \
+  DECLARE_FLOAT_VECTOR(_t_, _tn_); \
+  DECLARE_FLOAT_MATRIX(_t_, _tn_); \
+  DECLARE_FLOAT_MATVEC(_t_, _tn_); \
+  DECLARE_FLOAT_MATMAT(_t_, _tn_); \
+
+
+DECLARE_FLOAT(float, f, FMT_FLOAT);
+DECLARE_FLOAT(double, d, FMT_DOUBLE);
+
+
+#ifdef __cplusplus
+}
+#endif
 
 
 #endif /* __TEST_BLAS_COMMON_H__ */

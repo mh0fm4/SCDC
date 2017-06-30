@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2014, 2015, 2016 Michael Hofmann
+ *  Copyright (C) 2014, 2015, 2016, 2017 Michael Hofmann
  *  
  *  This file is part of the Simulation Component and Data Coupling (SCDC) library.
  *  
@@ -36,6 +36,14 @@
   MANGLE_BLAS(_f_ ## _f) MANGLE_BLAS(_f_), MANGLE_BLAS(_f_ ## _)
 
 
+/* BLAS bench */
+DECLARE_PROTOTYPE(void, dvin, const int *N, double *DX, const int *INCX);
+DECLARE_PROTOTYPE(void, dvout, const int *N, double *DX, const int *INCX);
+DECLARE_PROTOTYPE(void, dvinout, const int *N, double *DX, const int *INCX);
+DECLARE_PROTOTYPE(void, dgein, const int *M, const int *N, double *A, const int *LDA);
+DECLARE_PROTOTYPE(void, dgeout, const int *M, const int *N, double *A, const int *LDA);
+DECLARE_PROTOTYPE(void, dgeinout, const int *M, const int *N, double *A, const int *LDA);
+
 /* BLAS level 1 */
 DECLARE_PROTOTYPE(int, idamax, const int *N, double *DX, const int *INCX);
 DECLARE_PROTOTYPE(void, dcopy, const int *N, double *DX, const int *INCX, double *DY, const int *INCY);
@@ -50,6 +58,9 @@ DECLARE_PROTOTYPE(void, dtrsv, const char *UPLO, const char *TRANS, const char *
 /* BLAS level 3 */
 DECLARE_PROTOTYPE(void, dgemm, const char *TRANSA, const char *TRANSB, const int *M, const int *N, const int *K, const double *ALPHA, double *A, const int *LDA, double *B, const int *LDB, const double *BETA, double *C, const int *LDC);
 DECLARE_PROTOTYPE(void, dtrsm, const char *SIDE, const char *UPLO, const char *TRANSA, const char *DIAG, const int *M, const int *N, double *ALPHA, double *A, const int *LDA, double *B, const int *LDB);
+
+
+#undef DECLARE_PROTOTYPE
 
 
 #endif /* __BLAS_H__ */

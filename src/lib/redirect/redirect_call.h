@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2014, 2015, 2016 Michael Hofmann
+ *  Copyright (C) 2014, 2015, 2016, 2017 Michael Hofmann
  *  
  *  This file is part of the Simulation Component and Data Coupling (SCDC) library.
  *  
@@ -51,6 +51,8 @@ extern "C" {
 #define RCM_IS_SET(_x_, _y_)       (((_x_) & (_y_)) == (_y_))
 
 
+#if REDIRECT_CALL_PARAMS_DENSE
+
 typedef struct _redirect_params_dense_t
 {
   void *buf;
@@ -58,6 +60,7 @@ typedef struct _redirect_params_dense_t
 
 } redirect_params_dense_t;
 
+#else
 
 typedef struct _redirect_params_blocks_t
 {
@@ -66,6 +69,7 @@ typedef struct _redirect_params_blocks_t
 
 } redirect_params_blocks_t;
 
+#endif
 
 typedef struct _redirect_call_t
 {
@@ -75,17 +79,23 @@ typedef struct _redirect_call_t
   int input_nconf, output_nconf;
   char input_conf[256], output_conf[256];
 
+#if REDIRECT_CALL_PARAMS_DENSE
   int dense_nparams;
   redirect_params_dense_t dense_params[8];
-
+#else
   int blocks_nparams;
   redirect_params_blocks_t blocks_params[8];
+#endif
 
   int input_offset, output_offset;
   scdc_dataset_input_t *input;
   scdc_dataset_output_t *output;
 
+#if REDIRECT_CALL_PARAMS_DENSE
   int input_state, output_state;
+#else
+  int input_state[2], output_state[2];
+#endif
 
   int free_nbufs;
   void *free_bufs[8];

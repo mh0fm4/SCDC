@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2014, 2015, 2016 Michael Hofmann
+ *  Copyright (C) 2014, 2015, 2016, 2017 Michael Hofmann
  *  
  *  This file is part of the Simulation Component and Data Coupling (SCDC) library.
  *  
@@ -31,6 +31,8 @@
 #define LIBBLAS_SCDC_PREFIX       0
 #define LIBBLAS_SCDC_PREFIX_NAME  libblas_scdc_
 
+#define LIBBLAS_SCDC_ORIGINALS  1
+
 #define LIBBLAS_SCDC_LOCAL       1
 #define LIBBLAS_SCDC_LOCAL_BASE  "blas"
 #define LIBBLAS_SCDC_LOCAL_URI   "scdc:/"
@@ -46,8 +48,8 @@
 #define LIBBLAS_SCDC_TIMING                  1
 #define LIBBLAS_SCDC_TIMING_REMOTE           1
 #define LIBBLAS_SCDC_TIMING_REDIRECT_REMOTE  1
-#define LIBBLAS_SCDC_TIMING_PRINT            1
-#define LIBBLAS_SCDC_TIMING_PRINT_REMOTE     1
+#define LIBBLAS_SCDC_TIMING_PRINT            0
+#define LIBBLAS_SCDC_TIMING_PRINT_REMOTE     0
 
 
 #endif /* __CONFIG_H__ */

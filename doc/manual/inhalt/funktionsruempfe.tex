@@ -1,0 +1,180 @@
+
+
+\subsection{\textbf{Funktion:} scdc\_dataprov\_hook\_open\_f}\label{scdc_dataprov_hook_open_f}
+\begin{lstlisting}[escapechar={~}]
+void* hook_dataprov_open(const char *conf, va_list ap)
+{
+	// initialisierungen allocation von Speicher usw.
+	return <..dataprov..>
+}
+\end{lstlisting}
+
+\underline{Parameter:}
+\begin{tabbing}
+conf \= $\leftarrow$ conf \= aus> \= ---------------------------------------------------------------------------------- \kill
+conf \> $\leftarrow$ conf \> aus> \> \Hhref{scdc_dataprov_open}(const char *base\_path, const char \textbf{*conf}, ...)\\
+ap   \> $\leftarrow$ ...  \> aus> \> \Hhref{scdc_dataprov_open}(const char *base\_path, const char *conf, \textbf{...})\\
+\end{tabbing}
+\underline{Return} <..dataprov..> Wert im Parameter verwendet von:
+\begin{tabbing}
+dataprov \= $\Rightarrow$ \= ---------------------------------------------------------------------------------- \kill
+dataprov \> $\Rightarrow$ \> \Hhref{scdc_dataprov_hook_close_f}( void \textbf{*dataprov})\\
+dataprov \> $\Rightarrow$ \> \Hhref{scdc_dataprov_hook_config_f}(void \textbf{*dataprov}, \underline{~~~~} )\\
+dataprov \> $\Rightarrow$ \> \Hhref{scdc_dataprov_hook_dataset_open_f}( void \textbf{*dataprov} , \underline{~~~~} );\\
+dataprov \> $\Rightarrow$ \> \Hhref{scdc_dataprov_hook_dataset_close_f}( void \textbf{*dataprov} , \underline{~~~~} );\\
+dataprov \> $\Rightarrow$ \> \Hhref{scdc_dataprov_hook_dataset_open_read_state_f}( void \textbf{*dataprov} , \underline{~~~~} );\\
+dataprov \> $\Rightarrow$ \> \Hhref{scdc_dataprov_hook_dataset_close_write_state_f}( void \textbf{*dataprov} , \underline{~~~~} );\\
+dataprov \> $\Rightarrow$ \> \Hhref{scdc_dataprov_hook_dataset_cmd_f}( void \textbf{*dataprov} , \underline{~~~~} );\\
+\end{tabbing}
+
+%--------------------------------------------------------------------------------------------------------------------------------------------------
+
+\subsection{\textbf{Funktion:} scdc\_dataprov\_hook\_close\_f}\label{scdc_dataprov_hook_close_f}
+\begin{lstlisting}[escapechar={~}]
+scdcint_t hook_dataprov_close(void *dataprov)
+{
+	 // free ...
+	return SCDC_SUCCESS;
+}
+\end{lstlisting}
+
+\underline{Parameter:}
+\begin{tabbing}
+dataprov \= $\leftarrow$ return <..dataprov..> \= aus> \= ------------------------------------------------------------ \kill
+dataprov \> $\leftarrow$ return <..dataprov..> \> aus> \> \Hhref{scdc_dataprov_hook_open_f}( \underline{~~~~} )\\
+\end{tabbing}
+
+%--------------------------------------------------------------------------------------------------------------------------------------------------
+
+\subsection{\textbf{Funktion:} scdc\_dataprov\_hook\_config\_f}\label{scdc_dataprov_hook_config_f}
+\begin{lstlisting}[escapechar={~}]
+scdcint_t hook_dataprov_config(void *dataprov, const char *cmd,
+              const char *param, const char *val, scdcint_t val_size, 
+                                char **result, scdcint_t *result_size)
+{
+    return SCDC_SUCCESS;
+}
+\end{lstlisting}
+
+\underline{Parameter:}
+\begin{tabbing}
+dataprov \= $\leftarrow$ return <..dataprov..> \= aus> \= ------------------------------------------------------------- \kill
+dataprov \> $\leftarrow$ return <..dataprov..> \> aus> \> \Hhref{scdc_dataprov_hook_open_f}( \underline{~~~~} )\\
+\end{tabbing}
+
+%--------------------------------------------------------------------------------------------------------------------------------------------------
+
+\subsection{\textbf{Funktion:} scdc\_dataprov\_hook\_dataset\_open\_f}\label{scdc_dataprov_hook_dataset_open_f}
+\begin{lstlisting}[escapechar={~}]
+void *hook_dataset_open( void *dataprov, const char *path)
+{
+	// Anlegen des Datenset, Allokation von Speicher usw.
+	return <..dataset..>
+}
+\end{lstlisting}
+
+\underline{Parameter:}
+\begin{tabbing}
+dataprov \= $\leftarrow$ return <..dataprov..> \= aus> \= --------------------------------------------------------------- \kill
+dataprov \> $\leftarrow$ return <..dataprov..> \> aus> \> \Hhref{scdc_dataprov_hook_open_f}( \underline{~~~~} )\\
+path \> $\leftarrow$ uri                       \> aus> \> \Hhref{scdc_dataset_open}( (const char \textbf{*uri}, ...) )\\
+\end{tabbing}
+\underline{Return} <..dataset..> Wert im Parameter verwendet von:
+\begin{tabbing}
+dataset \= $\Rightarrow$ \= ---------------------------------------------------------------------------------- \kill
+dataset \> $\Rightarrow$ \> \Hhref{scdc_dataprov_hook_dataset_close_f}( \underline{~~}, void \textbf{*dataset}, \underline{~~})\\
+dataset \> $\Rightarrow$ \> \Hhref{scdc_dataprov_hook_dataset_close_write_state_f}( \underline{~~}, void \textbf{*dataset}, \underline{~~})\\
+dataset \> $\Rightarrow$ \> \Hhref{scdc_dataprov_hook_dataset_cmd_f}( \underline{~~}, void \textbf{*dataset}, \underline{~~})\\
+\end{tabbing}
+
+
+%--------------------------------------------------------------------------------------------------------------------------------------------------
+
+\subsection{\textbf{Funktion:} scdc\_dataprov\_hook\_dataset\_close\_f}\label{scdc_dataprov_hook_dataset_close_f}
+\begin{lstlisting}[escapechar={~}]
+scdcint_t hook_dataset_close( void *dataprov, void *dataset)
+{
+	 //free ....
+	return SCDC_SUCCESS;
+}
+\end{lstlisting}
+
+\underline{Parameter:}
+\begin{tabbing}
+dataprov \= $\leftarrow$ return <..dataprov..> \= aus> \= ----------------------------------------------------------------- \kill
+dataprov \> $\leftarrow$ return <..dataprov..> \> aus> \> \Hhref{scdc_dataprov_hook_open_f}( \underline{~~~~} )\\
+dataset  \> $\leftarrow$ return <..dataset..>  \> aus> \> \Hhref{scdc_dataprov_hook_dataset_open_f}( \underline{~~~~} )\\
+\end{tabbing}
+
+%--------------------------------------------------------------------------------------------------------------------------------------------------
+
+\subsection{\textbf{Funktion:} scdc\_dataprov\_hook\_dataset\_open\_read\_state\_f}\label{scdc_dataprov_hook_dataset_open_read_state_f}
+\begin{lstlisting}[escapechar={~}]
+ // Wie kann Datensatz serialisiert werden, 
+ // für komplexe strukturen, wenn nicht angegeben wird 
+ // einfach der zeiger zum client geschickt
+void *hook_dataset_open_read_state( void *dataprov, const char *buf, scdcint_t, buf_size)
+{
+	return <..Kennung..>
+}
+\end{lstlisting}
+
+\underline{Parameter:}
+\begin{tabbing}
+dataprov \= $\leftarrow$ return <..dataprov..> \= aus> \= -------------------------------------------------------------------- \kill
+dataprov \> $\leftarrow$ return <..dataprov..> \> aus> \> \Hhref{scdc_dataprov_hook_open_f}( \underline{~~~~} )\\
+\end{tabbing}
+%--------------------------------------------------------------------------------------------------------------------------------------------------
+
+\subsection{\textbf{Funktion:} scdc\_dataprov\_hook\_dataset\_close\_write\_state\_f}\label{scdc_dataprov_hook_dataset_close_write_state_f}
+\begin{lstlisting}[escapechar={~}]
+scdcint_t hook_dataset_close_write_state( void *dataprov, void *dataset, char *buf, scdcint_t buf_size)
+{
+	// Was Berechnen
+	return SCDC_SUCCESS;
+}
+\end{lstlisting}
+
+\underline{Parameter:}
+\begin{tabbing}
+dataprov \= $\leftarrow$ return <..dataprov..> \= aus> \= ----------------------------------------------------------------- \kill
+dataprov \> $\leftarrow$ return <..dataprov..> \> aus> \> \Hhref{scdc_dataprov_hook_open_f}( \underline{~~~~} )\\
+dataset  \> $\leftarrow$ return <..dataset..>  \> aus> \> \Hhref{scdc_dataprov_hook_dataset_open_f}( \underline{~~~~} )\\
+\end{tabbing}
+%--------------------------------------------------------------------------------------------------------------------------------------------------
+
+\subsection{\textbf{Funktion:} scdc\_dataprov\_hook\_dataset\_cmd\_f}\label{scdc_dataprov_hook_dataset_cmd_f}
+\begin{lstlisting}[escapechar={~}]
+scdcint_t hook_dataset_cmd(void *dataprov, void *dataset, const char *cmd, const char *params,
+                                    scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+{
+	 // Verarbeitung von Daten
+	 // Input und Output über input und output siehe Parameter
+	 
+	 if(input->nex != NULL)
+	 {
+	 	// Weitere Daten aus input abrufen
+	 	input->next(input);
+	 }
+	 else
+	 { ... // Alle Daten empfangen}
+    
+	return SCDC_SUCCESS;	
+}
+
+\end{lstlisting}
+
+\underline{Parameter:}
+\begin{tabbing}
+dataprov \= $\leftarrow$ return <..dataprov..>... \= aus> \= ----------------------------------------------------------------- \kill
+dataprov \> $\leftarrow$ return <..dataprov..>    \> aus> \> \Hhref{scdc_dataprov_hook_open_f}( \underline{~~~~} )\\
+dataset  \> $\leftarrow$ return <..dataset..>     \> aus> \> \Hhref{scdc_dataprov_hook_dataset_open_f}( \underline{~~~~} )\\
+
+cmd      \> $\leftarrow$ cmd                      \> aus> \> \Hhref{scdc_dataset_cmd}( \underline{~~}, const char \textbf{*cmd} ,\underline{~~} )\\
+params   \> $\leftarrow$ cmd (String nach \qqq{~})\> aus> \> \Hhref{scdc_dataset_cmd}( \underline{~~}, const char \textbf{*cmd} ,\underline{~~} )\\
+input    \> $\leftarrow$ input                    \> aus> \> \Hhref{scdc_dataset_cmd}( \underline{~~}, scdc\_dataset\_input\_t \textbf{*input} )\\
+output   \> $\leftarrow$ output                   \> aus> \> \Hhref{scdc_dataset_cmd}( \underline{~~}, scdc\_dataset\_output\_t \textbf{*output} )\\
+\end{tabbing}
+
+%--------------------------------------------------------------------------------------------------------------------------------------------------
+

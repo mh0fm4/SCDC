@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2014, 2015, 2016 Michael Hofmann
+ *  Copyright (C) 2014, 2015, 2016, 2017 Michael Hofmann
  *  
  *  This file is part of the Simulation Component and Data Coupling (SCDC) library.
  *  
@@ -20,6 +20,14 @@
 
 #ifndef __LIBBLAS_SCDC_H__
 #define __LIBBLAS_SCDC_H__
+
+
+extern const char *libblas_scdc_uri;
+extern double libblas_scdc_timing[];
+
+
+void libblas_scdc_init();
+void libblas_scdc_release();
 
 
 #endif /* __LIBBLAS_SCDC_H__ */

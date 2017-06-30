@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2014, 2015, 2016 Michael Hofmann
+ *  Copyright (C) 2014, 2015, 2016, 2017 Michael Hofmann
  *  
  *  This file is part of the Simulation Component and Data Coupling (SCDC) library.
  *  
@@ -62,6 +62,182 @@ double libblas_scdc_timing_remote[LIBBLAS_SCDC_TIMING_REMOTE_X];
 #else
 # define BLAS_TIMING_REMOTE_PUT(_bc_, _t_)  Z_NOP()
 #endif
+
+
+/* BLAS bench */
+#if BLAS_BENCH
+
+static void do_dvin(blas_call_t *bc)
+{
+  TRACE_F("%s: bc: %p", __func__, bc);
+
+  BLAS_TIMING_INIT_();
+
+  int N;
+  BLAS_CALL(get_input_conf_int)(bc, "N", &N);
+
+  double *DX = 0;
+  int INCX = 0;
+  BLAS_CALL(get_input_param_vector_double)(bc, "DX", N, &DX, &INCX);
+
+  TRACE_F("%s: N: %d, DX: %p, INCX: %d", __func__, N, DX, INCX);
+
+/*  BLAS_TIMING_REMOTE_PUT(bc, libblas_scdc_timing_remote[0]);*/
+
+  BLAS_TIMING_PRINT_F("%s: %f", __func__, libblas_scdc_timing_remote[0]);
+
+  TRACE_F("%s: return", __func__);
+}
+
+
+static void do_dvout(blas_call_t *bc)
+{
+  TRACE_F("%s: bc: %p", __func__, bc);
+
+  BLAS_TIMING_INIT_();
+
+  int N;
+  BLAS_CALL(get_input_conf_int)(bc, "N", &N);
+
+  double *DX = 0;
+  int INCX = 0;
+  BLAS_CALL(get_output_param_vector_double)(bc, "DX", N, &DX, &INCX);
+
+#if HAVE_SCDC_DEBUG
+  if (N > 0) memset(DX, 0, ((N - 1) * INCX + 1) * sizeof(double));
+#endif
+
+  TRACE_F("%s: N: %d, DX: %p, INCX: %d", __func__, N, DX, INCX);
+
+  BLAS_CALL(put_output_param_vector_double)(bc, "DX", N, DX, INCX);
+
+/*  BLAS_TIMING_REMOTE_PUT(bc, libblas_scdc_timing_remote[0]);*/
+
+  BLAS_TIMING_PRINT_F("%s: %f", __func__, libblas_scdc_timing_remote[0]);
+
+  TRACE_F("%s: return", __func__);
+}
+
+
+static void do_dvinout(blas_call_t *bc)
+{
+  TRACE_F("%s: bc: %p", __func__, bc);
+
+  BLAS_TIMING_INIT_();
+
+  int N;
+  BLAS_CALL(get_input_conf_int)(bc, "N", &N);
+
+  double *DX = 0;
+  int INCX = 0;
+  BLAS_CALL(get_inout_param_vector_double)(bc, "DX", N, &DX, &INCX);
+
+#if HAVE_SCDC_DEBUG
+  if (N > 0) memset(DX, 0, ((N - 1) * INCX + 1) * sizeof(double));
+#endif
+
+  TRACE_F("%s: N: %d, DX: %p, INCX: %d", __func__, N, DX, INCX);
+
+  BLAS_CALL(put_output_param_vector_double)(bc, "DX", N, DX, INCX);
+
+/*  BLAS_TIMING_REMOTE_PUT(bc, libblas_scdc_timing_remote[0]);*/
+
+  BLAS_TIMING_PRINT_F("%s: %f", __func__, libblas_scdc_timing_remote[0]);
+
+  TRACE_F("%s: return", __func__);
+}
+
+
+static void do_dgein(blas_call_t *bc)
+{
+  TRACE_F("%s: bc: %p", __func__, bc);
+
+  BLAS_TIMING_INIT_();
+
+  int M, N;
+  BLAS_CALL(get_input_conf_int)(bc, "M", &M);
+  BLAS_CALL(get_input_conf_int)(bc, "N", &N);
+
+  double *A = 0;
+  int LDA = 0, rcma;
+  BLAS_CALL(get_input_param_matrix_double)(bc, "A", M, N, &A, &LDA, &rcma);
+
+  ASSERT(rcma == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
+
+  TRACE_F("%s: M: %d, N: %d, A: %p, LDA: %d", __func__, M, N, A, LDA);
+
+/*  BLAS_TIMING_REMOTE_PUT(bc, libblas_scdc_timing_remote[0]);*/
+
+  BLAS_TIMING_PRINT_F("%s: %f", __func__, libblas_scdc_timing_remote[0]);
+
+  TRACE_F("%s: return", __func__);
+}
+
+
+static void do_dgeout(blas_call_t *bc)
+{
+  TRACE_F("%s: bc: %p", __func__, bc);
+
+  BLAS_TIMING_INIT_();
+
+  int M, N;
+  BLAS_CALL(get_input_conf_int)(bc, "M", &M);
+  BLAS_CALL(get_input_conf_int)(bc, "N", &N);
+
+  double *A = 0;
+  int LDA = 0, rcma;
+  BLAS_CALL(get_output_param_matrix_double)(bc, "A", M, N, &A, &LDA, &rcma);
+
+  ASSERT(rcma == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
+
+#if HAVE_SCDC_DEBUG
+  if (N > 0) memset(A, 0, ((N - 1) * LDA + M) * sizeof(double));
+#endif
+
+  TRACE_F("%s: M: %d, N: %d, A: %p, LDA: %d", __func__, M, N, A, LDA);
+
+  BLAS_CALL(put_output_param_matrix_double)(bc, "A", M, N, A, LDA, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
+
+/*  BLAS_TIMING_REMOTE_PUT(bc, libblas_scdc_timing_remote[0]);*/
+
+  BLAS_TIMING_PRINT_F("%s: %f", __func__, libblas_scdc_timing_remote[0]);
+
+  TRACE_F("%s: return", __func__);
+}
+
+
+static void do_dgeinout(blas_call_t *bc)
+{
+  TRACE_F("%s: bc: %p", __func__, bc);
+
+  BLAS_TIMING_INIT_();
+
+  int M, N;
+  BLAS_CALL(get_input_conf_int)(bc, "M", &M);
+  BLAS_CALL(get_input_conf_int)(bc, "N", &N);
+
+  double *A = 0;
+  int LDA = 0, rcma;
+  BLAS_CALL(get_inout_param_matrix_double)(bc, "A", M, N, &A, &LDA, &rcma);
+
+  ASSERT(rcma == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
+
+#if HAVE_SCDC_DEBUG
+  if (N > 0) memset(A, 0, ((N - 1) * LDA + M) * sizeof(double));
+#endif
+
+  TRACE_F("%s: M: %d, N: %d, A: %p, LDA: %d", __func__, M, N, A, LDA);
+
+  BLAS_CALL(put_output_param_matrix_double)(bc, "A", M, N, A, LDA, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
+
+/*  BLAS_TIMING_REMOTE_PUT(bc, libblas_scdc_timing_remote[0]);*/
+
+  BLAS_TIMING_PRINT_F("%s: %f", __func__, libblas_scdc_timing_remote[0]);
+
+  TRACE_F("%s: return", __func__);
+}
+
+#endif /* BLAS_BENCH */
 
 
 /* BLAS level 1 */
@@ -245,7 +421,7 @@ static void do_dger(blas_call_t *bc)
   BLAS_CALL(get_input_param_vector_double)(bc, "Y", N, &Y, &INCY);
 
   double *A = 0;
-  int LDA, rcma;
+  int LDA = 0, rcma;
   BLAS_CALL(get_inout_param_matrix_double)(bc, "A", M, N, &A, &LDA, &rcma);
 
   ASSERT(rcma == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
@@ -271,53 +447,6 @@ static void do_dger(blas_call_t *bc)
 #endif /* BLAS_DGER */
 
 
-#if BLAS_DTRSV
-
-static void do_dtrsv(blas_call_t *bc)
-{
-  TRACE_F("%s: bc: %p", __func__, bc);
-
-  BLAS_TIMING_INIT_();
-
-  char UPLO, TRANS, DIAG;
-  BLAS_CALL(get_input_conf_char)(bc, "UPLO", &UPLO);
-  BLAS_CALL(get_input_conf_char)(bc, "TRANS", &TRANS);
-  BLAS_CALL(get_input_conf_char)(bc, "DIAG", &DIAG);
-
-  int N;
-  BLAS_CALL(get_input_conf_int)(bc, "N", &N);
-
-  double *A = 0;
-  int LDA, rcma;
-  BLAS_CALL(get_input_param_matrix_double)(bc, "A", N, N, &A, &LDA, &rcma);
-
-  ASSERT(RCM_GET_ORDER(rcma) == RCM_ORDER_COL_MAJOR);
-
-  double *X = 0;
-  int INCX = 0;
-  BLAS_CALL(get_inout_param_vector_double)(bc, "X", N, &X, &INCX);
-
-  TRACE_F("%s: UPLO: %c, TRANS: %c, DIAG: %c, N: %d, A: %p, LDA: %d, X: %p, INCX: %d", __func__, UPLO, TRANS, DIAG, N, A, LDA, X, INCX);
-
-  BLAS_ORIG_F_INIT(dtrsv_);
-  BLAS_TIMING_START(libblas_scdc_timing_remote[0]);
-  BLAS_ORIG_F(MANGLE_BLAS(dtrsv_))(&UPLO, &TRANS, &DIAG, &N, A, &LDA, X, &INCX);
-  BLAS_TIMING_STOP(libblas_scdc_timing_remote[0]);
-
-  TRACE_F("%s: UPLO: %c, TRANS: %c, DIAG: %c, N: %d, A: %p, LDA: %d, X: %p, INCX: %d", __func__, UPLO, TRANS, DIAG, N, A, LDA, X, INCX);
-
-  BLAS_CALL(put_output_param_vector_double)(bc, "X", N, X, INCX);
-
-  BLAS_TIMING_REMOTE_PUT(bc, libblas_scdc_timing_remote[0]);
-
-  BLAS_TIMING_PRINT_F("%s: %f", __func__, libblas_scdc_timing_remote[0]);
-
-  TRACE_F("%s: return", __func__);
-}
-
-#endif /* BLAS_DTRSV */
-
-
 #if BLAS_DGEMV
 
 static void do_dgemv(blas_call_t *bc)
@@ -337,7 +466,7 @@ static void do_dgemv(blas_call_t *bc)
   BLAS_CALL(get_input_conf_double)(bc, "ALPHA", &ALPHA);
 
   double *A = 0;
-  int LDA, rcma;
+  int LDA = 0, rcma;
   BLAS_CALL(get_input_param_matrix_double)(bc, "A", M, N, &A, &LDA, &rcma);
 
   ASSERT(rcma == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
@@ -373,11 +502,116 @@ static void do_dgemv(blas_call_t *bc)
 
 #endif /* BLAS_DGEMV */
 
+
+#if BLAS_DTRSV
+
+static void do_dtrsv(blas_call_t *bc)
+{
+  TRACE_F("%s: bc: %p", __func__, bc);
+
+  BLAS_TIMING_INIT_();
+
+  char UPLO, TRANS, DIAG;
+  BLAS_CALL(get_input_conf_char)(bc, "UPLO", &UPLO);
+  BLAS_CALL(get_input_conf_char)(bc, "TRANS", &TRANS);
+  BLAS_CALL(get_input_conf_char)(bc, "DIAG", &DIAG);
+
+  int N;
+  BLAS_CALL(get_input_conf_int)(bc, "N", &N);
+
+  double *A = 0;
+  int LDA = 0, rcma;
+  BLAS_CALL(get_input_param_matrix_double)(bc, "A", N, N, &A, &LDA, &rcma);
+
+  ASSERT(RCM_GET_ORDER(rcma) == RCM_ORDER_COL_MAJOR);
+
+  double *X = 0;
+  int INCX = 0;
+  BLAS_CALL(get_inout_param_vector_double)(bc, "X", N, &X, &INCX);
+
+  TRACE_F("%s: UPLO: %c, TRANS: %c, DIAG: %c, N: %d, A: %p, LDA: %d, X: %p, INCX: %d", __func__, UPLO, TRANS, DIAG, N, A, LDA, X, INCX);
+
+  BLAS_ORIG_F_INIT(dtrsv_);
+  BLAS_TIMING_START(libblas_scdc_timing_remote[0]);
+  BLAS_ORIG_F(MANGLE_BLAS(dtrsv_))(&UPLO, &TRANS, &DIAG, &N, A, &LDA, X, &INCX);
+  BLAS_TIMING_STOP(libblas_scdc_timing_remote[0]);
+
+  TRACE_F("%s: UPLO: %c, TRANS: %c, DIAG: %c, N: %d, A: %p, LDA: %d, X: %p, INCX: %d", __func__, UPLO, TRANS, DIAG, N, A, LDA, X, INCX);
+
+  BLAS_CALL(put_output_param_vector_double)(bc, "X", N, X, INCX);
+
+  BLAS_TIMING_REMOTE_PUT(bc, libblas_scdc_timing_remote[0]);
+
+  BLAS_TIMING_PRINT_F("%s: %f", __func__, libblas_scdc_timing_remote[0]);
+
+  TRACE_F("%s: return", __func__);
+}
+
+#endif /* BLAS_DTRSV */
+
 #endif /* BLAS_LEVEL2 */
 
 
 /* BLAS level 3 */
 #if BLAS_LEVEL3
+
+#if BLAS_DGEMM
+
+static void do_dgemm(blas_call_t *bc)
+{
+  TRACE_F("%s: bc: %p", __func__, bc);
+
+  BLAS_TIMING_INIT_();
+
+  char TRANSA, TRANSB;
+  BLAS_CALL(get_input_conf_char)(bc, "TRANSA", &TRANSA);
+  BLAS_CALL(get_input_conf_char)(bc, "TRANSB", &TRANSB);
+
+  int M, N, K;
+  BLAS_CALL(get_input_conf_int)(bc, "M", &M);
+  BLAS_CALL(get_input_conf_int)(bc, "N", &N);
+  BLAS_CALL(get_input_conf_int)(bc, "K", &K);
+
+  double ALPHA;
+  BLAS_CALL(get_input_conf_double)(bc, "ALPHA", &ALPHA);
+
+  double *A = 0, *B = 0;
+  int LDA = 0, rcma, LDB = 0, rcmb;
+  BLAS_CALL(get_input_param_matrix_double)(bc, "A", NETLIB_TRANS_GET_NROWS(TRANSA, M, K), NETLIB_TRANS_GET_NCOLS(TRANSA, M, K), &A, &LDA, &rcma);
+  BLAS_CALL(get_input_param_matrix_double)(bc, "B", NETLIB_TRANS_GET_NROWS(TRANSB, K, N), NETLIB_TRANS_GET_NCOLS(TRANSB, K, N), &B, &LDB, &rcmb);
+
+  ASSERT(rcma == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
+  ASSERT(rcmb == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
+
+  double BETA;
+  BLAS_CALL(get_input_conf_double)(bc, "BETA", &BETA);
+
+  double *C = 0;
+  int LDC = 0, rcmc;
+  BLAS_CALL(get_inout_param_matrix_double)(bc, "C", M, N, &C, &LDC, &rcmc);
+
+  ASSERT(rcmc == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
+
+  TRACE_F("%s: TRANSA: %c, TRANSB: %c, M: %d, N: %d, K: %d, ALPHA: %e, A: %p, LDA: %d, B: %p, LDB: %d, BETA: %e, C: %p, LDC: %d", __func__, TRANSA, TRANSB, M, N, K, ALPHA, A, LDA, B, LDB, BETA, C, LDC);
+
+  BLAS_ORIG_F_INIT(dgemm_);
+  BLAS_TIMING_START(libblas_scdc_timing_remote[0]);
+  BLAS_ORIG_F(MANGLE_BLAS(dgemm_))(&TRANSA, &TRANSB, &M, &N, &K, &ALPHA, A, &LDA, B, &LDB, &BETA, C, &LDC);
+  BLAS_TIMING_STOP(libblas_scdc_timing_remote[0]);
+
+  TRACE_F("%s: TRANSA: %c, TRANSB: %c, M: %d, N: %d, K: %d, ALPHA: %e, A: %p, LDA: %d, B: %p, LDB: %d, BETA: %e, C: %p, LDC: %d", __func__, TRANSA, TRANSB, M, N, K, ALPHA, A, LDA, B, LDB, BETA, C, LDC);
+
+  BLAS_CALL(put_output_param_matrix_double)(bc, "C", M, N, C, LDC, rcmc);
+
+  BLAS_TIMING_REMOTE_PUT(bc, libblas_scdc_timing_remote[0]);
+
+  BLAS_TIMING_PRINT_F("%s: %f", __func__, libblas_scdc_timing_remote[0]);
+
+  TRACE_F("%s: return", __func__);
+}
+
+#endif /* BLAS_DGEMM */
+
 
 #if BLAS_DTRSM
 
@@ -403,7 +637,7 @@ static void do_dtrsm(blas_call_t *bc)
   BLAS_CALL(get_input_conf_double)(bc, "ALPHA", &ALPHA);
 
   double *A = 0, *B = 0;
-  int LDA, rcma, LDB, rcmb;
+  int LDA = 0, rcma, LDB = 0, rcmb;
   BLAS_CALL(get_input_param_matrix_double)(bc, "A", k, k, &A, &LDA, &rcma);
   BLAS_CALL(get_inout_param_matrix_double)(bc, "B", M, N, &B, &LDB, &rcmb);
 
@@ -429,64 +663,6 @@ static void do_dtrsm(blas_call_t *bc)
 }
 
 #endif /* BLAS_DTRSM */
-
-
-#if BLAS_DGEMM
-
-static void do_dgemm(blas_call_t *bc)
-{
-  TRACE_F("%s: bc: %p", __func__, bc);
-
-  BLAS_TIMING_INIT_();
-
-  char TRANSA, TRANSB;
-  BLAS_CALL(get_input_conf_char)(bc, "TRANSA", &TRANSA);
-  BLAS_CALL(get_input_conf_char)(bc, "TRANSB", &TRANSB);
-
-  int M, N, K;
-  BLAS_CALL(get_input_conf_int)(bc, "M", &M);
-  BLAS_CALL(get_input_conf_int)(bc, "N", &N);
-  BLAS_CALL(get_input_conf_int)(bc, "K", &K);
-
-  double ALPHA;
-  BLAS_CALL(get_input_conf_double)(bc, "ALPHA", &ALPHA);
-
-  double *A = 0, *B = 0;
-  int LDA, rcma, LDB, rcmb;
-  BLAS_CALL(get_input_param_matrix_double)(bc, "A", NETLIB_TRANS_GET_NROWS(TRANSA, M, K), NETLIB_TRANS_GET_NCOLS(TRANSA, M, K), &A, &LDA, &rcma);
-  BLAS_CALL(get_input_param_matrix_double)(bc, "B", NETLIB_TRANS_GET_NROWS(TRANSB, K, N), NETLIB_TRANS_GET_NCOLS(TRANSB, K, N), &B, &LDB, &rcmb);
-
-  ASSERT(rcma == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
-  ASSERT(rcmb == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
-
-  double BETA;
-  BLAS_CALL(get_input_conf_double)(bc, "BETA", &BETA);
-
-  double *C = 0;
-  int LDC, rcmc;
-  BLAS_CALL(get_inout_param_matrix_double)(bc, "C", M, N, &C, &LDC, &rcmc);
-
-  ASSERT(rcmc == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
-
-  TRACE_F("%s: TRANSA: %c, TRANSB: %c, M: %d, N: %d, K: %d, ALPHA: %e, A: %p, LDA: %d, B: %p, LDB: %d, BETA: %e, C: %p, LDC: %d", __func__, TRANSA, TRANSB, M, N, K, ALPHA, A, LDA, B, LDB, BETA, C, LDC);
-
-  BLAS_ORIG_F_INIT(dgemm_);
-  BLAS_TIMING_START(libblas_scdc_timing_remote[0]);
-  BLAS_ORIG_F(MANGLE_BLAS(dgemm_))(&TRANSA, &TRANSB, &M, &N, &K, &ALPHA, A, &LDA, B, &LDB, &BETA, C, &LDC);
-  BLAS_TIMING_STOP(libblas_scdc_timing_remote[0]);
-
-  TRACE_F("%s: TRANSA: %c, TRANSB: %c, M: %d, N: %d, K: %d, ALPHA: %e, A: %p, LDA: %d, B: %p, LDB: %d, BETA: %e, C: %p, LDC: %d", __func__, TRANSA, TRANSB, M, N, K, ALPHA, A, LDA, B, LDB, BETA, C, LDC);
-
-  BLAS_CALL(put_output_param_matrix_double)(bc, "C", M, N, C, LDC, rcmc);
-
-  BLAS_TIMING_REMOTE_PUT(bc, libblas_scdc_timing_remote[0]);
-
-  BLAS_TIMING_PRINT_F("%s: %f", __func__, libblas_scdc_timing_remote[0]);
-
-  TRACE_F("%s: return", __func__);
-}
-
-#endif /* BLAS_DGEMM */
 
 #endif /* BLAS_LEVEL3 */
 
@@ -553,6 +729,10 @@ scdcint_t blas_scdc_dataset_cmd(void *dataprov, void *dataset, const char *cmd, 
 {
   TRACE_F("%s: dataprov: %p, dataset: %p, cmd: '%s', params: '%s', input: %p, output: %p", __func__, dataprov, dataset, cmd, params, input, output);
 
+#if LIBBLAS_SCDC_PROGRESS
+  printf("%s: cmd: %s, params: %s\n", __func__, cmd, params);
+#endif
+
   TRACE_F_N("%s: input: ", __func__); TRACE_CMD(scdc_dataset_input_print(input);); TRACE_R("\n");
   TRACE_F_N("%s: output: ", __func__); TRACE_CMD(scdc_dataset_output_print(output);); TRACE_R("\n");
 
@@ -560,7 +740,15 @@ scdcint_t blas_scdc_dataset_cmd(void *dataprov, void *dataset, const char *cmd, 
 
   BLAS_CALL(init_scdc)(bc, params, input, output);
 
-#if BLAS_LEVEL3
+#if BLAS_BENCH
+  if (strcmp(cmd, "dvin") == 0) do_dvin(bc); else
+  if (strcmp(cmd, "dvout") == 0) do_dvout(bc); else
+  if (strcmp(cmd, "dvinout") == 0) do_dvinout(bc); else
+  if (strcmp(cmd, "dgein") == 0) do_dgein(bc); else
+  if (strcmp(cmd, "dgeout") == 0) do_dgeout(bc); else
+  if (strcmp(cmd, "dgeinout") == 0) do_dgeinout(bc); else
+#endif
+#if BLAS_LEVEL1
 # if BLAS_IDAMAX
   if (strcmp(cmd, "idamax") == 0) do_idamax(bc); else
 # endif

@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2014, 2015, 2016 Michael Hofmann
+ *  Copyright (C) 2014, 2015, 2016, 2017 Michael Hofmann
  *  
  *  This file is part of the Simulation Component and Data Coupling (SCDC) library.
  *  
@@ -22,6 +22,9 @@
 #define __BLAS_CONFIG_H__
 
 
+/* BLAS bench */
+#define BLAS_BENCH   1
+
 /* BLAS level 1 */
 #define BLAS_LEVEL1  1
 #define BLAS_IDAMAX  1
@@ -40,5 +43,19 @@
 #define BLAS_DGEMM   1
 #define BLAS_DTRSM   1
 
+
+#if 0
+#undef BLAS_LEVEL1
+#undef BLAS_LEVEL2
+#undef BLAS_LEVEL3
+#undef BLAS_DGEMM
+#undef BLAS_DTRSM
+
+#define BLAS_LEVEL1  0
+#define BLAS_LEVEL2  0
+#define BLAS_LEVEL3  1
+#define BLAS_DGEMM   1
+#define BLAS_DTRSM   0
+#endif
 
 #endif /* __BLAS_CONFIG_H__ */

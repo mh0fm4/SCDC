@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2014, 2015, 2016 Michael Hofmann
+ *  Copyright (C) 2014, 2015, 2016, 2017 Michael Hofmann
  *  
  *  This file is part of the Simulation Component and Data Coupling (SCDC) library.
  *  
@@ -22,17 +22,8 @@
 #define __LAPACK_H__
 
 
+#include "netlib_common.h"
 #include "lapack_config.h"
-
-
-#define LAPACK_TRANSPOSED_NROWS(_t_, _m_, _n_)  (((_t_) == 'N' || (_t_) == 'n')?(_m_):(_n_))
-#define LAPACK_TRANSPOSED_NCOLS(_t_, _m_, _n_)  (((_t_) == 'N' || (_t_) == 'n')?(_n_):(_m_))
-
-#define LAPACK_IS_UPPER(_uplo_)  ((_uplo_) == 'U' || (_uplo_) == 'u')
-#define LAPACK_IS_LOWER(_uplo_)  ((_uplo_) == 'L' || (_uplo_) == 'l')
-
-#define LAPACK_IS_DIAG(_diag_)      ((_diag_) == 'U' || (_diag_) == 'u')
-#define LAPACK_IS_NOT_DIAG(_diag_)  ((_diag_) == 'N' || (_diag_) == 'n')
 
 
 #ifndef MANGLE_LAPACK

@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2014, 2015, 2016 Michael Hofmann
+ *  Copyright (C) 2014, 2015, 2016, 2017 Michael Hofmann
  *  
  *  This file is part of the Simulation Component and Data Coupling (SCDC) library.
  *  
@@ -167,6 +167,10 @@ rdint_t redirect_data_blocks_unpack_val(rdint_t count, rdint_t size, rdint_t str
 template<typename T>
 rdint_t redirect_data_blocks_transform_val(rdint_t count, rdint_t size, rdint_t stride_in, T *b_in, rdint_t stride_out, T *b_out)
 {
+#if PRINT_BLOCKS
+  redirect_data_blocks_print_val(count, size, stride_in, (double *) b);
+#endif
+
   if (stride_in <= 0 || stride_out <= 0) return 0;
 
   const rdint_t total_size = (count - 1) * z_max(stride_out, size) + size;
@@ -191,9 +195,60 @@ rdint_t redirect_data_blocks_transform_val(rdint_t count, rdint_t size, rdint_t 
     return redirect_data_blocks_unpack_val(count, size, stride_out, b_in, (b_out)?&b_out:NULL);
   }
 
-  ASSERT(false);
+  rdint_t i, j;
 
-  return 0;
+  if (b_out)
+  {
+    /* out-of-place */
+    T *br = b_in;
+    T *bw = b_out;
+
+    for (i = 0; i < count; ++i)
+    {
+      for (j = 0; j < size; ++j) bw[j] = br[j];
+
+      br += stride_in;
+      bw += stride_out;
+    }
+
+  } else
+  {
+    /* in-place */
+    if (stride_in > stride_out)
+    {
+      /* forward */
+      T *br = b_in + stride_in;
+      T *bw = b_in + stride_out;
+
+      for (i = 1; i < count; ++i)
+      {
+        for (j = 0; j < size; ++j) bw[j] = br[j];
+
+        br += stride_in;
+        bw += stride_out;
+      }
+
+    } else
+    {
+      /* backward */
+      T *br = b_in + (count - 1) * stride_in;
+      T *bw = b_in + (count - 1) * stride_out;
+
+      for (i = count - 1; i >= 1; --i)
+      {
+        for (j = size - 1; j >= 0; --j) bw[j] = br[j];
+
+        br -= stride_in;
+        bw -= stride_out;
+      }
+    }
+  }
+
+#if PRINT_BLOCKS
+  redirect_data_blocks_print_val(count, size, stride_out, (double *) b);
+#endif
+
+  return total_size;
 }
 
 
@@ -219,6 +274,9 @@ void redirect_data_blocks_free_val(T *b)
   } \
   rdint_t redirect_data_blocks_unpack_ ## _tn_(rdint_t count, rdint_t size, rdint_t stride, _t_ *b, _t_ **bout) { \
     return redirect_data_blocks_unpack_val(count, size, stride, b, bout); \
+  } \
+  rdint_t redirect_data_blocks_transform_ ## _tn_(rdint_t count, rdint_t size, rdint_t stride_in, _t_ *b_in, rdint_t stride_out, _t_ *b_out) { \
+    return redirect_data_blocks_transform_val(count, size, stride_in, b_in, stride_out, b_out); \
   } \
   void redirect_data_blocks_free_ ## _tn_(_t_ *b) { \
     return redirect_data_blocks_free_val(b); \

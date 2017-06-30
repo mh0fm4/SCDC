@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2014, 2015, 2016 Michael Hofmann
+ *  Copyright (C) 2014, 2015, 2016, 2017 Michael Hofmann
  *  
  *  This file is part of the Simulation Component and Data Coupling (SCDC) library.
  *  
@@ -29,8 +29,12 @@
 
 REDIRECT_ORIG_DECLARE_INTRO();
 
+#if LAPACK_SGESV
 REDIRECT_ORIG_DECLARE(sgesv);
+#endif
+#if LAPACK_STRSV
 REDIRECT_ORIG_DECLARE(strsv);
+#endif
 
 REDIRECT_ORIG_DECLARE_OUTRO();
 

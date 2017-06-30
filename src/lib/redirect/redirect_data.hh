@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2014, 2015, 2016 Michael Hofmann
+ *  Copyright (C) 2014, 2015, 2016, 2017 Michael Hofmann
  *  
  *  This file is part of the Simulation Component and Data Coupling (SCDC) library.
  *  
@@ -30,6 +30,9 @@ rdint_t redirect_data_blocks_pack_val(rdint_t count, rdint_t size, rdint_t strid
 
 template<typename T>
 rdint_t redirect_data_blocks_unpack_val(rdint_t count, rdint_t size, rdint_t stride, T *b, T **bout);
+
+template<typename T>
+rdint_t redirect_data_blocks_transform_val(rdint_t count, rdint_t size, rdint_t stride_in, T *b_in, rdint_t stride_out, T *b_out);
 
 template<typename T>
 void redirect_data_blocks_free_val(T *b);

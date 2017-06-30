@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2014, 2015, 2016 Michael Hofmann
+ *  Copyright (C) 2014, 2015, 2016, 2017 Michael Hofmann
  *  
  *  This file is part of the Simulation Component and Data Coupling (SCDC) library.
  *  
@@ -57,6 +57,13 @@
 #include "blas_orig.h"
 
 
+#if LIBBLAS_SCDC_ORIGINALS
+
+#define ORIG_F(_f_)  Z_CONCAT(original_, _f_)
+
+#endif /* LIBBLAS_SCDC_ORIGINALS */
+
+
 const char *libblas_scdc_local_base = 0;
 scdc_dataprov_t libblas_scdc_local_dataprov = SCDC_DATAPROV_NULL;
 
@@ -82,9 +89,9 @@ double libblas_scdc_timing[LIBBLAS_SCDC_TIMING_X];
 
 #if LIBBLAS_SCDC_ENABLED
 
-static void libblas_scdc_release();
+void libblas_scdc_release();
 
-static void libblas_scdc_init()
+void libblas_scdc_init()
 {
   TRACE_F("%s: libblas_scdc_initialized: %d", __func__, libblas_scdc_initialized);
 
@@ -133,7 +140,7 @@ static void libblas_scdc_init()
 }
 
 
-static void libblas_scdc_release()
+void libblas_scdc_release()
 {
   --libblas_scdc_initialized;
 
@@ -162,6 +169,378 @@ static void libblas_scdc_release()
 #endif /* LIBBLAS_SCDC_ENABLED */
 
 
+/* BLAS bench */
+#if BLAS_BENCH
+
+void LIB_F(dvin_)(const int *N, double *DX, const int *INCX)
+{
+  TRACE_F("%s: N: %d, DX: %p, INCX: %d", __func__, *N, DX, *INCX);
+
+#if LIBBLAS_SCDC_PROGRESS
+  printf("%s: libblas_scdc_uri: %s\n", __func__, libblas_scdc_uri);
+#endif
+
+#if LIBBLAS_SCDC_TRACE_DATA
+  TRACE_CMD(
+    TRACE_F("%s: DX", __func__);
+    BLAS_CALL(print_param_vector_double)(*N, DX, *INCX);
+  );
+#endif
+
+  BLAS_TIMING_INIT_();
+
+  BLAS_TIMING_START(libblas_scdc_timing[0]);
+
+#if LIBBLAS_SCDC_ENABLED
+
+  libblas_scdc_init();
+
+  blas_call_t bc;
+
+  BLAS_CALL(create_scdc)(&bc, "dvin", libblas_scdc_uri);
+
+  BLAS_CALL(put_input_conf_int)(&bc, "N", *N);
+
+  BLAS_CALL(put_input_param_vector_double)(&bc, "DX", *N, DX, *INCX);
+
+  if (!BLAS_CALL(execute)(&bc))
+  {
+    TRACE_F("%s: failed", __func__);
+    goto do_quit;
+  }
+
+/*  BLAS_TIMING_REMOTE_GET(&bc, &libblas_scdc_timing[1]);*/
+
+do_quit:
+  BLAS_CALL(destroy_scdc)(&bc);
+
+  libblas_scdc_release();
+
+#endif /* LIBBLAS_SCDC_ENABLED */
+
+  BLAS_TIMING_STOP(libblas_scdc_timing[0]);
+
+  BLAS_TIMING_PRINT_F("%s: %f  %f", __func__, libblas_scdc_timing[0], libblas_scdc_timing[1]);
+
+  TRACE_F("%s: return", __func__);
+}
+
+
+void LIB_F(dvout_)(const int *N, double *DX, const int *INCX)
+{
+  TRACE_F("%s: N: %d, DX: %p, INCX: %d", __func__, *N, DX, *INCX);
+
+#if LIBBLAS_SCDC_PROGRESS
+  printf("%s: libblas_scdc_uri: %s\n", __func__, libblas_scdc_uri);
+#endif
+
+  BLAS_TIMING_INIT_();
+
+  BLAS_TIMING_START(libblas_scdc_timing[0]);
+
+#if LIBBLAS_SCDC_ENABLED
+
+  libblas_scdc_init();
+
+  blas_call_t bc;
+
+  BLAS_CALL(create_scdc)(&bc, "dvout", libblas_scdc_uri);
+
+  BLAS_CALL(put_input_conf_int)(&bc, "N", *N);
+
+  BLAS_CALL(put_output_param_vector_double)(&bc, "DX", *N, DX, *INCX);
+
+  if (!BLAS_CALL(execute)(&bc))
+  {
+    TRACE_F("%s: failed", __func__);
+    goto do_quit;
+  }
+
+  double *DX_ = DX;
+  int INCX_ = *INCX;
+  BLAS_CALL(get_output_param_vector_double)(&bc, "DX", *N, &DX_, &INCX_);
+
+  ASSERT(DX_ == DX && INCX_ == *INCX);
+
+/*  BLAS_TIMING_REMOTE_GET(&bc, &libblas_scdc_timing[1]);*/
+
+do_quit:
+  BLAS_CALL(destroy_scdc)(&bc);
+
+  libblas_scdc_release();
+
+#endif /* LIBBLAS_SCDC_ENABLED */
+
+  BLAS_TIMING_STOP(libblas_scdc_timing[0]);
+
+  BLAS_TIMING_PRINT_F("%s: %f  %f", __func__, libblas_scdc_timing[0], libblas_scdc_timing[1]);
+
+#if LIBBLAS_SCDC_TRACE_DATA
+  TRACE_CMD(
+    TRACE_F("%s: DX", __func__);
+    BLAS_CALL(print_param_vector_double)(*N, DX, *INCX);
+  );
+#endif
+
+  TRACE_F("%s: return", __func__);
+}
+
+
+void LIB_F(dvinout_)(const int *N, double *DX, const int *INCX)
+{
+  TRACE_F("%s: N: %d, DX: %p, INCX: %d", __func__, *N, DX, *INCX);
+
+#if LIBBLAS_SCDC_PROGRESS
+  printf("%s: libblas_scdc_uri: %s\n", __func__, libblas_scdc_uri);
+#endif
+
+#if LIBBLAS_SCDC_TRACE_DATA
+  TRACE_CMD(
+    TRACE_F("%s: DX", __func__);
+    BLAS_CALL(print_param_vector_double)(*N, DX, *INCX);
+  );
+#endif
+
+  BLAS_TIMING_INIT_();
+
+  BLAS_TIMING_START(libblas_scdc_timing[0]);
+
+#if LIBBLAS_SCDC_ENABLED
+
+  libblas_scdc_init();
+
+  blas_call_t bc;
+
+  BLAS_CALL(create_scdc)(&bc, "dvinout", libblas_scdc_uri);
+
+  BLAS_CALL(put_input_conf_int)(&bc, "N", *N);
+
+  BLAS_CALL(put_inout_param_vector_double)(&bc, "DX", *N, DX, *INCX);
+
+  if (!BLAS_CALL(execute)(&bc))
+  {
+    TRACE_F("%s: failed", __func__);
+    goto do_quit;
+  }
+
+  double *DX_ = DX;
+  int INCX_ = *INCX;
+  BLAS_CALL(get_output_param_vector_double)(&bc, "DX", *N, &DX_, &INCX_);
+
+  ASSERT(DX_ == DX && INCX_ == *INCX);
+
+/*  BLAS_TIMING_REMOTE_GET(&bc, &libblas_scdc_timing[1]);*/
+
+do_quit:
+  BLAS_CALL(destroy_scdc)(&bc);
+
+  libblas_scdc_release();
+
+#endif /* LIBBLAS_SCDC_ENABLED */
+
+  BLAS_TIMING_STOP(libblas_scdc_timing[0]);
+
+  BLAS_TIMING_PRINT_F("%s: %f  %f", __func__, libblas_scdc_timing[0], libblas_scdc_timing[1]);
+
+#if LIBBLAS_SCDC_TRACE_DATA
+  TRACE_CMD(
+    TRACE_F("%s: DX", __func__);
+    BLAS_CALL(print_param_vector_double)(*N, DX, *INCX);
+  );
+#endif
+
+  TRACE_F("%s: return", __func__);
+}
+
+
+void LIB_F(dgein_)(const int *M, const int *N, double *A, const int *LDA)
+{
+  TRACE_F("%s: M: %d, N: %d, A: %p, LDA: %d", __func__, *M, *N, A, *LDA);
+
+#if LIBBLAS_SCDC_PROGRESS
+  printf("%s: libblas_scdc_uri: %s\n", __func__, libblas_scdc_uri);
+#endif
+
+#if LIBBLAS_SCDC_TRACE_DATA
+  TRACE_CMD(
+    TRACE_F("%s: A", __func__);
+    BLAS_CALL(print_param_matrix_double)(*M, *N, A, *LDA, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
+  );
+#endif
+
+  BLAS_TIMING_INIT_();
+
+  BLAS_TIMING_START(libblas_scdc_timing[0]);
+
+#if LIBBLAS_SCDC_ENABLED
+
+  libblas_scdc_init();
+
+  blas_call_t bc;
+
+  BLAS_CALL(create_scdc)(&bc, "dgein", libblas_scdc_uri);
+
+  BLAS_CALL(put_input_conf_int)(&bc, "M", *M);
+  BLAS_CALL(put_input_conf_int)(&bc, "N", *N);
+
+  BLAS_CALL(put_input_param_matrix_double)(&bc, "A", *M, *N, A, *LDA, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
+
+  if(!BLAS_CALL(execute)(&bc))
+  {
+    TRACE_F("%s: failed", __func__);
+    goto do_quit;
+  }
+
+/*  BLAS_TIMING_REMOTE_GET(&bc, &libblas_scdc_timing[1]);*/
+
+do_quit:
+  BLAS_CALL(destroy_scdc)(&bc);
+
+  libblas_scdc_release();
+
+#endif /* LIBBLAS_SCDC_ENABLED */
+
+  BLAS_TIMING_STOP(libblas_scdc_timing[0]);
+
+  BLAS_TIMING_PRINT_F("%s: %f  %f", __func__, libblas_scdc_timing[0], libblas_scdc_timing[1]);
+
+  TRACE_F("%s: return", __func__);
+}
+
+
+void LIB_F(dgeout_)(const int *M, const int *N, double *A, const int *LDA)
+{
+  TRACE_F("%s: M: %d, N: %d, A: %p, LDA: %d", __func__, *M, *N, A, *LDA);
+
+#if LIBBLAS_SCDC_PROGRESS
+  printf("%s: libblas_scdc_uri: %s\n", __func__, libblas_scdc_uri);
+#endif
+
+  BLAS_TIMING_INIT_();
+
+  BLAS_TIMING_START(libblas_scdc_timing[0]);
+
+#if LIBBLAS_SCDC_ENABLED
+
+  libblas_scdc_init();
+
+  blas_call_t bc;
+
+  BLAS_CALL(create_scdc)(&bc, "dgeout", libblas_scdc_uri);
+
+  BLAS_CALL(put_input_conf_int)(&bc, "M", *M);
+  BLAS_CALL(put_input_conf_int)(&bc, "N", *N);
+
+  BLAS_CALL(put_output_param_matrix_double)(&bc, "A", *M, *N, A, *LDA, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
+
+  if(!BLAS_CALL(execute)(&bc))
+  {
+    TRACE_F("%s: failed", __func__);
+    goto do_quit;
+  }
+
+  double *A_ = A;
+  int LDA_ = *LDA;
+  int rcma_ = RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR;
+  BLAS_CALL(get_output_param_matrix_double)(&bc, "A", *M, *N, &A_, &LDA_, &rcma_);
+
+  ASSERT(A_ == A && LDA_ == *LDA && rcma_ == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
+
+/*  BLAS_TIMING_REMOTE_GET(&bc, &libblas_scdc_timing[1]);*/
+
+do_quit:
+  BLAS_CALL(destroy_scdc)(&bc);
+
+  libblas_scdc_release();
+
+#endif /* LIBBLAS_SCDC_ENABLED */
+
+  BLAS_TIMING_STOP(libblas_scdc_timing[0]);
+
+  BLAS_TIMING_PRINT_F("%s: %f  %f", __func__, libblas_scdc_timing[0], libblas_scdc_timing[1]);
+
+#if LIBBLAS_SCDC_TRACE_DATA
+  TRACE_CMD(
+    TRACE_F("%s: A", __func__);
+    BLAS_CALL(print_param_matrix_double)(*M, *N, A, *LDA, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
+  );
+#endif
+
+  TRACE_F("%s: return", __func__);
+}
+
+
+void LIB_F(dgeinout_)(const int *M, const int *N, double *A, const int *LDA)
+{
+  TRACE_F("%s: M: %d, N: %d, A: %p, LDA: %d", __func__, *M, *N, A, *LDA);
+
+#if LIBBLAS_SCDC_PROGRESS
+  printf("%s: libblas_scdc_uri: %s\n", __func__, libblas_scdc_uri);
+#endif
+
+#if LIBBLAS_SCDC_TRACE_DATA
+  TRACE_CMD(
+    TRACE_F("%s: A", __func__);
+    BLAS_CALL(print_param_matrix_double)(*M, *N, A, *LDA, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
+  );
+#endif
+
+  BLAS_TIMING_INIT_();
+
+  BLAS_TIMING_START(libblas_scdc_timing[0]);
+
+#if LIBBLAS_SCDC_ENABLED
+
+  libblas_scdc_init();
+
+  blas_call_t bc;
+
+  BLAS_CALL(create_scdc)(&bc, "dgeinout", libblas_scdc_uri);
+
+  BLAS_CALL(put_input_conf_int)(&bc, "M", *M);
+  BLAS_CALL(put_input_conf_int)(&bc, "N", *N);
+
+  BLAS_CALL(put_inout_param_matrix_double)(&bc, "A", *M, *N, A, *LDA, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
+
+  if(!BLAS_CALL(execute)(&bc))
+  {
+    TRACE_F("%s: failed", __func__);
+    goto do_quit;
+  }
+
+  double *A_ = A;
+  int LDA_ = *LDA;
+  int rcma_ = RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR;
+  BLAS_CALL(get_output_param_matrix_double)(&bc, "A", *M, *N, &A_, &LDA_, &rcma_);
+
+  ASSERT(A_ == A && LDA_ == *LDA && rcma_ == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
+
+/*  BLAS_TIMING_REMOTE_GET(&bc, &libblas_scdc_timing[1]);*/
+
+do_quit:
+  BLAS_CALL(destroy_scdc)(&bc);
+
+  libblas_scdc_release();
+
+#endif /* LIBBLAS_SCDC_ENABLED */
+
+  BLAS_TIMING_STOP(libblas_scdc_timing[0]);
+
+  BLAS_TIMING_PRINT_F("%s: %f  %f", __func__, libblas_scdc_timing[0], libblas_scdc_timing[1]);
+
+#if LIBBLAS_SCDC_TRACE_DATA
+  TRACE_CMD(
+    TRACE_F("%s: A", __func__);
+    BLAS_CALL(print_param_matrix_double)(*M, *N, A, *LDA, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
+  );
+#endif
+
+  TRACE_F("%s: return", __func__);
+}
+
+#endif /* BLAS_BENCH */
+
+
 /* BLAS level 1 */
 #if BLAS_LEVEL1
 
@@ -170,6 +549,10 @@ static void libblas_scdc_release()
 int LIB_F(idamax_)(const int *N, double *DX, const int *INCX)
 {
   TRACE_F("%s: N: %d, DX: %p, INCX: %d", __func__, *N, DX, *INCX);
+
+#if LIBBLAS_SCDC_PROGRESS
+  printf("%s: libblas_scdc_uri: %s\n", __func__, libblas_scdc_uri);
+#endif
 
 #if LIBBLAS_SCDC_TRACE_DATA
   TRACE_CMD(
@@ -231,6 +614,16 @@ int LIB_F(idamax)(const int *N, double *DX, const int *INCX)
   return LIB_F(idamax_)(N, DX, INCX);
 }
 
+#if LIBBLAS_SCDC_ORIGINALS
+
+int LIB_F(ORIG_F(idamax_))(const int *N, double *DX, const int *INCX)
+{
+  BLAS_ORIG_F_INIT(idamax_);
+  return BLAS_ORIG_F(MANGLE_BLAS(idamax_))(N, DX, INCX);
+}
+
+#endif /* LIBBLAS_SCDC_ORIGS */
+
 #endif /* BLAS_IDAMAX */
 
 
@@ -239,6 +632,10 @@ int LIB_F(idamax)(const int *N, double *DX, const int *INCX)
 void LIB_F(dcopy_)(const int *N, double *DX, const int *INCX, double *DY, const int *INCY)
 {
   TRACE_F("%s: N: %d, DX: %p, INCX: %d, DY: %p, INCY: %d", __func__, *N, DX, *INCX, DY, *INCY);
+
+#if LIBBLAS_SCDC_PROGRESS
+  printf("%s: libblas_scdc_uri: %s\n", __func__, libblas_scdc_uri);
+#endif
 
 #if LIBBLAS_SCDC_TRACE_DATA
   TRACE_CMD(
@@ -309,6 +706,16 @@ void LIB_F(dcopy)(const int *N, double *DX, const int *INCX, double *DY, const i
   LIB_F(dcopy_)(N, DX, INCX, DY, INCY);
 }
 
+#if LIBBLAS_SCDC_ORIGINALS
+
+void LIB_F(ORIG_F(dcopy))(const int *N, double *DX, const int *INCX, double *DY, const int *INCY)
+{
+  BLAS_ORIG_F_INIT(dcopy_);
+  BLAS_ORIG_F(MANGLE_BLAS(dcopy_))(N, DX, INCX, DY, INCY);
+}
+
+#endif /* LIBBLAS_SCDC_ORIGS */
+
 #endif /* BLAS_DCOPY */
 
 
@@ -317,6 +724,10 @@ void LIB_F(dcopy)(const int *N, double *DX, const int *INCX, double *DY, const i
 void LIB_F(dscal_)(const int *N, const double *DA, double *DX, const int *INCX)
 {
   TRACE_F("%s: N: %d, DA: %e, DX: %p, INCX: %d", __func__, *N, *DA, DX, *INCX);
+
+#if LIBBLAS_SCDC_PROGRESS
+  printf("%s: libblas_scdc_uri: %s\n", __func__, libblas_scdc_uri);
+#endif
 
 #if LIBBLAS_SCDC_TRACE_DATA
   TRACE_CMD(
@@ -388,6 +799,16 @@ void LIB_F(dscal)(const int *N, const double *DA, double *DX, const int *INCX)
   LIB_F(dscal_)(N, DA, DX, INCX);
 }
 
+#if LIBBLAS_SCDC_ORIGINALS
+
+void LIB_F(ORIG_F(dscal_))(const int *N, const double *DA, double *DX, const int *INCX)
+{
+  BLAS_ORIG_F_INIT(dscal_);
+  BLAS_ORIG_F(MANGLE_BLAS(dscal_))(N, DA, DX, INCX);
+}
+
+#endif /* LIBBLAS_SCDC_ORIGS */
+
 #endif /* BLAS_DSCAL */
 
 
@@ -396,6 +817,10 @@ void LIB_F(dscal)(const int *N, const double *DA, double *DX, const int *INCX)
 void LIB_F(daxpy_)(const int *N, const double *DA, double *DX, const int *INCX, double *DY, const int *INCY)
 {
   TRACE_F("%s: N: %d, DA: %e, DX: %p, INCX: %d, DY: %p, INCY: %d", __func__, *N, *DA, DX, *INCX, DY, *INCY);
+
+#if LIBBLAS_SCDC_PROGRESS
+  printf("%s: libblas_scdc_uri: %s\n", __func__, libblas_scdc_uri);
+#endif
 
 #if LIBBLAS_SCDC_TRACE_DATA
   TRACE_CMD(
@@ -470,6 +895,16 @@ void LIB_F(daxpy)(const int *N, const double *DA, double *DX, const int *INCX, d
   LIB_F(daxpy_)(N, DA, DX, INCX, DY, INCY);
 }
 
+#if LIBBLAS_SCDC_ORIGINALS
+
+void LIB_F(ORIG_F(daxpy_))(const int *N, const double *DA, double *DX, const int *INCX, double *DY, const int *INCY)
+{
+  BLAS_ORIG_F_INIT(daxpy_);
+  BLAS_ORIG_F(MANGLE_BLAS(daxpy_))(N, DA, DX, INCX, DY, INCY);
+}
+
+#endif /* LIBBLAS_SCDC_ORIGS */
+
 #endif /* BLAS_DAXPY */
 
 #endif /* BLAS_LEVEL1 */
@@ -483,6 +918,10 @@ void LIB_F(daxpy)(const int *N, const double *DA, double *DX, const int *INCX, d
 void LIB_F(dger_)(const int *M, const int *N, const double *ALPHA, double *X, const int *INCX, double *Y, const int *INCY, double *A, const int *LDA)
 {
   TRACE_F("%s: M: %d, N: %d, ALPHA: %e, X: %p, INCX: %d, Y: %p, INCY: %d, A: %p, LDA: %d", __func__, *M, *N, *ALPHA, X, *INCX, Y, *INCY, A, *LDA);
+
+#if LIBBLAS_SCDC_PROGRESS
+  printf("%s: libblas_scdc_uri: %s\n", __func__, libblas_scdc_uri);
+#endif
 
 #if LIBBLAS_SCDC_TRACE_DATA
   TRACE_CMD(
@@ -563,6 +1002,16 @@ void LIB_F(dger)(const int *M, const int *N, const double *ALPHA, double *X, con
   LIB_F(dger_)(M, N, ALPHA, X, INCX, Y, INCY, A, LDA);
 }
 
+#if LIBBLAS_SCDC_ORIGINALS
+
+void LIB_F(ORIG_F(dger_))(const int *M, const int *N, const double *ALPHA, double *X, const int *INCX, double *Y, const int *INCY, double *A, const int *LDA)
+{
+  BLAS_ORIG_F_INIT(dger_);
+  BLAS_ORIG_F(MANGLE_BLAS(dger_))(M, N, ALPHA, X, INCX, Y, INCY, A, LDA);
+}
+
+#endif /* LIBBLAS_SCDC_ORIGS */
+
 #endif /* BLAS_DGER */
 
 
@@ -571,6 +1020,10 @@ void LIB_F(dger)(const int *M, const int *N, const double *ALPHA, double *X, con
 void LIB_F(dgemv_)(const char *TRANS, const int *M, const int *N, const double *ALPHA, double *A, const int *LDA, double *X, const int *INCX, const double *BETA, double *Y, const int *INCY)
 {
   TRACE_F("%s: TRANS: %c, M: %d, N: %d, ALPHA: %e, A: %p, LDA: %d, X: %p, INCX: %d, BETA: %e, Y: %p, INCY: %d", __func__, *TRANS, *M, *N, *ALPHA, A, *LDA, X, *INCX, *BETA, Y, *INCY);
+
+#if LIBBLAS_SCDC_PROGRESS
+  printf("%s: libblas_scdc_uri: %s\n", __func__, libblas_scdc_uri);
+#endif
 
 #if LIBBLAS_SCDC_TRACE_DATA
   TRACE_CMD(
@@ -655,6 +1108,16 @@ void LIB_F(dgemv)(const char *TRANS, const int *M, const int *N, const double *A
   LIB_F(dgemv_)(TRANS, M, N, ALPHA, A, LDA, X, INCX, BETA, Y, INCY);
 }
 
+#if LIBBLAS_SCDC_ORIGINALS
+
+void LIB_F(ORIG_F(dgemv_))(const char *TRANS, const int *M, const int *N, const double *ALPHA, double *A, const int *LDA, double *X, const int *INCX, const double *BETA, double *Y, const int *INCY)
+{
+  BLAS_ORIG_F_INIT(dgemv_);
+  BLAS_ORIG_F(MANGLE_BLAS(dgemv_))(TRANS, M, N, ALPHA, A, LDA, X, INCX, BETA, Y, INCY);
+}
+
+#endif /* LIBBLAS_SCDC_ORIGS */
+
 #endif /* BLAS_DGEMV */
 
 
@@ -663,6 +1126,10 @@ void LIB_F(dgemv)(const char *TRANS, const int *M, const int *N, const double *A
 void LIB_F(dtrsv_)(const char *UPLO, const char *TRANS, const char *DIAG, const int *N, double *A, const int *LDA, double *X, const int *INCX)
 {
   TRACE_F("%s: UPLO: %c, TRANS: %c, DIAG: %c, N: %d, A: %p, LDA: %d, X: %p, INCX: %d", __func__, *UPLO, *TRANS, *DIAG, *N, A, *LDA, X, *INCX);
+
+#if LIBBLAS_SCDC_PROGRESS
+  printf("%s: libblas_scdc_uri: %s\n", __func__, libblas_scdc_uri);
+#endif
 
   int rcma = RCM_ORDER_COL_MAJOR;
   rcma |= NETLIB_UPLO_IS_UPPER(*UPLO)?RCM_TYPE_TRIANGULAR_UPPER:RCM_TYPE_TRIANGULAR_LOWER;
@@ -744,6 +1211,16 @@ void LIB_F(dtrsv)(const char *UPLO, const char *TRANS, const char *DIAG, const i
   LIB_F(dtrsv_)(UPLO, TRANS, DIAG, N, A, LDA, X, INCX);
 }
 
+#if LIBBLAS_SCDC_ORIGINALS
+
+void LIB_F(ORIG_F(dtrsv_))(const char *UPLO, const char *TRANS, const char *DIAG, const int *N, double *A, const int *LDA, double *X, const int *INCX)
+{
+  BLAS_ORIG_F_INIT(dtrsv_);
+  BLAS_ORIG_F(MANGLE_BLAS(dtrsv_))(UPLO, TRANS, DIAG, N, A, LDA, X, INCX);
+}
+
+#endif /* LIBBLAS_SCDC_ORIGS */
+
 #endif /* BLAS_DTRSV */
 
 #endif /* BLAS_LEVEL2 */
@@ -757,6 +1234,10 @@ void LIB_F(dtrsv)(const char *UPLO, const char *TRANS, const char *DIAG, const i
 void LIB_F(dgemm_)(const char *TRANSA, const char *TRANSB, const int *M, const int *N, const int *K, const double *ALPHA, double *A, const int *LDA, double *B, const int *LDB, const double *BETA, double *C, const int *LDC)
 {
   TRACE_F("%s: TRANSA: %c, TRANSB: %c, M: %d, N: %d, K: %d, ALPHA: %e, A: %p, LDA: %d, B: %p, LDB: %d, BETA: %e, C: %p, LDC: %d", __func__, *TRANSA, *TRANSB, *M, *N, *K, *ALPHA, A, *LDA, B, *LDB, *BETA, C, *LDC);
+
+#if LIBBLAS_SCDC_PROGRESS
+  printf("%s: libblas_scdc_uri: %s\n", __func__, libblas_scdc_uri);
+#endif
 
 #if LIBBLAS_SCDC_TRACE_DATA
   TRACE_CMD(
@@ -843,6 +1324,16 @@ void LIB_F(dgemm)(const char *TRANSA, const char *TRANSB, const int *M, const in
   LIB_F(dgemm_)(TRANSA, TRANSB, M, N, K, ALPHA, A, LDA, B, LDB, BETA, C, LDC);
 }
 
+#if LIBBLAS_SCDC_ORIGINALS
+
+void LIB_F(ORIG_F(dgemm_))(const char *TRANSA, const char *TRANSB, const int *M, const int *N, const int *K, const double *ALPHA, double *A, const int *LDA, double *B, const int *LDB, const double *BETA, double *C, const int *LDC)
+{
+  BLAS_ORIG_F_INIT(dgemm_);
+  BLAS_ORIG_F(MANGLE_BLAS(dgemm_))(TRANSA, TRANSB, M, N, K, ALPHA, A, LDA, B, LDB, BETA, C, LDC);
+}
+
+#endif /* LIBBLAS_SCDC_ORIGS */
+
 #endif /* BLAS_DGEMM */
 
 
@@ -851,6 +1342,10 @@ void LIB_F(dgemm)(const char *TRANSA, const char *TRANSB, const int *M, const in
 void LIB_F(dtrsm_)(const char *SIDE, const char *UPLO, const char *TRANSA, const char *DIAG, const int *M, const int *N, double *ALPHA, double *A, const int *LDA, double *B, const int *LDB)
 {
   TRACE_F("%s: SIDE: %c, UPLO: %c, TRANSA: %c, DIAG: %c, M: %d, N: %d, ALPHA: %e, A: %p, LDA: %d, B: %p, LDB: %d", __func__, *SIDE, *UPLO, *TRANSA, *DIAG, *M, *N, *ALPHA, A, *LDA, B, *LDB);
+
+#if LIBBLAS_SCDC_PROGRESS
+  printf("%s: libblas_scdc_uri: %s\n", __func__, libblas_scdc_uri);
+#endif
 
   const int k = NETLIB_SIDE_IS_LEFT(*SIDE)?*M:*N;
 
@@ -937,6 +1432,16 @@ void LIB_F(dtrsm)(const char *SIDE, const char *UPLO, const char *TRANSA, const 
 {
   LIB_F(dtrsm_)(SIDE, UPLO, TRANSA, DIAG, M, N, ALPHA, A, LDA, B, LDB);
 }
+
+#if LIBBLAS_SCDC_ORIGINALS
+
+void LIB_F(ORIG_F(dtrsm_))(const char *SIDE, const char *UPLO, const char *TRANSA, const char *DIAG, const int *M, const int *N, double *ALPHA, double *A, const int *LDA, double *B, const int *LDB)
+{
+  BLAS_ORIG_F_INIT(dtrsm_);
+  BLAS_ORIG_F(MANGLE_BLAS(dtrsm_))(SIDE, UPLO, TRANSA, DIAG, M, N, ALPHA, A, LDA, B, LDB);
+}
+
+#endif /* LIBBLAS_SCDC_ORIGS */
 
 #endif /* BLAS_DTRSM */
 
