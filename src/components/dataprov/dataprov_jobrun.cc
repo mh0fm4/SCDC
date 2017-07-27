@@ -28,7 +28,7 @@
 #include "z_pack.h"
 #include "rapidxml.hpp"
 
-#define SCDC_TRACE_NOT  !SCDC_TRACE_DATAPROV_JOBRUN && 0
+#define SCDC_TRACE_NOT  !SCDC_TRACE_DATAPROV_JOBRUN
 
 #include "config.hh"
 #include "common.hh"

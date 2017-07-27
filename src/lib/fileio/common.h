@@ -29,7 +29,7 @@
 #define HAVE_ASSERT      1
 
 #ifndef TRACE_FILE
-# define TRACE_FILE  stderr
+# define TRACE_FILE  stdout
 #endif
 
 #ifndef TRACE_FPRINTF

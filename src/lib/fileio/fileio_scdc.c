@@ -39,7 +39,7 @@
 #define FILEIO_SCDC_TRACE_OUTRO     0
 #define FILEIO_SCDC_TRACE_BODY      0
 #define FILEIO_SCDC_TRACE_PERF      0
-#define FILEIO_SCDC_TRACE_SCDC      1
+#define FILEIO_SCDC_TRACE_SCDC      0
 
 
 #define FILEIO_SCDC_LOCAL       1
@@ -79,7 +79,6 @@ static void fileio_scdc_init()
     TRACE_F_CTRL_BODY("fileio_scdc_init: local data provider '%s' with path '%s'", local_base, local_path);
 
     dp_local = scdc_dataprov_open(local_base, "fs:access", local_path);
-      
 #endif
   }
 
@@ -835,7 +834,7 @@ scdcint_t fileio_scdc_write(fileio_scdc_t *fio, const void *buf, scdcint_t size)
 
         memcpy(fio->buf.ptr + o, nbuf, n);
 
-        fio->buf.mod_begin = z_min(o, fio->buf.mod_begin);
+        fio->buf.mod_begin = (fio->buf.mod_begin >= 0)?z_min(o, fio->buf.mod_begin):o;
         fio->buf.mod_end = z_max(o + n, fio->buf.mod_end);
         fio->buf.size = z_max(fio->buf.size, fio->buf.mod_end);
 
@@ -1124,7 +1123,15 @@ scdcint_t fileio_scdc_remove(const char *path, int *error)
 
   char cmd[256];
   sprintf(cmd, "%s rm", path);
-  if (scdc_dataset_cmd(SCDC_DATASET_NULL, cmd, NULL, NULL) != SCDC_SUCCESS)
+
+  char output_buf[32];
+  scdc_dataset_output_t output;
+
+  scdc_dataset_output_unset(&output);
+  SCDC_DATASET_INOUT_BUF_PTR(&output) = output_buf;
+  SCDC_DATASET_INOUT_BUF_SIZE(&output) = sizeof(output_buf) - 1;
+
+  if (scdc_dataset_cmd(SCDC_DATASET_NULL, cmd, NULL, &output) != SCDC_SUCCESS)
   {
     ret = FILEIO_SCDC_FAILURE;
     *error = EREMOTEIO;

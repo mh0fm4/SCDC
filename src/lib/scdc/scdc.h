@@ -34,6 +34,11 @@ extern "C" {
 #endif
 
 
+extern const scdcint_t SCDC_USE_ZLIB;  /**< @brief Defines whether zlib support is available. */
+extern const scdcint_t SCDC_USE_MYSQL; /**< @brief Defines whether MySQL support is available. */
+extern const scdcint_t SCDC_USE_MPI;   /**< @brief Defines whether MPI support is available. */
+
+
 /** @hideinitializer
 * @brief Macro with default configuration parameters for #scdc_init. */
 #define SCDC_INIT_DEFAULT  ""

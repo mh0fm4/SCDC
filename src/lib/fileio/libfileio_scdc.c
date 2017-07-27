@@ -39,6 +39,15 @@
 
 #define TRACE_PREFIX   "libfileio_scdc: "
 
+#define LIBFILEIO_SCDC_THREADS       0
+#define LIBFILEIO_SCDC_THREADS_FILE  1
+
+#if LIBFILEIO_SCDC_THREADS
+# include <pthread.h>
+#else
+# undef LIBFILEIO_SCDC_THREADS_FILE
+#endif
+
 #define LIBFILEIO_SCDC_PATH_MAX     256
 
 #define LIBFILEIO_SCDC_TRACE            0
@@ -137,6 +146,10 @@ int original_fprintf(FILE *stream, const char *format, ...)
 
 typedef struct
 {
+#if LIBFILEIO_SCDC_THREADS_FILE
+  pthread_mutex_t mutex;
+#endif
+
   int mark, fd, err;
 
   fileio_scdc_t fio;
@@ -163,6 +176,10 @@ typedef struct
 static libfileio_scdc_t *libfileio_scdc_create()
 {
   libfileio_scdc_t *lfio = malloc(sizeof(libfileio_scdc_t));
+
+#if LIBFILEIO_SCDC_THREADS_FILE
+  pthread_mutex_init(&lfio->mutex, NULL);
+#endif
 
   lfio->mark = LIBFILEIO_SCDC_MARK;
   lfio->fd = -1;
@@ -196,9 +213,37 @@ static void libfileio_scdc_destroy(libfileio_scdc_t *lfio)
   if (lfio->fprintf_buf) free(lfio->fprintf_buf);
 #endif /* LIBFILEIO_SCDC_FPRINTF_FMEM_PERSISTENT */
 
+#if LIBFILEIO_SCDC_THREADS_FILE
+  pthread_mutex_destroy(&lfio->mutex);
+#endif
+
   free(lfio);
 }
 
+
+static int libfileio_scdc_file_acquire(libfileio_scdc_t *lfio)
+{
+  if (!lfio) return 0;
+
+#if LIBFILEIO_SCDC_THREADS_FILE
+  if (pthread_mutex_lock(&lfio->mutex) != 0) return 0;
+#endif
+
+  return 1;
+}
+
+
+static void libfileio_scdc_file_release(libfileio_scdc_t *lfio)
+{
+#if LIBFILEIO_SCDC_THREADS_FILE
+  pthread_mutex_unlock(&lfio->mutex);
+#endif
+}
+
+
+#if LIBFILEIO_SCDC_THREADS
+static pthread_mutex_t libfileio_scdc_mutex = PTHREAD_MUTEX_INITIALIZER;
+#endif
 
 #define LIBFILEIO_SCDC_FD_OFFSET       1024
 #define LIBFILEIO_SCDC_FD_SIZE         16
@@ -260,6 +305,10 @@ static void libfileio_scdc_fd_null_close(int fd)
 
 static int libfileio_scdc_fd_alloc(int flags)
 {
+#if LIBFILEIO_SCDC_THREADS
+  pthread_mutex_lock(&libfileio_scdc_mutex);
+#endif
+
   int i;
 
   for (i = libfileio_scdc_fd.next_fd - LIBFILEIO_SCDC_FD_OFFSET; i < LIBFILEIO_SCDC_FD_SIZE; ++i)
@@ -267,15 +316,22 @@ static int libfileio_scdc_fd_alloc(int flags)
     if (libfileio_scdc_fd.ios[i] == NULL) break;
   }
 
-  if (i >= LIBFILEIO_SCDC_FD_SIZE) return -1;
+  int fd = -1;
 
-  int fd = LIBFILEIO_SCDC_FD_OFFSET + i;
+  if (i < LIBFILEIO_SCDC_FD_SIZE)
+  {
+    fd = LIBFILEIO_SCDC_FD_OFFSET + i;
 
-  libfileio_scdc_fd.next_fd = fd + 1;
+    libfileio_scdc_fd.next_fd = fd + 1;
 
 #if LIBFILEIO_SCDC_FD_NULL
-  fd = libfileio_scdc_fd_null_open(fd, flags);
+    fd = libfileio_scdc_fd_null_open(fd, flags);
 #endif /* LIBFILEIO_SCDC_FD_NULL */
+  }
+
+#if LIBFILEIO_SCDC_THREADS
+  pthread_mutex_unlock(&libfileio_scdc_mutex);
+#endif
 
   return fd;
 }
@@ -283,6 +339,10 @@ static int libfileio_scdc_fd_alloc(int flags)
 
 static void libfileio_scdc_fd_free(int fd)
 {
+#if LIBFILEIO_SCDC_THREADS
+  pthread_mutex_lock(&libfileio_scdc_mutex);
+#endif
+
 #if LIBFILEIO_SCDC_FD_NULL
   libfileio_scdc_fd_null_close(fd);
 #endif /* LIBFILEIO_SCDC_FD_NULL */
@@ -290,6 +350,10 @@ static void libfileio_scdc_fd_free(int fd)
   libfileio_scdc_fd.ios[fd - LIBFILEIO_SCDC_FD_OFFSET] = NULL;
 
   libfileio_scdc_fd.next_fd = z_min(fd, libfileio_scdc_fd.next_fd);
+
+#if LIBFILEIO_SCDC_THREADS
+  pthread_mutex_unlock(&libfileio_scdc_mutex);
+#endif
 }
 
 
@@ -322,6 +386,10 @@ static int libfileio_scdc_initialized = -1;
 
 static void libfileio_scdc_init()
 {
+#if LIBFILEIO_SCDC_THREADS
+  pthread_mutex_lock(&libfileio_scdc_mutex);
+#endif
+
   if (libfileio_scdc_initialized < 0)
   {
     /* on first init */
@@ -344,6 +412,10 @@ static void libfileio_scdc_init()
   }
 
   ++libfileio_scdc_initialized;
+
+#if LIBFILEIO_SCDC_THREADS
+  pthread_mutex_unlock(&libfileio_scdc_mutex);
+#endif
 }
 
 
@@ -351,12 +423,20 @@ static void libfileio_scdc_release()
 {
   if (libfileio_scdc_initialized <= 0) return;
 
+#if LIBFILEIO_SCDC_THREADS
+  pthread_mutex_lock(&libfileio_scdc_mutex);
+#endif
+
   --libfileio_scdc_initialized;
 
   if (libfileio_scdc_initialized == 0)
   {
     /* on every release */
   }
+
+#if LIBFILEIO_SCDC_THREADS
+  pthread_mutex_unlock(&libfileio_scdc_mutex);
+#endif
 }
 
 
@@ -436,7 +516,7 @@ static int openXX(int XX, const char *pathname, int flags, mode_t mode)
 
     TRACE_F_CTRL_SCDC(LIBF_F_STR(open) "%s: lfio: %" dptr_fmt, XXSTR(XX), DPTR(lfio));
 
-    int err;
+    int err = 0;
 
     if (fileio_scdc_open(&lfio->fio, p, flags, &err) == FILEIO_SCDC_SUCCESS)
     {
@@ -611,11 +691,13 @@ int LIBF_F(close)(int fd)
 
     TRACE_F_CTRL_SCDC(LIBF_F_STR(close) ": lfio: %" dptr_fmt ", fd: %d", DPTR(lfio), fd);
 
-    if (lfio)
+    if (libfileio_scdc_file_acquire(lfio))
     {
       libfileio_scdc_fd_free(lfio->fd);
 
       ret = fileio_scdc_close(&lfio->fio);
+
+      libfileio_scdc_file_release(lfio);
 
       libfileio_scdc_destroy(lfio);
     }
@@ -663,11 +745,13 @@ ssize_t LIBF_F(read)(int fd, void *buf, size_t count)
 
     TRACE_F_RD_SCDC(LIBF_F_STR(read) ": lfio: %" dptr_fmt ", fd: %d, buf: %" dptr_fmt ", count: %zu", DPTR(lfio), fd, DPTR(buf), count);
 
-    if (lfio)
+    if (libfileio_scdc_file_acquire(lfio))
     {
       ret = fileio_scdc_read(&lfio->fio, buf, count, 0);
 
       if (ret < 0) lfio->err = 1;
+
+      libfileio_scdc_file_release(lfio);
     }
 
     TRACE_F_RD_SCDC(LIBF_F_STR(read) ": return: %zd", ret);
@@ -718,11 +802,13 @@ ssize_t LIBF_F(write)(int fd, const void *buf, size_t count)
 
     TRACE_F_WR_SCDC(LIBF_F_STR(write) ": lfio: %" dptr_fmt ", fd: %d, buf: %" dptr_fmt ", count: %zu", DPTR(lfio), fd, DPTR(buf), count);
 
-    if (lfio)
+    if (libfileio_scdc_file_acquire(lfio))
     {
       ret = fileio_scdc_write(&lfio->fio, buf, count);
 
       if (ret < 0) lfio->err = 1;
+
+      libfileio_scdc_file_release(lfio);
     }
 
     TRACE_F_WR_SCDC(LIBF_F_STR(write) ": return: %zd", ret);
@@ -771,9 +857,11 @@ int LIBF_F(fsync)(int fd)
 
     TRACE_F_CTRL_SCDC(LIBF_F_STR(fsync) ": lfio: %" dptr_fmt ", fd: %d", DPTR(lfio), fd);
 
-    if (lfio)
+    if (libfileio_scdc_file_acquire(lfio))
     {
       ret = fileio_scdc_sync(&lfio->fio);
+
+      libfileio_scdc_file_release(lfio);
     }
 
     TRACE_F_CTRL_SCDC(LIBF_F_STR(fsync) ": return: %d", ret);
@@ -812,9 +900,11 @@ static dsint_t lseekXX(int XX, int fd, dsint_t offset, int whence)
 
     TRACE_F_CTRL_SCDC(LIBF_F_STR(lseek) "%s: lfio: %" dptr_fmt ", fd: %d, offset: %" dsint_fmt ", whence: %d", XXSTR(XX), DPTR(lfio), fd, offset, whence);
 
-    if (lfio)
+    if (libfileio_scdc_file_acquire(lfio))
     {
       ret = fileio_scdc_seek(&lfio->fio, offset, whence, 0);
+
+      libfileio_scdc_file_release(lfio);
     }
 
     TRACE_F_CTRL_SCDC(LIBF_F_STR(lseek) "%s: return: %" dsint_fmt, XXSTR(XX), ret);
@@ -869,7 +959,7 @@ static dsint_t fstatXX(int XX, int fd, void *buf)
 
     int err = 0;
 
-    if (lfio)
+    if (libfileio_scdc_file_acquire(lfio))
     {
       fileio_scdc_stat_t fio_stat;
 
@@ -898,6 +988,8 @@ static dsint_t fstatXX(int XX, int fd, void *buf)
       {
         errno = err;
       }
+
+      libfileio_scdc_file_release(lfio);
     }
 
     TRACE_F_CTRL_SCDC(LIBF_F_STR(fstat) "%s: return: %" dsint_fmt, XXSTR(XX), ret);
@@ -1178,31 +1270,36 @@ FILE *LIBF_F(freopen)(const char *path, const char *mode, FILE *stream)
 
     TRACE_F_CTRL_SCDC(LIBF_F_STR(freopen) ": lfio: %" dptr_fmt, DPTR(lfio));
 
-    if (fileio_scdc_valid(p))
+    if (libfileio_scdc_file_acquire(lfio))
     {
-      TRACE_F_CTRL_SCDC(LIBF_F_STR(freopen) ": path: '%s', mode: '%s'", p, mode);
-
-      int flags = file_mode_to_flags(mode);
-      int fd = lfio->fd;
-      int err = 0;
-
-      TRACE_F_CTRL_SCDC(LIBF_F_STR(freopen) ": flags: %d, fd: %d", flags, fd);
-
-      if (fileio_scdc_reopen(&lfio->fio, p, flags, &err) == FILEIO_SCDC_SUCCESS)
+      if (fileio_scdc_valid(p))
       {
-        file = (FILE *) lfio;
+        TRACE_F_CTRL_SCDC(LIBF_F_STR(freopen) ": path: '%s', mode: '%s'", p, mode);
+
+        int flags = file_mode_to_flags(mode);
+        int fd = lfio->fd;
+        int err = 0;
+
+        TRACE_F_CTRL_SCDC(LIBF_F_STR(freopen) ": flags: %d, fd: %d", flags, fd);
+
+        if (fileio_scdc_reopen(&lfio->fio, p, flags, &err) == FILEIO_SCDC_SUCCESS)
+        {
+          file = (FILE *) lfio;
+
+        } else
+        {
+          TRACE_F_CTRL_SCDC_FAIL(LIBF_F_STR(freopen) ": fileio_scdc_reopen failed with err: %d", err);
+
+          libfileio_scdc_fd_free(fd);
+          libfileio_scdc_destroy(lfio);
+        }
 
       } else
       {
-        TRACE_F_CTRL_SCDC_FAIL(LIBF_F_STR(freopen) ": fileio_scdc_reopen failed with err: %d", err);
-
-        libfileio_scdc_fd_free(fd);
-        libfileio_scdc_destroy(lfio);
+        TRACE_F_CTRL_SCDC_FAIL(LIBF_F_STR(freopen) ": scdc stream and non-scdc path not supported");
       }
 
-    } else
-    {
-      TRACE_F_CTRL_SCDC_FAIL(LIBF_F_STR(freopen) ": scdc stream and non-scdc path not supported");
+      libfileio_scdc_file_release(lfio);
     }
 
     TRACE_F_CTRL_OUTRO(LIBF_F_STR(freopen) ": return: %" dptr_fmt, DPTR(file));
@@ -1264,11 +1361,16 @@ int LIBF_F(fclose)(FILE *stream)
 
     TRACE_F_CTRL_SCDC(LIBF_F_STR(fclose) ": lfio: %" dptr_fmt, DPTR(lfio));
 
-    libfileio_scdc_fd_free(lfio->fd);
+    if (libfileio_scdc_file_acquire(lfio))
+    {
+      libfileio_scdc_fd_free(lfio->fd);
 
-    ret = fileio_scdc_close(&lfio->fio);
+      ret = fileio_scdc_close(&lfio->fio);
 
-    libfileio_scdc_destroy(lfio);
+      libfileio_scdc_file_release(lfio);
+
+      libfileio_scdc_destroy(lfio);
+    }
 
     TRACE_F_CTRL_SCDC(LIBF_F_STR(fclose) ": return: %d", ret);
 
@@ -1313,14 +1415,19 @@ size_t LIBF_F(fread)(void *ptr, size_t size, size_t nmemb, FILE *stream)
 
     TRACE_F_RD_SCDC(LIBF_F_STR(fread) ": lfio: %" dptr_fmt ", ptr: %" dptr_fmt ", size: %zu, nmemb: %zu", DPTR(lfio), DPTR(ptr), size, nmemb);
 
-    scdcint_t r = fileio_scdc_read(&lfio->fio, ptr, size * nmemb, 0);
-
-    if (r < 0) lfio->err = 1;
-    else
+    if (libfileio_scdc_file_acquire(lfio))
     {
-      ret = r / size;
-      ssize_t seek = ret * size - r;
-      if (seek != 0) fileio_scdc_seek(&lfio->fio, seek, SEEK_CUR, 0);
+      scdcint_t r = fileio_scdc_read(&lfio->fio, ptr, size * nmemb, 0);
+
+      if (r < 0) lfio->err = 1;
+      else
+      {
+        ret = r / size;
+        ssize_t seek = ret * size - r;
+        if (seek != 0) fileio_scdc_seek(&lfio->fio, seek, SEEK_CUR, 0);
+      }
+
+      libfileio_scdc_file_release(lfio);
     }
 
     TRACE_F_RD_SCDC(LIBF_F_STR(fread) ": return: %zu", ret);
@@ -1367,14 +1474,19 @@ size_t LIBF_F(fwrite)(const void *ptr, size_t size, size_t nmemb, FILE *stream)
 
     TRACE_F_WR_SCDC(LIBF_F_STR(fwrite) ": lfio: %" dptr_fmt ", ptr: %" dptr_fmt ", size: %zu, nmemb: %zu", DPTR(lfio), DPTR(ptr), size, nmemb);
 
-    scdcint_t r = fileio_scdc_write(&lfio->fio, ptr, size * nmemb);
-
-    if (r < 0) lfio->err = 1;
-    else
+    if (libfileio_scdc_file_acquire(lfio))
     {
-      ret = r / size;
-      ssize_t seek = ret * size - r;
-      if (seek != 0) fileio_scdc_seek(&lfio->fio, seek, SEEK_CUR, 1);
+      scdcint_t r = fileio_scdc_write(&lfio->fio, ptr, size * nmemb);
+
+      if (r < 0) lfio->err = 1;
+      else
+      {
+        ret = r / size;
+        ssize_t seek = ret * size - r;
+        if (seek != 0) fileio_scdc_seek(&lfio->fio, seek, SEEK_CUR, 1);
+      }
+
+      libfileio_scdc_file_release(lfio);
     }
 
     TRACE_F_WR_SCDC(LIBF_F_STR(fwrite) ": return: %zu", ret);
@@ -1419,7 +1531,12 @@ int LIBF_F(fflush)(FILE *stream)
 
     TRACE_F_CTRL_SCDC(LIBF_F_STR(fflush) ": lfio: %" dptr_fmt, DPTR(lfio));
 
-    ret = fileio_scdc_sync(&lfio->fio);
+    if (libfileio_scdc_file_acquire(lfio))
+    {
+      ret = fileio_scdc_sync(&lfio->fio);
+
+      libfileio_scdc_file_release(lfio);
+    }
 
     TRACE_F_CTRL_SCDC(LIBF_F_STR(fflush) ": return: %d", ret);
 
@@ -1459,9 +1576,11 @@ static int fseekXX(int XX, FILE *stream, dsint_t offset, int whence)
 
     TRACE_F_CTRL_SCDC(LIBF_F_STR(fseek) "%s: lfio: %" dptr_fmt ", offset: %" dsint_fmt ", whence: %d", XXSTR(XX), DPTR(lfio), offset, whence);
 
-    if (fileio_scdc_seek(&lfio->fio, offset, whence, 0) != FILEIO_SCDC_FAILURE)
+    if (libfileio_scdc_file_acquire(lfio))
     {
-      ret = 0;
+      if (fileio_scdc_seek(&lfio->fio, offset, whence, 0) != FILEIO_SCDC_FAILURE) ret = 0;
+
+      libfileio_scdc_file_release(lfio);
     }
 
     TRACE_F_CTRL_SCDC(LIBF_F_STR(fseek) "%s: return: %d", XXSTR(XX), ret);
@@ -1519,7 +1638,12 @@ static dsint_t ftellXX(int XX, FILE *stream)
 
     TRACE_F_CTRL_SCDC(LIBF_F_STR(ftell) "%s: lfio: %" dptr_fmt, XXSTR(XX), DPTR(lfio));
 
-    ret = fileio_scdc_seek(&lfio->fio, 0, SEEK_CUR, 0);
+    if (libfileio_scdc_file_acquire(lfio))
+    {
+      ret = fileio_scdc_seek(&lfio->fio, 0, SEEK_CUR, 0);
+
+      libfileio_scdc_file_release(lfio);
+    }
 
     TRACE_F_CTRL_SCDC(LIBF_F_STR(ftell) "%s: return: %" dsint_fmt, XXSTR(XX), ret);
 
@@ -1588,7 +1712,12 @@ void LIBF_F(rewind)(FILE *stream)
 
     TRACE_F_CTRL_SCDC(LIBF_F_STR(rewind) ": lfio: %" dptr_fmt, DPTR(lfio));
 
-    fileio_scdc_seek(&lfio->fio, 0, SEEK_SET, 0);
+    if (libfileio_scdc_file_acquire(lfio))
+    {
+      fileio_scdc_seek(&lfio->fio, 0, SEEK_SET, 0);
+
+      libfileio_scdc_file_release(lfio);
+    }
 
     TRACE_F_CTRL_SCDC(LIBF_F_STR(rewind) ": return");
 
@@ -1622,7 +1751,12 @@ void LIBF_F(clearerr)(FILE *stream)
 
     TRACE_F_CTRL_SCDC(LIBF_F_STR(clearerr) ": lfio: %" dptr_fmt, DPTR(lfio));
 
-    lfio->err = 0;
+    if (libfileio_scdc_file_acquire(lfio))
+    {
+      lfio->err = 0;
+
+      libfileio_scdc_file_release(lfio);
+    }
 
     TRACE_F_CTRL_SCDC(LIBF_F_STR(clearerr) ": return");
 
@@ -1658,7 +1792,12 @@ int LIBF_F(feof)(FILE *stream)
 
     TRACE_F_CTRL_SCDC(LIBF_F_STR(feof) ": lfio: %" dptr_fmt, DPTR(lfio));
 
-    ret = lfio->fio.eof;
+    if (libfileio_scdc_file_acquire(lfio))
+    {
+      ret = lfio->fio.eof;
+
+      libfileio_scdc_file_release(lfio);
+    }
 
     TRACE_F_CTRL_SCDC(LIBF_F_STR(feof) ": return: %d", ret);
 
@@ -1696,7 +1835,12 @@ int LIBF_F(ferror)(FILE *stream)
 
     TRACE_F_CTRL_SCDC(LIBF_F_STR(ferror) ": lfio: %" dptr_fmt, DPTR(lfio));
 
-    ret = lfio->err;
+    if (libfileio_scdc_file_acquire(lfio))
+    {
+      ret = lfio->err;
+
+      libfileio_scdc_file_release(lfio);
+    }
 
     TRACE_F_CTRL_SCDC(LIBF_F_STR(ferror) ": return: %d", ret);
 
@@ -1734,7 +1878,12 @@ int LIBF_F(fileno)(FILE *stream)
 
     TRACE_F_CTRL_SCDC(LIBF_F_STR(fileno) ": lfio: %" dptr_fmt, DPTR(lfio));
 
-    ret = lfio->fd;
+    if (libfileio_scdc_file_acquire(lfio))
+    {
+      ret = lfio->fd;
+
+      libfileio_scdc_file_release(lfio);
+    }
 
     TRACE_F_CTRL_SCDC(LIBF_F_STR(fileno) ": return: %d", ret);
 
@@ -1776,13 +1925,18 @@ static int fgetcXX(int XX, FILE *stream)
 
     TRACE_F_RD_SCDC("%s" LIBF_F_STR(getc) ": lfio: %" dptr_fmt, XXSTR(XX), DPTR(lfio));
 
-    unsigned char c;
+    if (libfileio_scdc_file_acquire(lfio))
+    {
+      unsigned char c;
 
-    int n = fileio_scdc_read(&lfio->fio, &c, 1, 0);
+      int n = fileio_scdc_read(&lfio->fio, &c, 1, 0);
 
-    if (n < 0) lfio->err = 1;
+      if (n < 0) lfio->err = 1;
 
-    if (n > 0) ret = c;
+      if (n > 0) ret = c;
+
+      libfileio_scdc_file_release(lfio);
+    }
 
     TRACE_F_RD_SCDC("%s" LIBF_F_STR(getc) ": return: %d", XXSTR(XX), ret);
 
@@ -1859,42 +2013,47 @@ char *LIBF_F(fgets)(char *s, int size, FILE *stream)
 
     TRACE_F_RD_SCDC(LIBF_F_STR(fgets) ": lfio: %" dptr_fmt ", s: %" dptr_fmt ", size: %d", DPTR(lfio), DPTR(s), size);
 
-    int nn = 0;
-    int ii = 0;
-
-    while (size - 1 - nn > 0 && ii >= nn && !lfio->fio.eof)
+    if (libfileio_scdc_file_acquire(lfio))
     {
-      int n = fileio_scdc_read(&lfio->fio, s + ii,
+      int nn = 0;
+      int ii = 0;
+
+      while (size - 1 - nn > 0 && ii >= nn && !lfio->fio.eof)
+      {
+        int n = fileio_scdc_read(&lfio->fio, s + ii,
 #if LIBFILEIO_SCDC_FGETS_CHUNK_SIZE
-        z_min(LIBFILEIO_SCDC_FGETS_CHUNK_SIZE, size - 1 - nn),
+          z_min(LIBFILEIO_SCDC_FGETS_CHUNK_SIZE, size - 1 - nn),
 #else
-        size - 1 - nn,
+          size - 1 - nn,
 #endif
-        1);
+          1);
 
-      if (n < 0)
-      {
-        nn = -1;
-        break;
+        if (n < 0)
+        {
+          nn = -1;
+          break;
+        }
+
+        nn += n;
+
+        for (; ii < nn; ++ii)
+        if (s[ii] == '\n') break;
       }
 
-      nn += n;
-
-      for (; ii < nn; ++ii)
-      if (s[ii] == '\n') break;
-    }
-
-    if (nn < 0) lfio->err = 1;
-    else
-    {
-      if (ii < size)
+      if (nn < 0) lfio->err = 1;
+      else
       {
-        ++ii;
-        s[ii] = '\0';
-        ret = s;
+        if (ii < size)
+        {
+          ++ii;
+          s[ii] = '\0';
+          ret = s;
+        }
+
+        if (ii < nn) fileio_scdc_seek(&lfio->fio, ii - nn, SEEK_CUR, 0);
       }
 
-      if (ii < nn) fileio_scdc_seek(&lfio->fio, ii - nn, SEEK_CUR, 0);
+      libfileio_scdc_file_release(lfio);
     }
 
     TRACE_F_RD_SCDC(LIBF_F_STR(fgets) ": return: %" dptr_fmt, DPTR(ret));
@@ -1957,11 +2116,16 @@ static int fputcXX(int XX, int c, FILE *stream)
 
     TRACE_F_WR_SCDC("%s" LIBF_F_STR(putc) ": lfio: %" dptr_fmt ", c: %d", XXSTR(XX), DPTR(lfio), c);
 
-    int n = fileio_scdc_write(&lfio->fio, &c, 1);
+    if (libfileio_scdc_file_acquire(lfio))
+    {
+      int n = fileio_scdc_write(&lfio->fio, &c, 1);
 
-    if (n < 0) lfio->err = 1;
+      if (n < 0) lfio->err = 1;
 
-    if (n > 0) ret = c;
+      if (n > 0) ret = c;
+
+      libfileio_scdc_file_release(lfio);
+    }
 
     TRACE_F_WR_SCDC("%s" LIBF_F_STR(putc) ": return: %d", XXSTR(XX), ret);
 
@@ -2040,11 +2204,16 @@ int LIBF_F(fputs)(const char *s, FILE *stream)
 
     TRACE_F_WR_SCDC(LIBF_F_STR(fputs) ": lfio: %" dptr_fmt ", s: %" dptr_fmt, DPTR(lfio), DPTR(s));
 
-    int n = fileio_scdc_write(&lfio->fio, s, strlen(s));
+    if (libfileio_scdc_file_acquire(lfio))
+    {
+      int n = fileio_scdc_write(&lfio->fio, s, strlen(s));
 
-    if (n < 0) lfio->err = 1;
+      if (n < 0) lfio->err = 1;
 
-    if (n > 0) ret = n;
+      if (n > 0) ret = n;
+
+      libfileio_scdc_file_release(lfio);
+    }
 
     TRACE_F_WR_SCDC(LIBF_F_STR(fputs) ": return: %d", ret);
 
@@ -2108,56 +2277,61 @@ static int vfscanfXX(int XX, FILE *stream, const char *format, va_list ap)
 
     TRACE_F_RD_SCDC("%s" LIBF_F_STR(fscanf) ": lfio: %" dptr_fmt ", format: %" dptr_fmt, XXSTR(XX), DPTR(lfio), DPTR(format));
 
-    void *buf;
-#if !LIBFILEIO_SCDC_FSCANF_SSCANF && LIBFILEIO_SCDC_FSCANF_FMEM_PERSISTENT
-    if (!lfio->fscanf_buf)
+    if (libfileio_scdc_file_acquire(lfio))
     {
-      lfio->fscanf_buf_size = LIBFILEIO_SCDC_FSCANF_BUF_SIZE;
-      lfio->fscanf_buf = malloc(lfio->fscanf_buf_size);
-      lfio->fscanf_file = fmemopen(lfio->fscanf_buf, lfio->fscanf_buf_size, "r");
-    }
-    buf = lfio->fscanf_buf;
+      void *buf;
+#if !LIBFILEIO_SCDC_FSCANF_SSCANF && LIBFILEIO_SCDC_FSCANF_FMEM_PERSISTENT
+      if (!lfio->fscanf_buf)
+      {
+        lfio->fscanf_buf_size = LIBFILEIO_SCDC_FSCANF_BUF_SIZE;
+        lfio->fscanf_buf = malloc(lfio->fscanf_buf_size);
+        lfio->fscanf_file = fmemopen(lfio->fscanf_buf, lfio->fscanf_buf_size, "r");
+      }
+      buf = lfio->fscanf_buf;
 #else
-    char fscanf_buf[LIBFILEIO_SCDC_FSCANF_BUF_SIZE];
-    buf = fscanf_buf;
+      char fscanf_buf[LIBFILEIO_SCDC_FSCANF_BUF_SIZE];
+      buf = fscanf_buf;
 #endif
 
-    scdcint_t n = fileio_scdc_read(&lfio->fio, buf, LIBFILEIO_SCDC_FSCANF_BUF_SIZE, 1);
+      scdcint_t n = fileio_scdc_read(&lfio->fio, buf, LIBFILEIO_SCDC_FSCANF_BUF_SIZE, 1);
 
-    long i = 0;
+      long i = 0;
 
-    if (n < 0) lfio->err = 1;
-    else
-    {
+      if (n < 0) lfio->err = 1;
+      else
+      {
 #if LIBFILEIO_SCDC_FSCANF_SSCANF
 # error ""
 #else /* LIBFILEIO_SCDC_FSCANF_SSCANF */
-      FILE *f;
+        FILE *f;
 # if LIBFILEIO_SCDC_FSCANF_FMEM_PERSISTENT
-      ORIG_F_INIT(fseek);
-      ORIG_F(fseek)(lfio->fscanf_file, 0, SEEK_SET);
+        ORIG_F_INIT(fseek);
+        ORIG_F(fseek)(lfio->fscanf_file, 0, SEEK_SET);
 
-      ORIG_F_INIT(fflush);
-      ORIG_F(fflush)(lfio->fscanf_file);
+        ORIG_F_INIT(fflush);
+        ORIG_F(fflush)(lfio->fscanf_file);
 
-      f = lfio->fscanf_file;
+        f = lfio->fscanf_file;
 # else /* !LIBFILEIO_SCDC_FSCANF_FMEM_PERSISTENT */
-      f = fmemopen(buf, n, "r");
+        f = fmemopen(buf, n, "r");
 # endif /* !LIBFILEIO_SCDC_FSCANF_FMEM_PERSISTENT */
       
-      ORIG_F_INIT(vfscanf);
-      ret = ORIG_F(vfscanf)(f, format, ap);
+        ORIG_F_INIT(vfscanf);
+        ret = ORIG_F(vfscanf)(f, format, ap);
 
-      ORIG_F_INIT(ftell);
-      i = ORIG_F(ftell)(f);
+        ORIG_F_INIT(ftell);
+        i = ORIG_F(ftell)(f);
 
 # if !LIBFILEIO_SCDC_FSCANF_FMEM_PERSISTENT
-      ORIG_F_INIT(fclose);
-      ORIG_F(fclose)(f);
+        ORIG_F_INIT(fclose);
+        ORIG_F(fclose)(f);
 # endif /* !LIBFILEIO_SCDC_FSCANF_FMEM_PERSISTENT */
 #endif /* LIBFILEIO_SCDC_FSCANF_SSCANF */
 
-      if (ret != EOF && n > i) fileio_scdc_seek(&lfio->fio, i - n, SEEK_CUR, 0);
+        if (ret != EOF && n > i) fileio_scdc_seek(&lfio->fio, i - n, SEEK_CUR, 0);
+      }
+
+      libfileio_scdc_file_release(lfio);
     }
 
     TRACE_F_RD_SCDC("%s" LIBF_F_STR(fscanf) ": return: %d", XXSTR(XX), ret);
@@ -2262,54 +2436,59 @@ static int vfprintfXX(int XX, FILE *stream, const char *format, va_list ap)
 
     TRACE_F_RD_SCDC("%s" LIBF_F_STR(fprintf) ": lfio: %" dptr_fmt ", format: %" dptr_fmt, XXSTR(XX), DPTR(lfio), DPTR(format));
 
-    void *buf;
-#if !LIBFILEIO_SCDC_FPRINTF_SPRINTF && LIBFILEIO_SCDC_FPRINTF_FMEM_PERSISTENT
-    if (!lfio->fprintf_buf)
+    if (libfileio_scdc_file_acquire(lfio))
     {
-      lfio->fprintf_buf_size = LIBFILEIO_SCDC_FPRINTF_BUF_SIZE;
-      lfio->fprintf_buf = malloc(lfio->fprintf_buf_size);
-      lfio->fprintf_file = fmemopen(lfio->fprintf_buf, lfio->fprintf_buf_size, "w");
-    }
-    buf = lfio->fprintf_buf;
+      void *buf;
+#if !LIBFILEIO_SCDC_FPRINTF_SPRINTF && LIBFILEIO_SCDC_FPRINTF_FMEM_PERSISTENT
+      if (!lfio->fprintf_buf)
+      {
+        lfio->fprintf_buf_size = LIBFILEIO_SCDC_FPRINTF_BUF_SIZE;
+        lfio->fprintf_buf = malloc(lfio->fprintf_buf_size);
+        lfio->fprintf_file = fmemopen(lfio->fprintf_buf, lfio->fprintf_buf_size, "w");
+      }
+      buf = lfio->fprintf_buf;
 #else
-    char fprintf_buf[LIBFILEIO_SCDC_FPRINTF_BUF_SIZE];
-    buf = fprintf_buf;
+      char fprintf_buf[LIBFILEIO_SCDC_FPRINTF_BUF_SIZE];
+      buf = fprintf_buf;
 #endif
 
-    long i = 0;
+      long i = 0;
 
 #if LIBFILEIO_SCDC_FPRINTF_SPRINTF
-    ret = vsnprintf(buf, LIBFILEIO_SCDC_FPRINTF_BUF_SIZE, format, ap);
+      ret = vsnprintf(buf, LIBFILEIO_SCDC_FPRINTF_BUF_SIZE, format, ap);
 
-    i = ret;
+      i = ret;
 #else /* LIBFILEIO_SCDC_FPRINTF_SPRINTF */
-    FILE *f;
+      FILE *f;
 # if LIBFILEIO_SCDC_FPRINTF_FMEM_PERSISTENT
-    ORIG_F_INIT(fseek);
-    ORIG_F(fseek)(lfio->fprintf_file, 0, SEEK_SET);
-    f = lfio->fprintf_file;
+      ORIG_F_INIT(fseek);
+      ORIG_F(fseek)(lfio->fprintf_file, 0, SEEK_SET);
+      f = lfio->fprintf_file;
 # else /* !LIBFILEIO_SCDC_FPRINTF_FMEM_PERSISTENT */
-    f = fmemopen(buf, LIBFILEIO_SCDC_FPRINTF_BUF_SIZE, "w");
+      f = fmemopen(buf, LIBFILEIO_SCDC_FPRINTF_BUF_SIZE, "w");
 # endif /* !LIBFILEIO_SCDC_FPRINTF_FMEM_PERSISTENT */
 
-    ORIG_F_INIT(vfprintf);
-    ret = ORIG_F(vfprintf)(f, format, ap);
+      ORIG_F_INIT(vfprintf);
+      ret = ORIG_F(vfprintf)(f, format, ap);
 
-    ORIG_F_INIT(ftell);
-    i = ORIG_F(ftell)(f);
+      ORIG_F_INIT(ftell);
+      i = ORIG_F(ftell)(f);
 
 # if LIBFILEIO_SCDC_FPRINTF_FMEM_PERSISTENT
-    ORIG_F_INIT(fflush);
-    ORIG_F(fflush)(f);
+      ORIG_F_INIT(fflush);
+      ORIG_F(fflush)(f);
 # else /* !LIBFILEIO_SCDC_FPRINTF_FMEM_PERSISTENT */
-    ORIG_F_INIT(fclose);
-    ORIG_F(fclose)(f);
+      ORIG_F_INIT(fclose);
+      ORIG_F(fclose)(f);
 # endif /* !LIBFILEIO_SCDC_FPRINTF_FMEM_PERSISTENT */
 #endif /* LIBFILEIO_SCDC_FPRINTF_SPRINTF */
 
-    if (ret >= 0 && i > 0) i = fileio_scdc_write(&lfio->fio, buf, i);
+      if (ret >= 0 && i > 0) i = fileio_scdc_write(&lfio->fio, buf, i);
 
-    if (ret < 0) lfio->err = 1;
+      if (ret < 0) lfio->err = 1;
+
+      libfileio_scdc_file_release(lfio);
+    }
 
     TRACE_F_WR_SCDC("%s" LIBF_F_STR(fprintf) ": return: %d", XXSTR(XX), ret);
 

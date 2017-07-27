@@ -47,6 +47,8 @@ const char *scdc_nodeport_authority_intern(const char *conf, scdc_args_t *args);
 
 scdcint_t scdc_nodeport_supported_intern(const char *uri, scdc_args_t *args);
 
+scdcint_t scdc_dataset_inout_next_hash(scdc_dataset_inout_t *inout);
+
 scdc_dataset_t scdc_dataset_open_intern(const char *uri, scdc_args_t *args);
 
 scdcint_t scdc_dataset_cmd_intern(scdc_dataset_t dataset, const char *cmd, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_args_t *args);

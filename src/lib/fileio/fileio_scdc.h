@@ -26,7 +26,11 @@
 
 
 #define FILEIO_SCDC_BUF_ENV          1
+#if 0
+#define FILEIO_SCDC_BUF              0
+#else
 #define FILEIO_SCDC_BUF              1024*1024
+#endif
 #define FILEIO_SCDC_BUF_READ_CHUNK   1024*1024
 #define FILEIO_SCDC_BUF_WRITE_CHUNK  1024*1024
 

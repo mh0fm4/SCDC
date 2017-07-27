@@ -66,7 +66,8 @@ LDFLAGS+=
 $(NAME)_SCDC_DEPENDS:=$(LIB) $(LIBSO)
 $(NAME)_SCDC_CPPFLAGS:=
 $(NAME)_SCDC_LDFLAGS:=$(REDIRECT_LDFLAGS) $($(NAME)_LDFLAGS)
-$(NAME)_SCDC_A_LIBS:=lib$(name)_scdc.a -ldl $(REDIRECT_LIBS) $($(NAME)_LIBS)
+$(NAME)_SCDC_LIBS:=-ldl $(REDIRECT_LIBS) $($(NAME)_LIBS)
+$(NAME)_SCDC_A_LIBS:=lib$(name)_scdc.a $($(NAME)_SCDC_LIBS)
 $(NAME)_SCDC_SO_LIBS:=lib$(name)_scdc.so -ldl
 
 LIBS+=-lm
@@ -84,7 +85,7 @@ $(LIB): $(OFILES_LIB)
 	$(AR) r $@ $(OFILES_LIB)
 
 $(LIBSO): $(OFILES_LIB)
-	$(LD) $(LDFLAGS) $($(NAME)_SCDC_LDFLAGS) -shared -o $@ $(OFILES_LIB) $($(NAME)_SCDC_A_LIBS) $(LIBS)
+	$(LD) $(LDFLAGS) $($(NAME)_SCDC_LDFLAGS) -shared -o $@ $(OFILES_LIB) $($(NAME)_SCDC_LIBS) $(LIBS)
 
 lib$(name)_scdc_srv: lib$(name)_scdc_srv.c $(CFILES_EXEC) $(DEPS) $($(NAME)_SCDC_DEPENDS)
 	$(CC) $(CPPFLAGS) $(LDFLAGS) $($(NAME)_SCDC_LDFLAGS) -o $@ $< $($(NAME)_SCDC_A_LIBS) $(LIBS)

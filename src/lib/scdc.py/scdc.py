@@ -26,6 +26,9 @@ if hasattr(scdc_parent_frame, "f_globals") and scdc_parent_frame.f_globals.has_k
 import scdcmod
 
 (
+  USE_ZLIB,
+  USE_MYSQL,
+  USE_MPI,
   HAVE_PYSCDC_INFO,
   HAVE_PYSCDC_TRACE,
   HAVE_PYSCDC_FAIL,
@@ -169,6 +172,8 @@ class dataset_inout:
     (self.format, self.buf, self.buf_size, self.total_size, self.total_size_given, self.current_size, self.next, self.data, self.intern) = vals
   def get_all(self):
     return (self.format, self.buf, self.buf_size, self.total_size, self.total_size_given, self.current_size, self.next, self.data, self.intern)
+  def get_next_hash(self):
+    return (self.next, self.data)
   def buf2str(self):
     return self.buf.to_str(self.current_size) if self.buf is not None else ""
 

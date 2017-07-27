@@ -28,14 +28,26 @@
 
 #if HAVE_SCDC_DEBUG
 # define USE_DEBUG  1
+#else
+# define USE_DEBUG  0
+#endif
+
+#ifdef HAVE_ZLIB_H
+# define USE_ZLIB  1
+#else
+# define USE_ZLIB  0
 #endif
 
 #ifdef HAVE_MYSQL_H
 # define USE_MYSQL  1
+#else
+# define USE_MYSQL  0
 #endif
 
 #ifdef HAVE_MPI_H
 # define USE_MPI  1
+#else
+# define USE_MPI  0
 #endif
 
 
@@ -103,6 +115,7 @@
 #define SCDC_TRACE_NODECONN       0
 #define SCDC_TRACE_NODECONN_POOL  0
 
+#define SCDC_TRACE_NODE_DIRECT  0
 #define SCDC_TRACE_NODE_UDS     0
 #define SCDC_TRACE_NODE_TCP     0
 #define SCDC_TRACE_NODE_MPI     0
@@ -112,6 +125,7 @@
 #define SCDC_TRACE_DATAPROV_POOL    0
 #define SCDC_TRACE_DATAPROV_HOOK    0
 #define SCDC_TRACE_DATAPROV_JOBRUN  0
+#define SCDC_TRACE_DATAPROV_FS      0
 
 #define SCDC_TRACE_DATASET          0
 #define SCDC_TRACE_DATASET_INOUT    0

@@ -63,12 +63,14 @@ void pyscdc_pyerr_log_cout_print(void);
 # define PYSCDC_TRACE_PREFIX                          "PYSCDC-TRACE: "
 # define PYSCDC_TRACE(_x_...)                         scdc_log_cout_printf_nl(PYSCDC_TRACE_PREFIX _x_)
 # define PYSCDC_TRACE_N(_x_...)                       scdc_log_cout_printf(PYSCDC_TRACE_PREFIX _x_)
+# define PYSCDC_TRACE_C(_x_...)                       scdc_log_cout_printf_nl(_x_)
+# define PYSCDC_TRACE_C_N(_x_...)                     scdc_log_cout_printf(_x_)
 # if HAVE_PYSCDC_TRACE_DATASET
 #  define PYSCDC_TRACE_DATASET                        1
-#  define PYSCDC_TRACE_DATASET_INPUT(_d_, _x_...)     Z_MOP(PYSCDC_TRACE_N(_x_); scdc_dataset_input_log_cout_print(_d_); scdc_log_cout_printf("\n");)
-#  define PYSCDC_TRACE_DATASET_OUTPUT(_d_, _x_...)    Z_MOP(PYSCDC_TRACE_N(_x_); scdc_dataset_output_log_cout_print(_d_); scdc_log_cout_printf("\n");)
-#  define PYSCDC_TRACE_DATASET_PYINPUT(_d_, _x_...)   Z_MOP(PYSCDC_TRACE_N(_x_); pyscdc_dataset_inout_log_cout_print(_d_, 1); scdc_log_cout_printf("\n");)
-#  define PYSCDC_TRACE_DATASET_PYOUTPUT(_d_, _x_...)  Z_MOP(PYSCDC_TRACE_N(_x_); pyscdc_dataset_inout_log_cout_print(_d_, 1); scdc_log_cout_printf("\n");)
+#  define PYSCDC_TRACE_DATASET_INPUT(_d_, _x_...)     Z_MOP(PYSCDC_TRACE_N(_x_); scdc_dataset_input_log_cout_print(_d_); PYSCDC_TRACE_C("");)
+#  define PYSCDC_TRACE_DATASET_OUTPUT(_d_, _x_...)    Z_MOP(PYSCDC_TRACE_N(_x_); scdc_dataset_output_log_cout_print(_d_); PYSCDC_TRACE_C("");)
+#  define PYSCDC_TRACE_DATASET_PYINPUT(_d_, _x_...)   Z_MOP(PYSCDC_TRACE_N(_x_); pyscdc_dataset_inout_log_cout_print(_d_, 1); PYSCDC_TRACE_C("");)
+#  define PYSCDC_TRACE_DATASET_PYOUTPUT(_d_, _x_...)  Z_MOP(PYSCDC_TRACE_N(_x_); pyscdc_dataset_inout_log_cout_print(_d_, 1); PYSCDC_TRACE_C("");)
 # else
 #  define PYSCDC_TRACE_DATASET                        0
 #  define PYSCDC_TRACE_DATASET_INPUT(_d_, _x_...)     Z_NOP()
@@ -77,21 +79,21 @@ void pyscdc_pyerr_log_cout_print(void);
 #  define PYSCDC_TRACE_DATASET_PYOUTPUT(_d_, _x_...)  Z_NOP()
 # endif
 # if HAVE_PYSCDC_TRACE_OBJECT
-#  define PYSCDC_TRACE_OBJECT(_o_, _x_...)            Z_MOP(PYSCDC_TRACE_N(_x_); pyscdc_object_log_cout_print(_o_, 0); scdc_log_cout_printf("\n");)
-#  define PYSCDC_TRACE_OBJECT_STR(_o_, _x_...)        Z_MOP(PYSCDC_TRACE_N(_x_); pyscdc_object_log_cout_print(_o_, 1); scdc_log_cout_printf("\n");)
+#  define PYSCDC_TRACE_OBJECT(_o_, _x_...)            Z_MOP(PYSCDC_TRACE_N(_x_); pyscdc_object_log_cout_print(_o_, 0); PYSCDC_TRACE_C("");)
+#  define PYSCDC_TRACE_OBJECT_STR(_o_, _x_...)        Z_MOP(PYSCDC_TRACE_N(_x_); pyscdc_object_log_cout_print(_o_, 1); PYSCDC_TRACE_C("");)
 # else
 #  define PYSCDC_TRACE_OBJECT(_o_, _x_...)            Z_NOP()
 #  define PYSCDC_TRACE_OBJECT_STR(_o_, _x_...)        Z_NOP()
 # endif
 # if HAVE_PYSCDC_TRACE_PARSE
-#  define PYSCDC_TRACE_PARSE(_s_...)                  Z_MOP(PYSCDC_TRACE_N(_s_ "python parse: %s", (pyscdc_parseret)?"OK":"FAILED: "); if (pyscdc_parseret) scdc_log_cout_printf("\n"); else pyscdc_pyerr_log_cout_print();)
+#  define PYSCDC_TRACE_PARSE(_x_...)                  Z_MOP(PYSCDC_TRACE_N(_x_); PYSCDC_TRACE_C("python parse: %s", (pyscdc_parseret)?"OK":"FAILED"); if (!pyscdc_parseret) pyscdc_pyerr_log_cout_print();)
 # else
-#  define PYSCDC_TRACE_PARSE(_s_...)                  Z_NOP()
+#  define PYSCDC_TRACE_PARSE(_x_...)                  Z_NOP()
 # endif
 # if HAVE_PYSCDC_TRACE_CALL
-#  define PYSCDC_TRACE_CALL(_r_, _s_...)              Z_MOP(PYSCDC_TRACE_N(_s_ "python call: %s", (_r_)?"OK":"FAILED: "); if (_r_) scdc_log_cout_printf("\n"); else pyscdc_pyerr_log_cout_print();)
+#  define PYSCDC_TRACE_CALL(_r_, _x_...)              Z_MOP(PYSCDC_TRACE_N(_x_); PYSCDC_TRACE_C("python call: %s", (_r_)?"OK":"FAILED"); if (!(_r_)) pyscdc_pyerr_log_cout_print();)
 # else
-#  define PYSCDC_TRACE_CALL(_r_, _s_...)              Z_NOP()
+#  define PYSCDC_TRACE_CALL(_r_, _x_...)              Z_NOP()
 # endif
 #else
 # define PYSCDC_TRACE(_x_...)                         Z_NOP()

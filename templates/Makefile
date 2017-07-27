@@ -137,9 +137,12 @@ $(CXXEXEC): $(OFILES) $(CXXEXEC_OFILES) $(AFILES) $(DEPS)
 
 clean:
 	$(foreach d,$(wildcard $(addsuffix /Makefile,$(SUBDIRS))),$(MAKE) -C $(dir $(d)) clean;)
+ifneq ($(wildcard $(CLEAN)),)
 	rm -rf $(wildcard $(CLEAN))
+endif
 
 info:
+	@echo "SUBDIRS: $(SUBDIRS)"
 	$(foreach d,$(wildcard $(addsuffix /Makefile,$(SUBDIRS))),$(MAKE) -C $(dir $(d)) info;)
 	@echo "LIB: $(LIB)"
 	@echo "CEXEC: $(CEXEC)"
@@ -157,3 +160,4 @@ info:
 	@echo "CXXEXEC_OFILES: $(CXXEXEC_OFILES)"
 	@echo "PYFILES: $(PYFILES)"
 	@echo "PYCFILES: $(PYCFILES)"
+	@echo "CLEAN: $(CLEAN)"

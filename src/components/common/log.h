@@ -53,15 +53,15 @@ int scdc_log_cerr_printf_nl(const char *format, ...);
 # define SCDC_TRACE_PREFIX                       "SCDC-TRACE: "
 # define SCDC_TRACE(_x_...)                      scdc_cout_printf_nl(SCDC_TRACE_PREFIX SCDC_LOG_PREFIX _x_)
 # define SCDC_TRACE_N(_x_...)                    scdc_cout_printf(SCDC_TRACE_PREFIX SCDC_LOG_PREFIX _x_)
-# define SCDC_TRACE_C(_x_)                       scdc_cout_printf_nl(_x_)
-# define SCDC_TRACE_C_N(_x_)                     scdc_cout_printf(_x_)
+# define SCDC_TRACE_C(_x_...)                    scdc_cout_printf_nl(_x_)
+# define SCDC_TRACE_C_N(_x_...)                  scdc_cout_printf(_x_)
 # define SCDC_TRACE_DATASET_INPUT(_d_, _x_...)   Z_MOP(SCDC_TRACE_N(_x_); scdc_dataset_input_log_cout_print(_d_); scdc_log_cout_printf("\n");)
 # define SCDC_TRACE_DATASET_OUTPUT(_d_, _x_...)  Z_MOP(SCDC_TRACE_N(_x_); scdc_dataset_output_log_cout_print(_d_); scdc_log_cout_printf("\n");)
 #else
 # define SCDC_TRACE(_x_...)                      Z_NOP()
 # define SCDC_TRACE_N(_x_...)                    Z_NOP()
-# define SCDC_TRACE_C(_x_)                       Z_NOP()
-# define SCDC_TRACE_C_N(_x_)                     Z_NOP()
+# define SCDC_TRACE_C(_x_...)                    Z_NOP()
+# define SCDC_TRACE_C_N(_x_...)                  Z_NOP()
 # define SCDC_TRACE_DATASET_INPUT(_d_, _x_...)   Z_NOP()
 # define SCDC_TRACE_DATASET_OUTPUT(_d_, _x_...)  Z_NOP()
 #endif

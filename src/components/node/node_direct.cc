@@ -18,6 +18,8 @@
  */
 
 
+#define SCDC_TRACE_NOT  !SCDC_TRACE_NODE_DIRECT
+
 #include "config.hh"
 #include "common.hh"
 #include "log.hh"
@@ -73,7 +75,7 @@ bool scdc_nodeport_direct::supported(const char *uri, scdc_args *args)
 
   bool ret = (string(uri).compare(0, strlen(SCDC_NODE_DIRECT_SCHEME) + 1, SCDC_NODE_DIRECT_SCHEME ":") == 0);
 
-  SCDC_TRACE("authority: return: '" << ret << "'");
+  SCDC_TRACE("supported: return: '" << ret << "'");
 
   return ret;
 }

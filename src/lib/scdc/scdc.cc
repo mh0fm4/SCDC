@@ -41,6 +41,11 @@
 using namespace std;
 
 
+const scdcint_t SCDC_USE_ZLIB = USE_ZLIB;
+const scdcint_t SCDC_USE_MYSQL = USE_MYSQL;
+const scdcint_t SCDC_USE_MPI = USE_MPI;
+
+
 #define SCDC_LOG_PREFIX  "libscdc: "
 
 
@@ -782,6 +787,24 @@ struct _scdc_dataset_t
 };
 
 
+scdcint_t scdc_dataset_inout_next_hash(scdc_dataset_inout_t *inout)
+{
+  SCDC_TRACE_DATASET_INPUT(inout, __func__ << ": inout: ");
+
+  if (!inout) return 0;
+
+  SCDC_TRACE(__func__ << ": next: " << static_cast<void *>(inout->next));
+  SCDC_TRACE(__func__ << ": data: " << static_cast<void *>(inout->data));
+  SCDC_TRACE(__func__ << ": intern_data: " << static_cast<void *>(inout->intern_data));
+
+  scdcint_t next_hash = static_cast<scdcint_t>(reinterpret_cast<intptr_t>(inout->next)) ^ static_cast<scdcint_t>(reinterpret_cast<intptr_t>(inout->data)) ^ static_cast<scdcint_t>(reinterpret_cast<intptr_t>(inout->intern_data));
+
+  SCDC_TRACE(__func__ << ": next_hash: " << next_hash << " (" << static_cast<scdcint_t>(reinterpret_cast<intptr_t>(inout->next)) << " + " << static_cast<scdcint_t>(reinterpret_cast<intptr_t>(inout->data)) << " + " << static_cast<scdcint_t>(static_cast<intptr_t>(inout->intern_data)) << ")");
+
+  return next_hash;
+}
+
+
 scdc_dataset_t scdc_dataset_open_intern(const char *uri, scdc_args_t *args)
 {
   SCDC_TRACE(__func__ << ": uri: '" << uri << "'");
@@ -936,7 +959,7 @@ scdcint_t scdc_dataset_cmd_intern(scdc_dataset_t dataset, const char *cmd, scdc_
   scdc_dataset_input_t input_null = *SCDC_DATASET_INPUT_NONE;
   if (!input) input = &input_null;
 
-  scdc_dataset_input_t output_null = *SCDC_DATASET_OUTPUT_ENDL;
+  scdc_dataset_output_t output_null = *SCDC_DATASET_OUTPUT_ENDL;
   if (!output) output = &output_null;
 
   /* backup original output */
@@ -946,6 +969,8 @@ scdcint_t scdc_dataset_cmd_intern(scdc_dataset_t dataset, const char *cmd, scdc_
   SCDC_TRACE_DATASET_INPUT(input, "scdc_dataset_cmd_intern: IN input: ");
   SCDC_TRACE_DATASET_OUTPUT(output, "scdc_dataset_cmd_intern: IN output: ");
 
+  scdcint_t output_next_hash_in = scdc_dataset_inout_next_hash(output);
+
   bool ret;
 
   double cmd_timing = z_time_wtime();
@@ -954,14 +979,15 @@ scdcint_t scdc_dataset_cmd_intern(scdc_dataset_t dataset, const char *cmd, scdc_
   else ret = dataset->nodeconn->get_compcoup()->dataset_cmd(cmd, cmd_size, input, output);
 
   cmd_timing = z_time_wtime() - cmd_timing;
-
   SCDC_TRACE(__func__ << ": timing: " << cmd_timing);
+
+  scdcint_t output_next_hash_out = scdc_dataset_inout_next_hash(output);
 
   SCDC_TRACE_DATASET_INPUT(input, "scdc_dataset_cmd_intern: OUT input: ");
   SCDC_TRACE_DATASET_OUTPUT(output, "scdc_dataset_cmd_intern: OUT output: ");
 
   /* if there was an output next given, but the resulting cmd output is different */
-  if (output_given.next && (output_given.next != output->next || output_given.data != output->data || output_given.intern != output->intern))
+  if (output_given.next && output_next_hash_in != output_next_hash_out)
   {
     SCDC_TRACE(__func__ << ": redirecting cmd output to given output");
     scdc_dataset_output_redirect(output, "to:outputsink", &output_given);

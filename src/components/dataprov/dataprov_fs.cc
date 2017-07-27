@@ -29,6 +29,8 @@
 
 #include "z_pack.h"
 
+#define SCDC_TRACE_NOT  !SCDC_TRACE_DATAPROV_FS
+
 #include "config.hh"
 #include "common.hh"
 #include "log.hh"

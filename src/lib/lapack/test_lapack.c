@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2014, 2015, 2016, 2017 Florian Polster
+ *  Copyright (C) 2016 Florian Polster
  *  
  *  This file is part of the Simulation Component and Data Coupling (SCDC) library.
  *  

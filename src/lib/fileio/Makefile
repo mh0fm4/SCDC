@@ -83,6 +83,8 @@ libfileio_scdc_srv: libfileio_scdc_srv.c $(SCDC_DEPS) $(DEPS)
 %_linked: %.c $(linked_DEPS) $(DEPS)
 	$(CC_) $(CPPFLAGS) $(CFLAGS_) $(LDFLAGS_) -o $@ $< $($@_LIBS) $(linked_LIBS)
 
+
+
 clean: Makefile
 	rm -rf $(OFILES) $(LIB) $(LIBSO) $(EXEC)
 

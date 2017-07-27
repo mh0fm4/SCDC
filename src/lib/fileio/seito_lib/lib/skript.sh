@@ -1,4 +1,4 @@
-# This is a Makefile!
+#!/bin/bash
 
 #  
 #  Copyright (C) 2014, 2015, 2016, 2017 Michael Hofmann
@@ -19,25 +19,4 @@
 #  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #  
 
-
-SUBDIRS:=
-SUBDIRS+=cse2016
-SUBDIRS+=filesystem
-SUBDIRS+=hook
-SUBDIRS+=parnum2017
-SUBDIRS+=relay
-SUBDIRS+=repo
-SUBDIRS+=simpat
-SUBDIRS+=storage
-
-ifneq ($(USE_PYTHON),)
- SUBDIRS+=hook.py
- SUBDIRS+=jobrun
- SUBDIRS+=merge_imopt
- SUBDIRS+=merger_demo
- SUBDIRS+=repo.py
- SUBDIRS+=simpat.py
- SUBDIRS+=storage.py
-endif
-
-SUBDIRS+=merge
+gcc -Wall -fPIC -shared -o lib/libseito.so lib/function.c -L/home/Shenlongt1/Desktop/Merge/SCDC/src/lib/scdc/ -lscdc -lstdc++  -ldl -ggdb

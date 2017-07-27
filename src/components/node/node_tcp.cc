@@ -97,7 +97,7 @@ bool scdc_nodeport_tcp::supported(const char *uri, scdc_args *args)
 
   bool ret = (string(uri).compare(0, strlen(SCDC_NODE_TCP_SCHEME) + 1, SCDC_NODE_TCP_SCHEME ":") == 0);
 
-  SCDC_TRACE("authority: return: '" << ret << "'");
+  SCDC_TRACE("supported: return: '" << ret << "'");
 
   return ret;
 }

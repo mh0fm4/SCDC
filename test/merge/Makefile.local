@@ -21,23 +21,11 @@
 
 
 SUBDIRS:=
-SUBDIRS+=cse2016
-SUBDIRS+=filesystem
-SUBDIRS+=hook
-SUBDIRS+=parnum2017
-SUBDIRS+=relay
-SUBDIRS+=repo
-SUBDIRS+=simpat
-SUBDIRS+=storage
 
 ifneq ($(USE_PYTHON),)
- SUBDIRS+=hook.py
- SUBDIRS+=jobrun
- SUBDIRS+=merge_imopt
- SUBDIRS+=merger_demo
- SUBDIRS+=repo.py
- SUBDIRS+=simpat.py
- SUBDIRS+=storage.py
+ SUBDIRS+=abaqus
+ SUBDIRS+=ansys
+ SUBDIRS+=femconv
+ SUBDIRS+=imf
+ SUBDIRS+=imopt
 endif
-
-SUBDIRS+=merge

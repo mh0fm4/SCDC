@@ -364,8 +364,6 @@ int main(int argc, char *argv[])
   int ndataprovs = 0;
   scdc_dataprov_t dataprovs[DATAPROVS_MAX];
 
-  scdc_dataset_t dataset;
-
 #define OPTARG_MAX  256
   char scheme[OPTARG_MAX], authority[OPTARG_MAX], open[OPTARG_MAX], cmdline[OPTARG_MAX];
   char path[OPTARG_MAX], *e;
@@ -508,6 +506,8 @@ int main(int argc, char *argv[])
         printf("unknown parameter: '%c'\n", c);
       }
   }
+
+  scdc_dataset_t dataset;
 
   if (strlen(scheme) > 0 || strlen(authority) > 0 || strlen(open) > 0)
   {
