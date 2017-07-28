@@ -42,6 +42,8 @@ USE_ASSERT:=1 # internal asserts
 #USE_ZLIB:=1
 #USE_MYSQL:=1
 #USE_MPI:=1
+#USE_DAVIX:=1
+#USE_NEON:=1
 
 ifneq ($(DEBUG),1)
  USE_DEBUG:=
@@ -192,6 +194,20 @@ endif
 ifneq ($(USE_MPI),)
  SCDC_A_CPPFLAGS+=-DHAVE_MPI_H -DOMPI_SKIP_MPICXX
  SCDC_PY_LIBS+=mpi
+endif
+
+ifneq ($(USE_DAVIX),)
+ USE_WEBDAV:=1
+ SCDC_A_CPPFLAGS+=-DHAVE_DAVIX_HPP
+ SCDC_PY_LIBS+=davix
+ LIBSCDC_LIBS+=-ldavix
+endif
+
+ifneq ($(USE_NEON),)
+ USE_WEBDAV:=1
+ SCDC_A_CPPFLAGS+=-DHAVE_NEON_H
+ SCDC_PY_LIBS+=neon
+ LIBSCDC_LIBS+=-lneon
 endif
 
 LIBFILEIO_SCDC_CPPFLAGS:=-I$(SCDC_SRC)lib/fileio
