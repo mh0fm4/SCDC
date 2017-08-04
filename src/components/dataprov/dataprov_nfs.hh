@@ -1,5 +1,6 @@
 /*
  *  Copyright (C) 2014, 2015, 2016, 2017 Michael Hofmann
+ *  Copyright (C) 2017 Thomas Weber
  *  
  *  This file is part of the Simulation Component and Data Coupling (SCDC) library.
  *  
@@ -37,6 +38,13 @@ class scdc_dataprov_nfs_store: public scdc_dataprov
 
     virtual scdc_dataset *dataset_open(const char *path, scdcint_t path_size, scdc_dataset_output_t *output);
     virtual void dataset_close(scdc_dataset *dataset, scdc_dataset_output_t *output);
+
+  friend class scdc_dataset_nfs_store;
+
+  protected:
+    struct nfs_context *_nfs_context;
+
+    const char *_libnfs_err(void);
 };
 
 

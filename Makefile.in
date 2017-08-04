@@ -44,6 +44,7 @@ USE_ASSERT:=1 # internal asserts
 #USE_MPI:=1
 #USE_DAVIX:=1
 #USE_NEON:=1
+#USE_NFS:=1
 
 ifneq ($(DEBUG),1)
  USE_DEBUG:=
@@ -208,6 +209,12 @@ ifneq ($(USE_NEON),)
  SCDC_A_CPPFLAGS+=-DHAVE_NEON_H
  SCDC_PY_LIBS+=neon
  LIBSCDC_LIBS+=-lneon
+endif
+
+ifneq ($(USE_NFS),)
+ SCDC_A_CPPFLAGS+=-DHAVE_LIBNFS_H
+ SCDC_PY_LIBS+=nfs
+ LIBSCDC_LIBS+=-lnfs
 endif
 
 LIBFILEIO_SCDC_CPPFLAGS:=-I$(SCDC_SRC)lib/fileio

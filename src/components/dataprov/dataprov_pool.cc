@@ -163,7 +163,9 @@ scdc_dataprov *scdc_dataprov_pool::open(const char *base_path, const char *conf,
 #if USE_WEBDAV
   else if (dp_type == "webdav_store" || dp_type == "store_webdav") dataprov = new scdc_dataprov_webdav_store();
 #endif
+#if USE_NFS
   else if (dp_type == "nfs_store" || dp_type == "store_nfs") dataprov = new scdc_dataprov_nfs_store();
+#endif
   else if (dp_type == "register") dataprov = new scdc_dataprov_register();
   else if (dp_type == "relay") dataprov = new scdc_dataprov_relay();
   else if (dp_type == "jobrun_system") dataprov = new scdc_dataprov_jobrun_system();

@@ -52,3 +52,8 @@ endif
 ifneq ($(USE_DAVIX),)
  CPPFLAGS+=-I/usr/include/davix
 endif
+
+ifeq ($(USE_NFS),)
+ CXXFILES_IGNORE+=dataprov/dataprov_nfs.cc
+ HXXFILES_IGNORE+=dataprov/dataprov_nfs.hh
+endif

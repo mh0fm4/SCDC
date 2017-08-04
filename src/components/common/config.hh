@@ -56,6 +56,12 @@
 # define USE_WEBDAV  0
 #endif
 
+#ifdef HAVE_LIBNFS_H
+# define USE_NFS  1
+#else
+# define USE_NFS  0
+#endif
+
 
 #define USE_NODE_DIRECT  1
 #define USE_NODE_TCP     1

@@ -1,0 +1,66 @@
+Dies sind Ausschnitte aus der Vorlesung "Funktionale Programmierung/Höhere
+Programmiersprachen" von Prof. Dr. Gudula Rünger in der Version vom
+Wintersemester 2016/2017.
+
+Funktionale Programmierung mit Haskell
+- Haskell-Funktionen werden unterschieden in:
+  - "reine Funktionen" (pure functions) ohne Verbindung zu externen Bereichen
+  - Programmteile, die Daten z. B. lesen/schreiben oder über ein Netzwerk
+    kommunizieren usw.
+- Grundlegende (imperative) Sprachkonstrukte, wie for-Schleifen stehen nicht
+  zur Verfügung (-> andere Programmiertechniken).
+- Haskell nutzt "lazy evaluation", d. h. Berechnungen werden erst durchgeführt,
+  wenn diese benötigt werden.
+- Haskell-Programme sind meist sehr kompakt (Programme sind leicht
+  überschaubar, schnell zu schreiben und weniger fehleranfällig).
+- Das Erlernen und Erstellen einfacher Haskell-Programme geht meist schnell
+  (Stunden und Tage). Komplexere Programmiertechniken können nach und
+  nach hinzugefügt werden.
+- Haskell ist eine statisch getypte Programmiersprache.
+- Der Haskell-Compiler kann Typen ergänzen, falls diese nicht angegeben
+  wurden -> Typ-Interferenz-System.
+- Konzepte aus der Mathematik wurden in Haskell genutzt.
+- Die Entwicklung von Haskell hat in der Wissenschaft begonnen. Heutzutage
+  werden viele praktische Aufgabenstellungen aus vielen Bereichen in Haskell
+  programmiert.
+
+3.3.4 Equational Reasoning
+- Da die Definitionen von Funktionen in funktionalen Programmiersprachen
+  als mathematische Gleichungen formuliert werden, lassen sich
+  Eigenschaften funktionaler Programme mathematisch beweisen.
+- Für rekursive Funktionen kann die Beweismethode der (strukturellen)
+  Induktion angewendet werden.
+- Beispiel: Umkehrung einer Liste
+
+    reverse :: [a] -> [a]
+    reverse [] = []
+    reverse (z:zs) = reverse zs ++ [z]  -- (D1)
+
+- Folgende Aussage soll bewiesen werden:
+
+    reverse (xs ++ ys) = reverse ys ++ reverse xs
+
+Induktionsanfang: Die Aussage gilt für xs = [].
+
+    reverse (xs ++ ys) = reverse ys ++ reverse xs
+    reverse ([] ++ ys) = reverse ys ++ reverse []
+             \__  __/                  \___  ___/
+                \/                         \/
+    reverse     ys     = reverse ys ++     []
+    \_______  _______/   \__________  __________/
+            \/                      \/
+        reverse ys     =        reverse ys
+
+Induktionsschritt: Wenn die Aussage für xs gilt, dann gilt sie auch für x:xs .
+- Induktionsvoraussetzung: (Aussage gilt für xs)
+
+    reverse (xs ++ ys) = reverse ys ++ reverse xs  -- (IV)
+
+- Induktionsbehauptung: (Aussage gilt für x:xs)
+
+reverse ((x:xs) ++ ys)
+= reverse (x:(xs ++ ys))            -- nach der Def. von ++
+= reverse (xs ++ ys) ++ [x]         -- nach (D1)
+= (reverse ys ++ reverse xs) ++ [x] -- nach (IV)
+= reverse ys ++ (reverse xs ++ [x]) -- weil ++ assoziativ ist
+= reverse ys ++ reverse (x:xs)      -- nach (D1)
