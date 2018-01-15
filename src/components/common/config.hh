@@ -50,7 +50,7 @@
 # define USE_MPI  0
 #endif
 
-#if defined(HAVE_NEON_H) || defined(HAVE_DAVIX_HPP)
+#ifdef HAVE_DAVIX_HPP
 # define USE_WEBDAV  1
 #else
 # define USE_WEBDAV  0

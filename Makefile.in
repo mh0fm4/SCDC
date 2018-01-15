@@ -43,7 +43,6 @@ USE_ASSERT:=1 # internal asserts
 #USE_MYSQL:=1
 #USE_MPI:=1
 #USE_DAVIX:=1
-#USE_NEON:=1
 #USE_NFS:=1
 
 ifneq ($(DEBUG),1)
@@ -203,13 +202,6 @@ ifneq ($(USE_DAVIX),)
  SCDC_A_CPPFLAGS+=-DHAVE_DAVIX_HPP
  SCDC_PY_LIBS+=davix
  LIBSCDC_LIBS+=-ldavix
-endif
-
-ifneq ($(USE_NEON),)
- USE_WEBDAV:=1
- SCDC_A_CPPFLAGS+=-DHAVE_NEON_H
- SCDC_PY_LIBS+=neon
- LIBSCDC_LIBS+=-lneon
 endif
 
 ifneq ($(USE_NFS),)

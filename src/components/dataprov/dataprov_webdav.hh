@@ -42,6 +42,7 @@ class scdc_dataprov_webdav_store: public scdc_dataprov
 
 
     scdc_dataprov_webdav_store();
+    virtual ~scdc_dataprov_webdav_store();
 
     /**
      * Open data store

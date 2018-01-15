@@ -44,4 +44,8 @@ ifneq ($(USE_NFS),)
  SUBDIRS+=nfs
 endif
 
+ifneq ($(USE_DAVIX),)
+ SUBDIRS+=webdav
+endif
+
 SUBDIRS+=merge
