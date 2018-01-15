@@ -209,7 +209,7 @@ class scdc_dataset_mysql_store: public scdc_dataset
 
       if (!result)
       {
-        SCDC_FAIL("dataset_output_next: store result failed: '" << mysql_error(mysql_data->mysql) << "'");
+        SCDC_FAIL("do_cmd_info: store result failed: '" << mysql_error(mysql_data->mysql) << "'");
         dataprov_mysql->release_access(mysql_data);
         return false;
       }
@@ -258,7 +258,7 @@ class scdc_dataset_mysql_store: public scdc_dataset
 
         if (!result)
         {
-          SCDC_FAIL("dataset_output_next: store result failed: '" << mysql_error(mysql_data->mysql) << "'");
+          SCDC_FAIL("do_cmd_cd: store result failed: '" << mysql_error(mysql_data->mysql) << "'");
           dataprov_mysql->release_access(mysql_data);
           return false;
         }
@@ -308,7 +308,7 @@ class scdc_dataset_mysql_store: public scdc_dataset
 
         if (!result)
         {
-          SCDC_FAIL("dataset_output_next: store result failed: '" << mysql_error(mysql_data->mysql) << "'");
+          SCDC_FAIL("do_cmd_ls: store result failed: '" << mysql_error(mysql_data->mysql) << "'");
           dataprov_mysql->release_access(mysql_data);
           return false;
         }
@@ -344,7 +344,7 @@ class scdc_dataset_mysql_store: public scdc_dataset
 
         if (!result)
         {
-          SCDC_FAIL("dataset_output_next: store result failed: '" << mysql_error(mysql_data->mysql) << "'");
+          SCDC_FAIL("do_cmd_put: store result failed: '" << mysql_error(mysql_data->mysql) << "'");
           dataprov_mysql->release_access(mysql_data);
           return false;
         }
@@ -508,7 +508,7 @@ class scdc_dataset_mysql_store: public scdc_dataset
 
         if (!result)
         {
-          SCDC_FAIL("dataset_output_next: store result failed: '" << mysql_error(mysql_data->mysql) << "'");
+          SCDC_FAIL("do_cmd_get: store result failed: '" << mysql_error(mysql_data->mysql) << "'");
           dataprov_mysql->release_access(mysql_data);
           return false;
         }

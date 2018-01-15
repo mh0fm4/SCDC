@@ -89,6 +89,9 @@ Z_DECLARE_FUNCTION_BEGIN
 void z_mpi_remap_cart_topology(int from_ndims, int *from_dims, int *from_torus, int *from_pos, int to_ndims, int *to_dims, int *to_torus, int *to_pos);
 void z_mpi_get_cart_topology(int *ndims, int *dims, int *torus, int *pos);
 void z_mpi_get_grid4d(int *dims, int *pos);
+int z_mpi_get_hostname(char *name, int len);
+int z_mpi_get_library(char *name, int len);
+Z_DECLARE_FUNCTION_END
 
 #endif /* Z_PACK_MPI */
 
@@ -344,7 +347,23 @@ typedef double z_time_t;
 Z_DECLARE_FUNCTION_BEGIN
 inline static double z_time_wtime() { return MPI_Wtime(); }
 Z_DECLARE_FUNCTION_END
-#else
+#elif _POSIX_C_SOURCE >= 199309L
+# if HAVE_TIME_H
+#  include <time.h>
+# endif
+typedef struct timespec z_time_t;
+# define z_time_save(_t_)            (clock_gettime(CLOCK_MONOTONIC, &(_t_)))
+# define z_time_diff_s(_f_, _t_)     ((double) (((_t_).tv_sec - (_f_).tv_sec) + ((_t_).tv_nsec - (_f_).tv_nsec) * 1e-9))
+# define z_time_get_s()              (z_time_wtime())
+Z_DECLARE_FUNCTION_BEGIN
+inline static double z_time_wtime()
+{
+  struct timespec tp;
+  clock_gettime(CLOCK_MONOTONIC, &tp);
+  return (double) tp.tv_sec + (tp.tv_nsec * 1e-9);
+}
+Z_DECLARE_FUNCTION_END
+#else /* _POSIX_C_SOURCE >= 199309L */
 # if HAVE_STDDEF_H
 #  ifdef __cplusplus
 #   include <cstddef>
@@ -357,7 +376,7 @@ Z_DECLARE_FUNCTION_END
 # endif
 typedef struct timeval z_time_t;
 # define z_time_save(_t_)            (gettimeofday(&(_t_), NULL))
-# define z_time_diff_s(_f_, _t_)     ((double) (((_t_).tv_sec - (_f_).tv_sec) + ((_t_).tv_usec - (_f_).tv_usec) / 1000000.0))
+# define z_time_diff_s(_f_, _t_)     ((double) (((_t_).tv_sec - (_f_).tv_sec) + ((_t_).tv_usec - (_f_).tv_usec) * 1e-6))
 # define z_time_get_s()              (z_time_wtime())
 Z_DECLARE_FUNCTION_BEGIN
 inline static double z_time_wtime()
@@ -367,7 +386,7 @@ inline static double z_time_wtime()
   return (double) tv.tv_sec + (tv.tv_usec * 1e-6);
 }
 Z_DECLARE_FUNCTION_END
-#endif
+#endif /* _POSIX_C_SOURCE >= 199309L */
 
 #endif /* Z_PACK_TIME */
 
@@ -481,6 +500,23 @@ Z_DECLARE_FUNCTION_END
 
 #ifndef z_rand_01_lt
 # define z_rand_01_lt()  ((double) (z_rand() - (Z_RAND_MIN)) / (double) ((Z_RAND_MAX) - (Z_RAND_MIN) + 1.0))
+#endif
+
+#if HAVE_MATH_H
+# ifdef __cplusplus
+#  include <cmath>
+# else
+#  include <math.h>
+# endif
+#endif
+
+/* Generating sorted lists of random numbers, Jon Louis Bentley, James B. Saxe, Carnegie Mellon University, 1979 */
+#ifndef z_rand_01_ndec
+# define z_rand_01_ndec(_n_, _i_, _l_)  (exp(log(z_rand_01()) / (double) ((_n_) - (_i_)) + log(_l_)))
+#endif
+
+#ifndef z_rand_01_ninc
+# define z_rand_01_ninc(_n_, _i_, _l_)  (1.0 - z_rand_01_ndec((_n_), (_i_), 1.0 - (_l_)))
 #endif
 
 Z_DECLARE_FUNCTION_BEGIN

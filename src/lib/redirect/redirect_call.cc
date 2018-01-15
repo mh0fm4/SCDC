@@ -428,7 +428,7 @@ static scdcint_t do_input_next(scdc_dataset_input_t *input)
 
 int redirect_call_execute(redirect_call_t *rc)
 {
-  char cmd[512];
+  char cmd[1024];
 
   sprintf(cmd, "%s %s %s", rc->uri, rc->op, rc->input_conf);
 

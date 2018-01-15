@@ -32,9 +32,15 @@
 #include "dataprov_fs.hh"
 #include "dataprov_bench.hh"
 #include "dataprov_hook.hh"
-#include "dataprov_mysql.hh"
-#include "dataprov_webdav.hh"
-#include "dataprov_nfs.hh"
+#if USE_MYSQL
+# include "dataprov_mysql.hh"
+#endif
+#if USE_WEBDAV
+# include "dataprov_webdav.hh"
+#endif
+#if USE_NFS
+# include "dataprov_nfs.hh"
+#endif
 #include "dataprov_register.hh"
 #include "dataprov_relay.hh"
 #include "dataprov_jobrun.hh"

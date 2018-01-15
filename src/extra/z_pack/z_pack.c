@@ -47,13 +47,13 @@ void z_mpi_remap_cart_topology(int from_ndims, int *from_dims, int *from_torus, 
   int torus = 0;
   const int min_ndims = (from_ndims < to_ndims)?from_ndims:to_ndims;
 
-  
+
   for (i = 0; i < min_ndims; ++i)
   {
     to_dims[i] = from_dims[i];
     to_torus[i] = from_torus[i];
     to_pos[i] = from_pos[i];
-    
+
     if (to_torus[i]) torus = 1;
   }
 
@@ -202,6 +202,61 @@ void z_mpi_get_grid4d(int *dims, int *pos) /* z_proto, z_func z_mpi_get_grid4d *
   z_mpi_get_cart_topology(&ndims, dims, torus, pos);
 }
 
+
+#if HAVE_UNISTD_H
+# include <unistd.h>
+#endif
+
+#if HAVE_STRING_H || STDC_HEADERS
+
+# include <string.h>
+
+int z_mpi_get_hostname(char *name, int len) /* z_proto, z_func z_mpi_get_hostname */
+{
+  int flag = 0;
+
+  strncpy(name, "unknown", len);
+
+#if MPI_VERSION >= 3
+  MPI_Info_get(MPI_INFO_ENV, "host", len, name, &flag);
+#endif
+
+#if HAVE_UNISTD_H
+  if (!flag) flag = (gethostname(name, len) == 0);
+#endif /* HAVE_UNISTD_H */
+
+  return flag;
+}
+
+#endif
+
+
+#if HAVE_STRING_H || STDC_HEADERS
+
+# include <string.h>
+
+int z_mpi_get_library(char *name, int len) /* z_proto, z_func z_mpi_get_library */
+{
+  int flag = 0;
+
+  strncpy(name, "unknown", len);
+
+#if MPI_VERSION >= 3
+  char version[MPI_MAX_LIBRARY_VERSION_STRING];
+  int resultlen;
+
+  if (MPI_Get_library_version(version, &resultlen) == MPI_SUCCESS)
+  {
+    strncpy(name, version, len);
+    flag = 1;
+  }
+#endif
+
+  return flag;
+}
+
+#endif
+
 #endif /* Z_PACK_MPI */
 
 
@@ -220,27 +275,11 @@ FILE *z_debug_fstream = NULL;
 #endif /* Z_PACK_DEBUG */
 
 
-#if 0
-#ifdef Z_PACK_TIME
-
-#ifndef Z_PACK_MPI
-double z_time_wtime() /* z_proto, z_func z_time_wtime */
-{
-  struct timeval tv;
-  gettimeofday(&tv, NULL);
-  return (double) tv.tv_sec + (tv.tv_usec / 1000000.0);
-}
-#endif
-
-#endif /* Z_PACK_TIME */
-#endif
-
-
 #ifdef Z_PACK_RANDOM
 
 #ifdef Z_RANDOM_REQUIRED
 
-/* "Even Quicker Generator" from Numerical Recipes in C, ง7.1 */
+/* "Even Quicker Generator" from Numerical Recipes in C, ยง7.1 */
 
 unsigned long z_srandom_seed = 0; /* z_var z_srandom_seed */
 
@@ -273,7 +312,7 @@ long long z_random64() /* z_proto, z_func z_random64 */
   x |= ((long long) z_rand()) << 1;
 
   x |= ((long long) z_rand()) & 0x1;
-  
+
   return x;
 }
 
@@ -285,13 +324,13 @@ long long z_random64_minmax(long long min, long long max) /* z_proto, z_func z_r
 
 
   r = (long double) z_rand() / (long double) Z_RAND_MAX;
-  
+
   x = (long long) (((long double) (max - min) * r) + 0.5);
-  
+
   x += min;
 
   if (x > max) x = max;
-  
+
   return x;
 }
 
@@ -299,14 +338,14 @@ long long z_random64_minmax(long long min, long long max) /* z_proto, z_func z_r
 unsigned long long z_random64u() /* z_proto, z_func z_random64u */
 {
   unsigned long long x;
-  
+
 
   x =  ((unsigned long long) z_rand()) << 32;
   x |= ((unsigned long long) z_rand()) << 1;
 
   x <<= 1;
   x |= ((unsigned long long) z_rand()) & 0x3;
-  
+
   return x;
 }
 
@@ -318,13 +357,13 @@ unsigned long long z_random64u_minmax(unsigned long long min, unsigned long long
 
 
   r = (long double) z_rand() / (long double) Z_RAND_MAX;
-  
+
   x = (long long) (((long double) (max - min) * r) + 0.5);
-  
+
   x += min;
 
   if (x > max) x = max;
-  
+
   return x;
 }
 
@@ -430,7 +469,7 @@ z_int_t z_digest_sum_buffer(const void *buffer, z_int_t length, void *sum) /* z_
   if (!buffer || !sum) return sizeof(z_crc32_t);
 
   *((z_crc32_t *) sum) = z_crc32_buffer(buffer, length);
-  
+
 #endif
 
 /*  printf("z: %.8X\n", *((z_crc32_t *) sum));*/
@@ -448,7 +487,7 @@ void z_digest_hash_open(void **hdl) /* z_proto, z_func z_digest_hash_open */
 {
 #ifdef HAVE_GCRYPT_H
   gcry_md_hd_t *gcry_hdl;
-  
+
   gcry_hdl = z_alloc(1, sizeof(gcry_md_hd_t));
 
   gcry_md_open(gcry_hdl, z_digest_hash_gcrypt_algo, 0);
@@ -530,7 +569,7 @@ void z_gmp_mpz_set_sll(mpz_t z, long long v) /* z_proto, z_func z_gmp_mpz_set_sl
     mpz_set_ui(z, (unsigned long) (uv >> 32));
     mpz_mul_2exp(z, z, 32);
     mpz_add_ui(z, z, (long) (uv & 0x00000000FFFFFFFFLL));
-    
+
     if (v < 0) mpz_neg(z, z);
 
   } else mpz_set_si(z, (long) v);

@@ -20,20 +20,35 @@
 #  
 
 
-SCDC_SRC:=../../
+SUBDIRS:=
+SUBDIRS+=common
+SUBDIRS+=compcoup
+SUBDIRS+=dataprov
+SUBDIRS+=dataset
+SUBDIRS+=node
+SUBDIRS+=transport
+SUBDIRS+=../include
 
-include ../../Makefile.in
+ifeq ($(USE_MYSQL),)
+ CXXFILES_IGNORE+=dataprov/dataprov_mysql.cc
+ HXXFILES_IGNORE+=dataprov/dataprov_mysql.hh
+endif
 
-DEPS+=../../Makefile.in
+ifeq ($(USE_MPI),)
+ CXXFILES_IGNORE+=transport/transport_mpi.cc node/node_mpi.cc
+ HXXFILES_IGNORE+=transport/transport_mpi.hh node/node_mpi.hh
+endif
 
-#CPPFLAGS+=$(SCDC_A_CPPFLAGS) -I$(SCDC_SRC)include
-#CFLAGS+=$(SCDC_A_CFLAGS)
-#CXXFLAGS+=$(SCDC_A_CXXFLAGS)
+ifeq ($(USE_WEBDAV),)
+ CXXFILES_IGNORE+=dataprov/dataprov_webdav.cc
+ HXXFILES_IGNORE+=dataprov/dataprov_webdav.hh
+endif
 
-CPPFLAGS+=$(LIBSCDC_CPPFLAGS) -DHAVE_Z_CONFIG_H=1
-LDFLAGS+=$(LIBSCDC_LDFLAGS)
-LIBS+=$(LIBSCDC_LIBS)
+ifneq ($(USE_DAVIX),)
+ CPPFLAGS+=-I/usr/include/davix
+endif
 
-ifneq ($(wildcard /usr/include/uthash.h),)
- CPPFLAGS+=-DHAVE_UTHASH_H
+ifeq ($(USE_NFS),)
+ CXXFILES_IGNORE+=dataprov/dataprov_nfs.cc
+ HXXFILES_IGNORE+=dataprov/dataprov_nfs.hh
 endif

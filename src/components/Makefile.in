@@ -31,29 +31,3 @@ CFLAGS+=$(SCDC_A_CFLAGS)
 CXXFLAGS+=$(SCDC_A_CXXFLAGS)
 
 LIB:=libscdc_components.a
-
-SUBDIRS:=common compcoup dataprov dataset node transport ../include
-
-ifeq ($(USE_MYSQL),)
- CXXFILES_IGNORE+=dataprov/dataprov_mysql.cc
- HXXFILES_IGNORE+=dataprov/dataprov_mysql.hh
-endif
-
-ifeq ($(USE_MPI),)
- CXXFILES_IGNORE+=transport/transport_mpi.cc node/node_mpi.cc
- HXXFILES_IGNORE+=transport/transport_mpi.hh node/node_mpi.hh
-endif
-
-ifeq ($(USE_WEBDAV),)
- CXXFILES_IGNORE+=dataprov/dataprov_webdav.cc
- HXXFILES_IGNORE+=dataprov/dataprov_webdav.hh
-endif
-
-ifneq ($(USE_DAVIX),)
- CPPFLAGS+=-I/usr/include/davix
-endif
-
-ifeq ($(USE_NFS),)
- CXXFILES_IGNORE+=dataprov/dataprov_nfs.cc
- HXXFILES_IGNORE+=dataprov/dataprov_nfs.hh
-endif
