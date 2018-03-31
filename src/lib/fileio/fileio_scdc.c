@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2014, 2015, 2016, 2017 Michael Hofmann
+ *  Copyright (C) 2014, 2015, 2016, 2017, 2018 Michael Hofmann
  *  
  *  This file is part of the Simulation Component and Data Coupling (SCDC) library.
  *  
@@ -486,6 +486,8 @@ scdcint_t fileio_scdc_close(fileio_scdc_t *fio)
 #endif /* !FILEIO_SCDC_SYNC_WRITE */
 
   scdc_dataset_close(fio->dataset);
+
+  fio->dataset = SCDC_DATASET_NULL;
 
 #if !FILEIO_SCDC_SYNC
   if (!fio->sync)

@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2014, 2015, 2016, 2017 Michael Hofmann
+ *  Copyright (C) 2014, 2015, 2016, 2017, 2018 Michael Hofmann
  *  
  *  This file is part of the Simulation Component and Data Coupling (SCDC) library.
  *  
@@ -89,12 +89,17 @@ scdc_dataprov *scdc_dataprov_pool::open(const char *base_path, const char *conf,
   } else if (dp_type == "webdav")
   {
     string s = confs.front();
-    if (s == "store")
+    if (s == "access")
+    {
+      confs.front_pop();
+      dp_type = "webdav_access";
+
+    } else if (s == "store")
     {
       confs.front_pop();
       dp_type = "webdav_store";
 
-    } else dp_type = "webdav_store";
+    } else dp_type = "webdav_access";
 
   } else if (dp_type == "nfs")
   {
@@ -167,6 +172,7 @@ scdc_dataprov *scdc_dataprov_pool::open(const char *base_path, const char *conf,
   else if (dp_type == "mysql_store" || dp_type == "store_mysql") dataprov = new scdc_dataprov_mysql_store();
 #endif
 #if USE_WEBDAV
+  else if (dp_type == "webdav_access") dataprov = new scdc_dataprov_webdav_access();
   else if (dp_type == "webdav_store" || dp_type == "store_webdav") dataprov = new scdc_dataprov_webdav_store();
 #endif
 #if USE_NFS

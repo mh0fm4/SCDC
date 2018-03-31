@@ -1,7 +1,7 @@
 # This is a Makefile!
 
 #  
-#  Copyright (C) 2014, 2015, 2016, 2017 Michael Hofmann
+#  Copyright (C) 2014, 2015, 2016, 2017, 2018 Michael Hofmann
 #  
 #  This file is part of the Simulation Component and Data Coupling (SCDC) library.
 #  
@@ -44,6 +44,15 @@ USE_ASSERT:=1 # internal asserts
 #USE_MPI:=1
 #USE_DAVIX:=1
 #USE_NFS:=1
+
+ifneq ($(USE_ALL),)
+ USE_PYTHON:=1
+ USE_ZLIB:=1
+ USE_MYSQL:=1
+ USE_MPI:=1
+ USE_DAVIX:=1
+ USE_NFS:=1
+endif
 
 ifneq ($(DEBUG),1)
  USE_DEBUG:=
@@ -221,3 +230,15 @@ LIBFILEIO_SCDC_A_DEPENDS:=$(LIBSCDC_DEPENDS) $(SCDC_SRC)lib/fileio/libfileio_scd
 LIBFILEIO_SCDC_SO_LDFLAGS:=
 LIBFILEIO_SCDC_SO_LIBS:=$(SCDC_SRC)lib/fileio/libfileio_scdc.so
 LIBFILEIO_SCDC_SO_DEPENDS:=$(SCDC_SRC)lib/fileio/libfileio_scdc.so
+
+FSTREAM_SCDC_CPPFLAGS:=-I$(SCDC_SRC)lib/fstream
+#FSTREAM_SCDC_CFLAGS:=
+#FSTREAM_SCDC_LDFLAGS:=
+#FSTREAM_SCDC_LIBS:=
+FSTREAM_SCDC_DEPENDS:=$(addprefix $(SCDC_SRC)lib/fstream/,fstream_scdc fstream_scdc.tcc basic_file_scdc.h)
+#FSTREAM_SCDC_A_LDFLAGS:=$(LIBSCDC_LDFLAGS)
+#FSTREAM_SCDC_A_LIBS:=$(LIBSCDC_LIBS)
+#FSTREAM_SCDC_A_DEPENDS:=$(LIBSCDC_DEPENDS)
+#FSTREAM_SCDC_SO_LDFLAGS:=
+#FSTREAM_SCDC_SO_LIBS:=
+#FSTREAM_SCDC_SO_DEPENDS:=

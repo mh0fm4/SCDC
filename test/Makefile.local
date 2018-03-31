@@ -1,7 +1,7 @@
 # This is a Makefile!
 
 #  
-#  Copyright (C) 2014, 2015, 2016, 2017 Michael Hofmann
+#  Copyright (C) 2014, 2015, 2016, 2017, 2018 Michael Hofmann
 #  
 #  This file is part of the Simulation Component and Data Coupling (SCDC) library.
 #  
@@ -23,7 +23,9 @@
 SUBDIRS:=
 SUBDIRS+=cse2016
 SUBDIRS+=filesystem
+SUBDIRS+=fstream
 SUBDIRS+=hook
+SUBDIRS+=multi
 SUBDIRS+=parnum2017
 SUBDIRS+=relay
 SUBDIRS+=repo

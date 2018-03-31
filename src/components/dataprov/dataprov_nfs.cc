@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2014, 2015, 2016, 2017 Michael Hofmann
+ *  Copyright (C) 2014, 2015, 2016, 2017, 2018 Michael Hofmann
  *  Copyright (C) 2017 Thomas Weber
  *  
  *  This file is part of the Simulation Component and Data Coupling (SCDC) library.
@@ -57,10 +57,10 @@ static scdcint_t dataset_output_next(scdc_dataset_output_t *output)
 
   SCDC_TRACE_DATASET_OUTPUT(output, "dataset_output_next: ");
 
-  output->current_size = 0;
+  SCDC_DATASET_INOUT_BUF_CURRENT(output) = 0;
 
-  char *buf = static_cast<char *>(output->buf);
-  scdcint_t buf_size = output->buf_size;
+  char *buf = static_cast<char *>(SCDC_DATASET_INOUT_BUF_PTR(output));
+  scdcint_t buf_size = SCDC_DATASET_INOUT_BUF_SIZE(output);
 
   size_t n = 0;
 
@@ -68,7 +68,7 @@ static scdcint_t dataset_output_next(scdc_dataset_output_t *output)
   {
     SCDC_TRACE("dataset_output_next: buf_size: " << buf_size);
 
-    size_t n = nfs_read(data->nfs_ctx, data->nfs_file, buf_size, buf);
+    n = nfs_read(data->nfs_ctx, data->nfs_file, buf_size, buf);
 
     if (n < 0)
     {
@@ -82,7 +82,7 @@ static scdcint_t dataset_output_next(scdc_dataset_output_t *output)
     buf += n;
     buf_size -= n;
 
-    output->current_size += n;
+    SCDC_DATASET_INOUT_BUF_CURRENT(output) += n;
   }
 
   if (n <= 0)

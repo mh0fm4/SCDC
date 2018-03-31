@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2014, 2015, 2016, 2017 Michael Hofmann
+ *  Copyright (C) 2014, 2015, 2016, 2017, 2018 Michael Hofmann
  *  
  *  This file is part of the Simulation Component and Data Coupling (SCDC) library.
  *  
@@ -806,11 +806,15 @@ static bool recv_incoming_dataset_inout_intern(scdc_transport_connection_t *conn
 
     SCDC_DATASET_INOUT_BUF_PTR(inout) = conn->incoming.get_read_pos_buf();
     SCDC_DATASET_INOUT_BUF_SIZE(inout) = n;
+    SCDC_DATASET_INOUT_BUF_CURRENT(inout) = n;
 
     conn->incoming.inc_read_pos(n);
 
-    max_recv -= n;
-    SCDC_DATASET_INOUT_BUF_CURRENT(inout) += n;
+  } else
+  {
+    SCDC_DATASET_INOUT_BUF_PTR(inout) = 0;
+    SCDC_DATASET_INOUT_BUF_SIZE(inout) = 0;
+    SCDC_DATASET_INOUT_BUF_CURRENT(inout) = 0;
   }
 
   cont_recv = false;
@@ -819,31 +823,44 @@ static bool recv_incoming_dataset_inout_intern(scdc_transport_connection_t *conn
 }
 
 
+static bool recv_incoming_dataset_inout(scdc_transport_connection_t *conn, scdc_dataset_inout_t *inout, scdcint_t max_recv, bool &cont_recv, scdc_transport *transport, bool &inout_intern)
+{
+  inout_intern = !incoming_dataset_inout_has_buf(conn, inout);
+
+  if (inout_intern)
+  {
+    bool ret = recv_incoming_dataset_inout_intern(conn, inout, max_recv, cont_recv, transport);
+
+    if (!SCDC_DATASET_INOUT_BUF_PTR(inout)) inout_intern = false;
+
+    return ret;
+  }
+
+  return recv_incoming_dataset_inout_extern(conn, inout, max_recv, cont_recv);
+}
+
+
 bool scdc_transport::recv_incoming_dataset_input(scdc_transport_connection_t *conn, scdc_dataset_input_t *input, scdcint_t max_recv, bool &cont_recv)
 {
-  conn->current_incoming_input_intern = !incoming_dataset_inout_has_buf(conn, input);
-
-  return conn->current_incoming_input_intern?recv_incoming_dataset_inout_intern(conn, input, max_recv, cont_recv, this):recv_incoming_dataset_inout_extern(conn, input, max_recv, cont_recv);
+  return recv_incoming_dataset_inout(conn, input, max_recv, cont_recv, this, conn->current_incoming_input_intern);
 }
 
 
 bool scdc_transport::recv_incoming_dataset_output(scdc_transport_connection_t *conn, scdc_dataset_output_t *output, scdcint_t max_recv, bool &cont_recv)
 {
-  conn->current_incoming_output_intern = !incoming_dataset_inout_has_buf(conn, output);
-
-  return conn->current_incoming_output_intern?recv_incoming_dataset_inout_intern(conn, output, max_recv, cont_recv, this):recv_incoming_dataset_inout_extern(conn, output, max_recv, cont_recv);
+  return recv_incoming_dataset_inout(conn, output, max_recv, cont_recv, this, conn->current_incoming_output_intern);
 }
 
 
-static bool send_outgoing_dataset_inout(scdc_transport_connection_t *conn, scdc_dataset_inout_t *inout)
+static bool send_outgoing_buf(scdc_transport_connection_t *conn, scdc_buf_t *buf)
 {
   bool ret = true;
 
-  scdcint_t mx = SCDC_DATASET_INOUT_BUF_CURRENT(inout);
-  SCDC_DATASET_INOUT_BUF_CURRENT(inout) = 0;
+  scdcint_t mx = buf->current;
+  buf->current = 0;
 
-  const char *src = static_cast<char *>(SCDC_DATASET_INOUT_BUF_PTR(inout));
-  scdcint_t src_size = SCDC_DATASET_INOUT_BUF_SIZE(inout);
+  const char *src = static_cast<char *>(buf->ptr);
+  scdcint_t src_size = buf->size;
 
   if (mx > 0)
   {
@@ -864,7 +881,7 @@ static bool send_outgoing_dataset_inout(scdc_transport_connection_t *conn, scdc_
       src_size -= n;
 
       mx -= n;
-      SCDC_DATASET_INOUT_BUF_CURRENT(inout) += n;
+      buf->current += n;
     }
   }
 
@@ -895,7 +912,7 @@ static bool send_outgoing_dataset_inout(scdc_transport_connection_t *conn, scdc_
       src_size -= n;
 
       mx -= n;
-      SCDC_DATASET_INOUT_BUF_CURRENT(inout) += n;
+      buf->current += n;
     }
 
     ret = ret && (n >= 0);
@@ -904,6 +921,52 @@ static bool send_outgoing_dataset_inout(scdc_transport_connection_t *conn, scdc_
   return ret;
 }
 
+
+static bool send_outgoing_dataset_inout(scdc_transport_connection_t *conn, scdc_dataset_input_t *inout)
+{
+#if 0
+  return send_outgoing_dataset_inout(conn, input);
+#else
+
+  bool ret = true;
+
+#if SCDC_DATASET_INOUT_BUF_MULTIPLE
+  if (SCDC_DATASET_INOUT_MBUF_ISSET(inout))
+  {
+    scdcint_t i;
+    for (i = 0; i < SCDC_DATASET_INOUT_MBUF_GET_C(inout); ++i)
+    {
+      ret = ret && send_outgoing_buf(conn, SCDC_DATASET_INOUT_MBUF_M(inout, i));
+    }
+
+  } else
+#endif
+  {
+    scdc_buf_t *inout_buf;
+
+#if SCDC_DEPRECATED
+    scdc_buf_t buf;
+
+    buf.ptr = SCDC_DATASET_INOUT_BUF_PTR(inout);
+    buf.size = SCDC_DATASET_INOUT_BUF_SIZE(inout);
+    buf.current = SCDC_DATASET_INOUT_BUF_CURRENT(inout);
+
+    inout_buf = &buf;
+#else /* SCDC_DEPRECATED */
+    inout_buf = &inout->buf;
+#endif /* SCDC_DEPRECATED */
+
+    ret = send_outgoing_buf(conn, inout_buf);
+
+#if SCDC_DEPRECATED
+    SCDC_DATASET_INOUT_BUF_CURRENT(inout) = buf.current;
+#endif /* SCDC_DEPRECATED */
+  }
+
+  return ret;
+
+#endif
+}
 
 bool scdc_transport::send_outgoing_dataset_input(scdc_transport_connection_t *conn, scdc_dataset_input_t *input)
 {

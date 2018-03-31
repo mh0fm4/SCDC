@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2014, 2015, 2016, 2017 Michael Hofmann
+ *  Copyright (C) 2014, 2015, 2016, 2017, 2018 Michael Hofmann
  *  
  *  This file is part of the Simulation Component and Data Coupling (SCDC) library.
  *  
@@ -254,8 +254,26 @@ static void scdc_dataset_inout_prn(scdc_dataset_inout_t *inout, const char *pref
 
   if (inout)
   {
-    prn("format: '%s', buf: %" scdcint_fmt " at %p, total_size: %" scdcint_fmt ", total_size_given: %c, current_size: %" scdcint_fmt ", next: %p, data: %p, intern: %p",
-      inout->format, SCDC_DATASET_INOUT_BUF_SIZE(inout), SCDC_DATASET_INOUT_BUF_PTR(inout), inout->total_size, inout->total_size_given, SCDC_DATASET_INOUT_BUF_CURRENT(inout), inout->next, inout->data, inout->intern);
+    // prn("format: '%s', buf: %" scdcint_fmt " at %p, total_size: %" scdcint_fmt ", total_size_given: %c, current_size: %" scdcint_fmt ", next: %p, data: %p, intern: %p",
+    //   inout->format, SCDC_DATASET_INOUT_BUF_SIZE(inout), SCDC_DATASET_INOUT_BUF_PTR(inout), inout->total_size, inout->total_size_given, SCDC_DATASET_INOUT_BUF_CURRENT(inout), inout->next, inout->data, inout->intern);
+#if SCDC_DATASET_INOUT_BUF_MULTIPLE
+    if (SCDC_DATASET_INOUT_MBUF_ISSET(inout))
+    {
+      const scdcint_t mb_s = SCDC_DATASET_INOUT_MBUF_GET_S(inout);
+      const scdcint_t mb_c = SCDC_DATASET_INOUT_MBUF_GET_C(inout);
+      prn("buf: %" scdcint_fmt " of %" scdcint_fmt ": ", mb_s, mb_c);
+      scdcint_t i;
+      for (i = 0; i < mb_s; ++i)
+        prn("%s[%" scdcint_fmt "] %" scdcint_fmt " of %" scdcint_fmt " at %p",
+          ((i == 0)?"":", "), i, SCDC_DATASET_INOUT_MBUF_M_CURRENT(inout, i), SCDC_DATASET_INOUT_MBUF_M_SIZE(inout, i), SCDC_DATASET_INOUT_MBUF_M_PTR(inout, i));
+    } else
+#endif
+    {
+      prn("buf: %" scdcint_fmt " of %" scdcint_fmt " at %p", SCDC_DATASET_INOUT_BUF_CURRENT(inout), SCDC_DATASET_INOUT_BUF_SIZE(inout), SCDC_DATASET_INOUT_BUF_PTR(inout));
+    }
+
+    prn(", format: '%s', total_size: %" scdcint_fmt ", total_size_given: %c, next: %p, data: %p, intern: %p",
+      inout->format, inout->total_size, inout->total_size_given, inout->next, inout->data, inout->intern);
 
     if (strcmp(inout->format, "text") == 0) prn(", content: '%.*s'", (int) SCDC_DATASET_INOUT_BUF_CURRENT(inout), (char *) SCDC_DATASET_INOUT_BUF_PTR(inout));
   }

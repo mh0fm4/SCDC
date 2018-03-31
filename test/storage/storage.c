@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2014, 2015, 2016, 2017 Michael Hofmann
+ *  Copyright (C) 2014, 2015, 2016, 2017, 2018 Michael Hofmann
  *  
  *  This file is part of the Simulation Component and Data Coupling (SCDC) library.
  *  
@@ -34,7 +34,7 @@
 
 int main(int argc, char *argv[])
 {
-  const char *uri = 
+  const char *uri =
 #if DBSTORE
     "scdc:/storeDB";
 #elif DAVSTORE
@@ -57,9 +57,9 @@ int main(int argc, char *argv[])
   scdc_init(SCDC_INIT_DEFAULT);
 
   dpFS = scdc_dataprov_open("storeFS", "fs", (e = getenv("MERGE_SCDC_REPO_PATH"), sprintf(path, "%s%s", (e?e:""), "store/"), path));
-  dpDB = scdc_dataprov_open("storeDB", "mysql", getenv("MERGE_SCDC_MYSQL_CREDENTIALS"));
-  dpDAV = scdc_dataprov_open("storeDAV", "webdav");
-  dpNFS = scdc_dataprov_open("storeNFS", "nfs");
+  dpDB = scdc_dataprov_open("storeDB", "mysql", getenv("MERGE_SCDC_MYSQL_CREDENTIAL"));
+  dpDAV = scdc_dataprov_open("storeDAV", "webdav", getenv("MERGE_SCDC_WEBDAV_CONF"));
+  dpNFS = scdc_dataprov_open("storeNFS", "nfs", getenv("MERGE_SCDC_NFS_PATH"));
 
 
   /* open dataset */
@@ -111,7 +111,7 @@ int main(int argc, char *argv[])
     printf("ERROR: open input file failed!\n");
     goto quit;
   }
-    
+
   /* store data from input object to dataset */
   cmd = "put " TARGET;
   if (scdc_dataset_cmd(ds, cmd, ip, NULL) != SCDC_SUCCESS)

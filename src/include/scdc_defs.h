@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2014, 2015, 2016, 2017 Michael Hofmann
+ *  Copyright (C) 2014, 2015, 2016, 2017, 2018 Michael Hofmann
  *  
  *  This file is part of the Simulation Component and Data Coupling (SCDC) library.
  *  
@@ -104,7 +104,7 @@ typedef long long scdcint_t;
 
 /** @hideinitializer
 * @brief Macro to define whether multiple input buffers within the structure #scdc_dataset_inout_t are support. */
-#define SCDC_DATASET_INOUT_BUF_MULTIPLE  0
+#define SCDC_DATASET_INOUT_BUF_MULTIPLE  1
 
 /** @hideinitializer
 * @brief Macro to set the field \link scdc_dataset_inout_t::total_size_given total_size_given \endlink within the structure #scdc_dataset_inout_t.
@@ -233,6 +233,36 @@ typedef struct _scdc_dataset_inout_t
 #endif /* !SCDC_DEPRECATED */
 
 /** @hideinitializer
+* @brief Macro to set the memory location of a (single) data buffer in a dataset input/output object.
+*
+* @param \_inout\_ Dataset input/output object.
+* @param \_c\_ New memory location.
+*/
+#define SCDC_DATASET_INOUT_BUF_SET_P(_inout_, _p_)  (SCDC_DATASET_INOUT_BUF_PTR(_inout_) = (_p_))
+/** @hideinitializer
+* @brief Macro to get the memory location of a (single) data buffer in a dataset input/output object.
+*
+* @param \_inout\_ Dataset input/output object.
+* @return Memory location of a (single) data buffer or 0 in case of a multiple data buffer.
+*/
+#define SCDC_DATASET_INOUT_BUF_GET_P(_inout_)       (SCDC_DATASET_INOUT_BUF_SIZE(_inout_) >= 0)?SCDC_DATASET_INOUT_BUF_PTR(_inout_):SCDC_NULL)
+
+/** @hideinitializer
+* @brief Macro to set the size of the memory location of a (single) data buffer in a dataset input/output object.
+*
+* @param \_inout\_ Dataset input/output object.
+* @param \_c\_ New size of the memory location.
+*/
+#define SCDC_DATASET_INOUT_BUF_SET_S(_inout_, _s_)  (SCDC_DATASET_INOUT_BUF_SIZE(_inout_) = (_s_))
+/** @hideinitializer
+* @brief Macro to get the size of the memory location of a (single) data buffer in a dataset input/output object.
+*
+* @param \_inout\_ Dataset input/output object.
+* @return Size of the memory location of a (single) data buffer or 0 in case of a multiple data buffer.
+*/
+#define SCDC_DATASET_INOUT_BUF_GET_S(_inout_)       (SCDC_DATASET_INOUT_BUF_SIZE(_inout_) >= 0)?SCDC_DATASET_INOUT_BUF_SIZE(_inout_):0)
+
+/** @hideinitializer
 * @brief Macro to set the current data size of a (single) data buffer in a dataset input/output object.
 *
 * @param \_inout\_ Dataset input/output object.
@@ -245,14 +275,28 @@ typedef struct _scdc_dataset_inout_t
 * @param \_inout\_ Dataset input/output object.
 * @return Current data size of a (single) data buffer or 0 in case of a multiple data buffer.
 */
-#define SCDC_DATASET_INOUT_BUF_GET_C(_inout_)       (SCDC_DATASET_INOUT_BUF_CURRENT(_inout_) > 0)?SCDC_DATASET_INOUT_BUF_CURRENT(_inout_):0)
+#define SCDC_DATASET_INOUT_BUF_GET_C(_inout_)       (SCDC_DATASET_INOUT_BUF_CURRENT(_inout_) >= 0)?SCDC_DATASET_INOUT_BUF_CURRENT(_inout_):0)
+
+#define SCDC_DATASET_INOUT_BUF_SET(_inout_, _p_, _s_, _c_)  (SCDC_DATASET_INOUT_BUF_SET_P(_inout_, _p_), SCDC_DATASET_INOUT_BUF_SET_S(_inout_, _s_), SCDC_DATASET_INOUT_BUF_SET_C(_inout_, _c_))
 
 #if SCDC_DATASET_INOUT_BUF_MULTIPLE
-# define SCDC_DATASET_INOUT_BUF_M_PTR(_inout_, _m_)      ((scdc_buf_t *) SCDC_DATASET_INOUT_BUF_PTR(_inout_))[_m_].ptr
-# define SCDC_DATASET_INOUT_BUF_M_SIZE(_inout_, _m_)     ((scdc_buf_t *) SCDC_DATASET_INOUT_BUF_PTR(_inout_))[_m_].size
-# define SCDC_DATASET_INOUT_BUF_M_CURRENT(_inout_, _m_)  ((scdc_buf_t *) SCDC_DATASET_INOUT_BUF_PTR(_inout_))[_m_].current
-# define SCDC_DATASET_INOUT_BUF_M_SET_C(_inout_, _c_)    (SCDC_DATASET_INOUT_BUF_CURRENT(_inout_) = -(_c_))
-# define SCDC_DATASET_INOUT_BUF_M_GET_C(_inout_)         (SCDC_DATASET_INOUT_BUF_CURRENT(_inout_) < 0)?-SCDC_DATASET_INOUT_BUF_CURRENT(_inout_):0)
+
+# define SCDC_DATASET_INOUT_MBUF_ISSET(_inout_)               (SCDC_DATASET_INOUT_BUF_SIZE(_inout_) < 0)
+# define SCDC_DATASET_INOUT_MBUF_SET_P(_inout_, _p_)          (SCDC_DATASET_INOUT_BUF_PTR(_inout_) = (_p_))
+# define SCDC_DATASET_INOUT_MBUF_GET_P(_inout_)               (SCDC_DATASET_INOUT_MBUF_ISSET(_inout_)?SCDC_DATASET_INOUT_BUF_PTR(_inout_):SCDC_NULL)
+# define SCDC_DATASET_INOUT_MBUF_SET_S(_inout_, _s_)          (SCDC_DATASET_INOUT_BUF_SIZE(_inout_) = -(_s_))
+# define SCDC_DATASET_INOUT_MBUF_GET_S(_inout_)               (SCDC_DATASET_INOUT_MBUF_ISSET(_inout_)?-SCDC_DATASET_INOUT_BUF_SIZE(_inout_):0)
+# define SCDC_DATASET_INOUT_MBUF_SET_C(_inout_, _c_)          (SCDC_DATASET_INOUT_BUF_CURRENT(_inout_) = -(_c_))
+# define SCDC_DATASET_INOUT_MBUF_GET_C(_inout_)               (SCDC_DATASET_INOUT_MBUF_ISSET(_inout_)?-SCDC_DATASET_INOUT_BUF_CURRENT(_inout_):0)
+# define SCDC_DATASET_INOUT_MBUF_SET(_inout_, _p_, _s_, _c_)  (SCDC_DATASET_INOUT_MBUF_SET_P(_inout_, _p_), SCDC_DATASET_INOUT_MBUF_SET_S(_inout_, _s_), SCDC_DATASET_INOUT_MBUF_SET_C(_inout_, _c_))
+# define SCDC_DATASET_INOUT_MBUF_INIT(_inout_, _p_, _b_)      SCDC_DATASET_INOUT_MBUF_SET(_inout_, _p_, ((scdcint_t) (_b_)) / ((scdcint_t) sizeof(scdc_buf_t)), 0)
+
+# define SCDC_DATASET_INOUT_MBUF_M(_inout_, _m_)                     (&((scdc_buf_t *) SCDC_DATASET_INOUT_BUF_PTR(_inout_))[_m_])
+# define SCDC_DATASET_INOUT_MBUF_M_PTR(_inout_, _m_)                 SCDC_DATASET_INOUT_MBUF_M(_inout_, _m_)->ptr
+# define SCDC_DATASET_INOUT_MBUF_M_SIZE(_inout_, _m_)                SCDC_DATASET_INOUT_MBUF_M(_inout_, _m_)->size
+# define SCDC_DATASET_INOUT_MBUF_M_CURRENT(_inout_, _m_)             SCDC_DATASET_INOUT_MBUF_M(_inout_, _m_)->current
+# define SCDC_DATASET_INOUT_MBUF_M_SET(_inout_, _m_, _p_, _s_, _c_)  (SCDC_DATASET_INOUT_MBUF_M_PTR(_inout_, _m_) = (_p_), SCDC_DATASET_INOUT_MBUF_M_SIZE(_inout_, _m_) = (_s_), SCDC_DATASET_INOUT_MBUF_M_CURRENT(_inout_, _m_) = (_c_))
+
 #endif /* SCDC_DATASET_INOUT_BUF_MULTIPLE */
 
 /** @brief Structure of a dataset input object derived from #scdc_dataset_inout_t. */

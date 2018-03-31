@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2014, 2015, 2016, 2017 Michael Hofmann
+ *  Copyright (C) 2014, 2015, 2016, 2017, 2018 Michael Hofmann
  *  
  *  This file is part of the Simulation Component and Data Coupling (SCDC) library.
  *  
@@ -178,8 +178,21 @@ class scdc_dataset_transport: public scdc_dataset
         inout = &inout_null;
       }
 
+      scdcint_t inout_buf_current = 0;
+#if SCDC_DATASET_INOUT_BUF_MULTIPLE
+      if (SCDC_DATASET_INOUT_MBUF_ISSET(inout))
+      {
+        scdcint_t i;
+        for (i = 0; i < SCDC_DATASET_INOUT_MBUF_GET_C(inout); ++i) inout_buf_current += SCDC_DATASET_INOUT_MBUF_M_CURRENT(inout, i);
+
+      } else
+#endif
+      {
+        inout_buf_current = SCDC_DATASET_INOUT_BUF_CURRENT(inout);
+      }
+
       char info[256];
-      scdcint_t n = sprintf(info, "%s|%" scdcint_fmt "|%c|%" scdcint_fmt "|%d", inout->format, inout->total_size, inout->total_size_given, SCDC_DATASET_INOUT_BUF_CURRENT(inout), (inout->next)?1:0);
+      scdcint_t n = sprintf(info, "%s|%" scdcint_fmt "|%c|%" scdcint_fmt "|%d", inout->format, inout->total_size, inout->total_size_given, inout_buf_current, (inout->next)?1:0);
 
       if (!write_delim(transport_connection_, info, n, default_delim))
       {

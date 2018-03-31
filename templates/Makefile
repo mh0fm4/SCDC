@@ -1,5 +1,5 @@
 #  
-#  Copyright (C) 2014, 2015, 2016, 2017 Michael Hofmann
+#  Copyright (C) 2014, 2015, 2016, 2017, 2018 Michael Hofmann
 #  
 #  This file is part of the Simulation Component and Data Coupling (SCDC) library.
 #  
@@ -133,7 +133,7 @@ $(CEXEC): $(OFILES) $(CEXEC_OFILES) $(AFILES) $(DEPS)
 	$(LD_) $($@_LDFLAGS) $(LDFLAGS_) -o $@ $@.o $(OFILES) $(AFILES) $($@_LIBS) $(LIBS)
 
 $(CXXEXEC): $(OFILES) $(CXXEXEC_OFILES) $(AFILES) $(DEPS)
-	$(LDCXX_) $($@_LDCXXFLAGS) $(LDCXXFLAGS_) -o $@ $(OFILES) $(AFILES) $($@_LIBS) $(LIBS)
+	$(LDCXX_) $($@_LDFLAGS) $(LDFLAGS_) $($@_LDCXXFLAGS) $(LDCXXFLAGS_) -o $@ $@.o $(OFILES) $(AFILES) $($@_LIBS) $(LIBS)
 
 clean:
 	$(foreach d,$(wildcard $(addsuffix /Makefile,$(SUBDIRS))),$(MAKE) -C $(dir $(d)) clean;)
@@ -144,6 +144,7 @@ endif
 info:
 	@echo "SUBDIRS: $(SUBDIRS)"
 	$(foreach d,$(wildcard $(addsuffix /Makefile,$(SUBDIRS))),$(MAKE) -C $(dir $(d)) info;)
+	@echo "DEPS: $(DEPS)"
 	@echo "LIB: $(LIB)"
 	@echo "CEXEC: $(CEXEC)"
 	@echo "CFILES: $(CFILES)"

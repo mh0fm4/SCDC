@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2014, 2015, 2016, 2017 Michael Hofmann
+ *  Copyright (C) 2014, 2015, 2016, 2017, 2018 Michael Hofmann
  *  
  *  This file is part of the Simulation Component and Data Coupling (SCDC) library.
  *  
@@ -64,7 +64,7 @@ class scdc_dataset_fs: public scdc_dataset
       close_pwd_file();
 #endif
     }
-    
+
 
     bool do_cmd_cd(const string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
     {
@@ -216,7 +216,7 @@ scdc_dataset *scdc_dataprov_fs::dataset_open(const char *path, scdcint_t path_si
   SCDC_TRACE("dataset_open: '" << string(path, path_size) << "'");
 
   scdc_dataset *dataset = 0;
-  
+
   if (config_open(path, path_size, output, &dataset)) return dataset;
 
   DATASET_FS *dataset_fs = new DATASET_FS(this);
@@ -492,7 +492,7 @@ do_return:
         SCDC_TRACE("do_cmd_put: fstar input to directory");
 
         string conf = "to:fs";
-      
+
         if (scdc_dataset_input_redirect(input, conf.c_str(), abs_path.c_str()) != SCDC_SUCCESS)
         {
           SCDC_FAIL("do_cmd_put: redirecting input to directory '" << abs_path << "' failed");
@@ -981,7 +981,7 @@ class scdc_dataset_fs_store: public scdc_dataset_fs
 
         if (stat(store_path.c_str(), &st) == 0)
         {
-          SCDC_FAIL("do_cmd_ls: store already exists");
+          SCDC_FAIL("do_cmd_put: store already exists");
           SCDC_DATASET_OUTPUT_PRINTF(output, "store already exists");
           return false;
         }

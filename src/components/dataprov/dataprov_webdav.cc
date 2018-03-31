@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2014, 2015, 2016, 2017 Michael Hofmann
+ *  Copyright (C) 2014, 2015, 2016, 2017, 2018 Michael Hofmann
  *  Copyright (C) 2016, 2017 Eric Kunze
  *  
  *  This file is part of the Simulation Component and Data Coupling (SCDC) library.
@@ -46,7 +46,7 @@ public:
     string error_message;
     string response_body; //TODO remove because not used with davix
 
-    //this is the original version when neon was used as WebDAV library and it's main purpose was for debugging      
+    //this is the original version when neon was used as WebDAV library and it's main purpose was for debugging
     //    /**
     //     * result of the request function
     //     */
@@ -102,6 +102,9 @@ public:
     //     */
 };
 
+
+#define SCDC_LOG_PREFIX  "dataprov-webdav-session-handler: "
+
 /**
  * Interface for various session handlers
  */
@@ -118,7 +121,7 @@ protected:
     /**
      * Protocol to connect to the server. (http or https)
      */
-    string protocol; //TODO rthis to scheme
+    string protocol; //TODO rename his to scheme
     /**
      * Struct to encapsulate the data of the response from the server.
      */
@@ -127,6 +130,17 @@ protected:
 public:
 
     virtual ~scdc_dataprov_webdav_session_handler(){};
+
+    /**
+    * Sets the parameter of the session handler.
+    * @param config string formated like this:
+    *
+    * for http "protocol:host:base"
+    *
+    * for https "protocol:host:base:username:password"
+    * @return false if an error occurred, true otherwise
+    */
+    bool set_session_handler_config(const std::string &conf);
 
     /**
      * Set username and password for login (only basic authentication is supported).
@@ -151,14 +165,14 @@ public:
      * @param protocol http or https
      * @param host WebDAV server address
      * @param base_path directory on the server
-     * @param username 
+     * @param username
      * @param password
      * @return true on success, false otherwise
      */
     virtual bool new_session(string protocol, string host, string base_path, string username, string password) = 0;
 
     /**
-     * Write content of the buffer into a previous opened file. 
+     * Write content of the buffer into a previous opened file.
      * @param buffer content to be written into the file
      * @param count amount of bytes to write
      * @return the number of bytes written or -1 if an error occurred. A description of the error is saved in the response_data.
@@ -191,9 +205,9 @@ public:
     virtual bool is_dir(string url) = 0;
 
     /**
-     * opens the file with the given url and with the given POSIX flag 
+     * opens the file with the given url and with the given POSIX flag
      * @param url of the file relative to the base path
-     * @param open_mode POSIX flag for how to open the file 
+     * @param open_mode POSIX flag for how to open the file
      * @return true if successful, false otherwise; a description of the error is saved in the response_data.
      */
     virtual bool open_file(string url, int open_mode) = 0;
@@ -209,17 +223,17 @@ public:
      * @param buffer containing the contetn after succesful reading
      * @param buffer_size size of the buffer
      * @return number of bytes read if successful. Returns 0 if end of file is reached. Returns a negative number if a error occurred and a description of the error is saved in the response_data.
-     * @see scdc_dataprov_webdav_response_data 
+     * @see scdc_dataprov_webdav_response_data
      */
     virtual scdcint_t read_into_buffer(void* buffer, scdcint_t buffer_size) = 0;
 
     /**
      * Moves the cursor in a previous opened file. Behavior similar to the POSIX lseek function.
-     * @param flag symbolic constants \n 
+     * @param flag symbolic constants \n
      * SEEK_SET => sets the cursor to the given offset \n
      * SEEK_CUR => sets the cursor to the current location plus given offset \n
      * SEEK_END => sets the cursor to the size of the file plus given offset
-     * @param offset 
+     * @param offset
      * @return offset in bytes from the beginning of the file if successful -1 otherwise and a description of the error is saved in the response_data.
      */
     virtual scdcint_t lseek(int flag, scdcint_t offset) = 0;
@@ -268,6 +282,49 @@ public:
 };
 
 
+bool scdc_dataprov_webdav_session_handler::set_session_handler_config(const string & config) {
+    stringlist confs(':', config);
+    string protocol, tmp;
+
+    confs.front_pop(protocol);
+    set_protocol("http"); //default is HTTP
+
+    //Host
+    if (confs.front_pop(tmp)) {
+        set_host(tmp);
+    } else {
+        SCDC_ERROR("setting session configuration: no Host specified");
+        return false;
+    }
+
+    //if protocol is https a username and password is needed
+    if (protocol.compare("https") == 0 || protocol.compare("HTTPS") == 0) {
+        set_protocol("https");
+
+        string username, password;
+
+        //username
+        if (!confs.front_pop(username)) {
+            SCDC_ERROR("setting session configuration: no username specified");
+            return false;
+        }
+
+        //password
+        if (!confs.front_pop(password)) {
+            SCDC_ERROR("setting session configuration: no password specified");
+
+            return false;
+        }
+
+        set_username_password(username, password);
+
+    }
+    return true;
+}
+
+#undef SCDC_LOG_PREFIX
+
+
 #define SCDC_LOG_PREFIX  "dataprov-webdav-session-handler-davix: "
 
 /**
@@ -310,7 +367,7 @@ private:
 
     /**
      * Transfer the information from DavixError to the response data.
-     * @param err Davix Error 
+     * @param err Davix Error
      */
     void set_error_to_response_data(DavixError* err);
 
@@ -330,32 +387,32 @@ private:
 
     /**
      * Requests the content of file with the given url from the host and writes it into the given buffer.
-     * @param url of the file relative to the base path 
-     * @param buffer 
+     * @param url of the file relative to the base path
+     * @param buffer
      * @return true if successful, false otherwise; a description of the error is saved in the response_data.
      */
     bool get_file_content(string url, vector<char> *buffer);
 
     /**
      * Opens the file with the given url and the given mode.
-     * @param url of the file relative to the base path 
+     * @param url of the file relative to the base path
      * @param open_mode open flags, similar to the POSIX function open
      * @return true if successful, false otherwise; a description of the error is saved in the response_data.
      */
-    bool open_file_with_davix(string url, int open_mode); //TODO think of a better name
+    bool open_file_with_davix(string url, int open_mode);
 
     /**
-     * Deletes the file with the given url on the server and opens a new one with the same url and the given mode.  
-     * @param url of the file relative to the base path 
+     * Deletes the file with the given url on the server and opens a new one with the same url and the given mode.
+     * @param url of the file relative to the base path
      * @param open_mode open flags, similar to the POSIX function open
      * @return true if successful, false otherwise; a description of the error is saved in the response_data.
      */
     bool open_file_to_write_trunc(string url, int open_mode);
 
     /**
-     * Reads the content of the file with the given url. After this the old file is removed from the server. 
-     * A new file with the same url is created and the old content is copied into this file on the local machine. 
-     * @param url of the file relative to the base path 
+     * Reads the content of the file with the given url. After this the old file is removed from the server.
+     * A new file with the same url is created and the old content is copied into this file on the local machine.
+     * @param url of the file relative to the base path
      * @param open_mode open flags, similar to the POSIX function open
      * @return true if successful, false otherwise; a description of the error is saved in the response_data.
      */
@@ -388,7 +445,7 @@ public:
      * @param protocol http or https
      * @param host WebDAV server address
      * @param base_path directory on the server
-     * @param username 
+     * @param username
      * @param password
      * @return true if successful, false otherwise; a description of the error is saved in the response_data.
      */
@@ -402,9 +459,9 @@ public:
     void set_username_password(string username, string password) override;
 
     /**
-     * opens the file with the given url ad with the given POSIX flag 
+     * opens the file with the given url ad with the given POSIX flag
      * @param url of the file relative to the base path
-     * @param open_mode POSIX flag for how to open the file 
+     * @param open_mode POSIX flag for how to open the file
      * @return true if successful, false otherwise; a description of the error is saved in the response_data.
      */
     bool open_file(string url, int open_mode) override;
@@ -436,23 +493,23 @@ public:
      * @param buffer containing the contetn after succesful reading
      * @param buffer_size size of the buffer
      * @return number of bytes read if successful. Returns 0 if end of file is reached. Returns a negative number if a error occurred and a description of the error is saved in the response_data.
-     * @see scdc_dataprov_webdav_response_data 
+     * @see scdc_dataprov_webdav_response_data
      */
     scdcint_t read_into_buffer(void* buffer, scdcint_t buffer_size) override;
 
     /**
      * move the cursor in a previous opened file. Behavior similar to the POSIX lseek function.
-     * @param flag symbolic constants \n 
+     * @param flag symbolic constants \n
      * SEEK_SET => sets the cursor to the given offset \n
      * SEEK_CUR => sets the cursor to the current location plus given offset \n
      * SEEK_END => sets the cursor to the size of the file plus given offset
-     * @param offset 
+     * @param offset
      * @return offset in bytes from the beginning of the file if successful -1 otherwise and a description of the error is saved in the response_data.
      */
     scdcint_t lseek(int flag, scdcint_t offset) override;
 
     /**
-     * Write content of the buffer into a previous opened file. 
+     * Write content of the buffer into a previous opened file.
      * @param buffer content to be written into the file
      * @param count amount of bytes to write
      * @return the number of bytes written or -1 if an error occurred. A description of the error is saved in the response_data.
@@ -489,7 +546,7 @@ scdc_dataprov_webdav_session_handler_davix::~scdc_dataprov_webdav_session_handle
     if (!close_file()) {
         SCDC_FAIL("Error while closing file: " << response_data->error_message);
     }
-    
+
     delete response_data;
 }
 
@@ -545,22 +602,22 @@ bool scdc_dataprov_webdav_session_handler_davix::new_session() {
 
 bool scdc_dataprov_webdav_session_handler_davix::check_configuration() {
     struct stat info;
-    return get_stat("", &info); //read info from the base path  
+    return get_stat("", &info); //read info from the base path
 }
 
 bool scdc_dataprov_webdav_session_handler_davix::open_file(string path, int open_mode) {
     SCDC_INFO("opening '" << path << "' with " << get_open_mode_as_string(open_mode));
 
-    if (open_mode == 0) { //open file as read-only (open_mode & O_RDONLY) doesn't work because 0 & 0 => 0 
+    if (open_mode == 0) { //open file as read-only (open_mode & O_RDONLY) doesn't work because 0 & 0 => 0
         return open_file_with_davix(path, open_mode);
 
     } else if (open_mode & O_WRONLY || open_mode & O_RDWR) { //open file to write or to read and write
 
-        //check if file exists    
+        //check if file exists
         struct stat info;
         if (get_stat(path, &info)) {
 
-            if (open_mode & O_TRUNC) { //open to write an delete previous content 
+            if (open_mode & O_TRUNC) { //open to write an delete previous content
                 return open_file_to_write_trunc(path, open_mode);
 
             } else if (open_mode & O_APPEND) { //append the existing file
@@ -568,8 +625,8 @@ bool scdc_dataprov_webdav_session_handler_davix::open_file(string path, int open
                 return open_file_to_write_append(path, open_mode);
 
             } else {
-                //no O_TRUNC and no O_APPEND is given 
-                //open file to write and keep its content and set the cursor to the beginning of the file                              
+                //no O_TRUNC and no O_APPEND is given
+                //open file to write and keep its content and set the cursor to the beginning of the file
                 if (open_file_to_write_append(path, open_mode)) {
                     if (lseek(SEEK_SET, 0) < 0) { //set cursor to beginning of the file
                         //error message is already set in lseek()
@@ -654,7 +711,7 @@ bool scdc_dataprov_webdav_session_handler_davix::open_file_to_write_trunc(string
 }
 
 bool scdc_dataprov_webdav_session_handler_davix::open_file_to_write_append(string path, int open_mode) {
-    //open the old file and get it's content 
+    //open the old file and get it's content
     vector<char> buffer;
 
     if (!get_file_content(path, &buffer)) {
@@ -683,7 +740,7 @@ bool scdc_dataprov_webdav_session_handler_davix::open_file_to_write_append(strin
 
     //write old content to new file
     if (!write_buffer_to_file(buffer.data(), buffer.size())) {
-        //error -> response_data is set in write_buffer_to_file()            
+        //error -> response_data is set in write_buffer_to_file()
         response_data->error_message += "\n This error occurred while opening file '" + path + "' with flags: " + get_open_mode_as_string(open_mode);
         response_data->error_message += " The new file is open but the content of the old file is lost.";
         //TODO save the content of the old file in a local file so no data gets lost
@@ -710,8 +767,7 @@ bool scdc_dataprov_webdav_session_handler_davix::close_file() {
     } else {
         dav_fd = NULL;
         name_of_open_file = "";
-        posix_open_mode = -1; //TODO check if this is ok (see constructor)
-
+        posix_open_mode = -1; 
         return true;
     }
 }
@@ -719,8 +775,8 @@ bool scdc_dataprov_webdav_session_handler_davix::close_file() {
 bool scdc_dataprov_webdav_session_handler_davix::get_file_content(string path, vector<char> *buffer) {
     DavixError* err = NULL;
 
-    if (dav_fd != NULL && path.empty()) { //if a file is already open 
-        path = name_of_open_file; //TODO test this !
+    if (dav_fd != NULL && path.empty()) { //if a file is already open
+        path = name_of_open_file;
     }
 
     DavFile file(context, request_parameters, get_davix_uri(path));
@@ -769,7 +825,7 @@ scdcint_t scdc_dataprov_webdav_session_handler_davix::lseek(int flag, scdcint_t 
 
 scdcint_t scdc_dataprov_webdav_session_handler_davix::write_buffer_to_file(const void* buffer, scdcint_t count) {
 
-    //doesn't work when file already exists 
+    //doesn't work when file already exists
 
     DavixError* err = NULL;
 
@@ -789,8 +845,8 @@ scdcint_t scdc_dataprov_webdav_session_handler_davix::write_buffer_to_file(const
 bool scdc_dataprov_webdav_session_handler_davix::remove_file(string path) {
     DavixError* err = NULL;
 
-    if (dav_fd != NULL && path.empty()) { //if a file is already open 
-        path = name_of_open_file; //TODO test this !
+    if (dav_fd != NULL && path.empty()) { //if a file is already open
+        path = name_of_open_file; 
         close_file();
     }
 
@@ -865,7 +921,7 @@ string scdc_dataprov_webdav_session_handler_davix::read_dir(string path) {
         return string();
     }
 
-    //read content into string    
+    //read content into string
     while ((entry = pos.readdirpp(fd, &info, &err)) != NULL) {
         res.append(entry->d_name);
 
@@ -961,27 +1017,27 @@ public:
 };
 
 
-#define SCDC_LOG_PREFIX  "dataset-webdav-store: "
+#define SCDC_LOG_PREFIX  "dataset-webdav-access: "
 
-class scdc_dataset_webdav_store : public scdc_dataset {
+class scdc_dataset_webdav_access : public scdc_dataset {
 public:
 
-    scdc_dataset_webdav_store(scdc_dataprov *dataprov_) : scdc_dataset(dataprov_) {
+    scdc_dataset_webdav_access(scdc_dataprov *dataprov_) : scdc_dataset(dataprov_) {
     };
 
     /**
      * Reads meta data of the file with the given url. Behavior similar to the POSIX stat function.
      * If no url is given and a  file was opened with de do_cmd_open method the meta data of this file is read.
-     * @param params url of the directory relative to the base path. 
+     * @param params url of the directory relative to the base path.
      * @param input not used
-     * @param output the buf struct points to a big enough buffer to hold a stat struct which is set after success. 
-     * If an error occurs the buffer contains the error message. The size is checked via the buf.size attribute. 
+     * @param output the buf struct points to a big enough buffer to hold a stat struct which is set after success.
+     * If an error occurs the buffer contains the error message. The size is checked via the buf.size attribute.
      * @return true on success and false if an error occurred
      */
     bool do_cmd_info(const string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output);
 
     /**
-     * Changes the working directory (base path) on the host. 
+     * Changes the working directory (base path) on the host.
      * If the given path is invalid the old value is restored.
      * @param params base path
      * @param input not used here
@@ -1005,8 +1061,8 @@ public:
 
     /**
      * Writes the content of the given buffer (via input) to the previous opened file (use do_cmd_open).
-     * @param params not used 
-     * @param input the buf struct points to a buffer that contain the data to write.  The next field is used to extract all data if set. 
+     * @param params not used
+     * @param input the buf struct points to a buffer that contain the data to write.  The next field is used to extract all data if set.
      * On success total_size attributes holds the amount of bytes successfully written to the file.
      * @param output the buf struct points to a big enough buffer to save an error message for errors that may occur (the size is checked via the buf.size attribute).
      * @return true on success and false if an error occurred
@@ -1015,16 +1071,16 @@ public:
 
     /**
      * Reads data from a previous opened file (use do_cmd_open) into the given buffer specified in the input parameter.\n
-     * If buf.current is 0 EOF is reached and the next function is set to NULL. \n        
-     * Even if plain text is read the content written into the buffer is not null terminated! 
+     * If buf.current is 0 EOF is reached and the next function is set to NULL. \n
+     * Even if plain text is read the content written into the buffer is not null terminated!
      * (Use the buf.current attribute to determine how many bytes have been written.) \n
-     * Use the next function of the output parameter to download more data (e.g. when buf.current equals the size of the given buffer). 
-     * The next function returns 1 (SCDC_SUCCESS) on success and 0 (SCDC_FAILURE) if an error occurred.  
+     * Use the next function of the output parameter to download more data (e.g. when buf.current equals the size of the given buffer).
+     * The next function returns 1 (SCDC_SUCCESS) on success and 0 (SCDC_FAILURE) if an error occurred.
      * In case of an error a error message is saved in the buf attribute of the output. (Does not work with next function!)
      * @param params no extra parameters used
-     * @param input the buf struct points to a buffer with a minimum size of 1 byte and the set buf.size must contain the size of this buffer. 
-     * After execution the buffer contains the data downloaded from the file. 
-     * The amount of written bytes to the pointer is saved in buf.current. 
+     * @param input the buf struct points to a buffer with a minimum size of 1 byte and the set buf.size must contain the size of this buffer.
+     * After execution the buffer contains the data downloaded from the file.
+     * The amount of written bytes to the pointer is saved in buf.current.
      * If the next pointer is not NULL more data from the file can be downloaded and EOF is not reached yet.
      * @param output if set informations about the error that may occur are saved in the given buffer (if the buffer is to small the error message may not be complete).
      * @return SCDC_SUCCESS on success and SCDC_FAILURE if an error occurred and the given buffer (via output) then contains a description of the error.
@@ -1036,13 +1092,13 @@ public:
      * Removes the the given file from the WebDAV server.
      * @param params the url of the file relative to the base path as string
      * @param input is not used here
-     * @param output contains information about errors that may occur if the buf attribute points to a big enough buffer 
+     * @param output contains information about errors that may occur if the buf attribute points to a big enough buffer
      * @return true on success and false if an error occurred
      */
     bool do_cmd_rm(const string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output);
 
     /**
-     * Move the cursor in a previous opened file (use do_cmd_open). 
+     * Move the cursor in a previous opened file (use do_cmd_open).
      * Behavior similar to the POSIX lseek function.
      * @param params must contain one of those commands as string:\n
      * SEEK_SET => sets the cursor to the given offset \n
@@ -1052,7 +1108,7 @@ public:
      * example:  SEEK_SET 1100
      * @param input  is not used here
      * @param output if a big enough buffer is set via the buf attribute it contains the resulting offset
-       location as measured in bytes from the beginning of the file as a scdcint_t.\n 
+       location as measured in bytes from the beginning of the file as a scdcint_t.\n
      * If an error occurred and a buffer is set it contains a description of the error.
      * @return true on success and false if an error occurred
      */
@@ -1080,7 +1136,7 @@ public:
 
 private:
     /**
-     * Sets the given result to the output struct. 
+     * Sets the given result to the output struct.
      * @param result of the request
      * @param output output struct
      */
@@ -1101,7 +1157,7 @@ private:
     static scdcint_t dataset_webdav_read_file_next(scdc_dataset_inout_t *inout);
 };
 
-bool scdc_dataset_webdav_store::do_cmd_info(const string& params, scdc_dataset_input_t* input, scdc_dataset_output_t * output) {
+bool scdc_dataset_webdav_access::do_cmd_info(const string& params, scdc_dataset_input_t* input, scdc_dataset_output_t * output) {
     SCDC_TRACE("do_cmd_info: '" << params << "'");
 
     if (output == NULL || SCDC_DATASET_INOUT_BUF_PTR(output) == NULL) {
@@ -1116,7 +1172,7 @@ bool scdc_dataset_webdav_store::do_cmd_info(const string& params, scdc_dataset_i
 
     struct stat* st = static_cast<struct stat*> (SCDC_DATASET_INOUT_BUF_PTR(output));
 
-    scdc_dataprov_webdav_store *dataprov_webdav = static_cast<scdc_dataprov_webdav_store *> (dataprov);
+    scdc_dataprov_webdav_access *dataprov_webdav = static_cast<scdc_dataprov_webdav_access *> (dataprov);
 
     if (dataprov_webdav->session_handler->get_stat(params, st)) {
         return SCDC_SUCCESS;
@@ -1126,13 +1182,13 @@ bool scdc_dataset_webdav_store::do_cmd_info(const string& params, scdc_dataset_i
     }
 }
 
-bool scdc_dataset_webdav_store::do_cmd_cd(const string& params, scdc_dataset_input_t* input, scdc_dataset_output_t * output) {
+bool scdc_dataset_webdav_access::do_cmd_cd(const string& params, scdc_dataset_input_t* input, scdc_dataset_output_t * output) {
 
     SCDC_TRACE("do_cmd_cd: '" << params << "'");
 
     //SCDC_DATASET_OUTPUT_CLEAR(output);
 
-    scdc_dataprov_webdav_store *dataprov_webdav = static_cast<scdc_dataprov_webdav_store *> (dataprov);
+    scdc_dataprov_webdav_access *dataprov_webdav = static_cast<scdc_dataprov_webdav_access *> (dataprov);
 
     if (params.empty()) {
         SCDC_ERROR("do_cmd_cd: the given 'params' are empty! You need to give a directory.");
@@ -1146,6 +1202,611 @@ bool scdc_dataset_webdav_store::do_cmd_cd(const string& params, scdc_dataset_inp
         set_response_error_to_inout(dataprov_webdav->session_handler, output);
         return SCDC_FAILURE;
     }
+}
+
+bool scdc_dataset_webdav_access::do_cmd_ls(const string& params, scdc_dataset_input_t* input, scdc_dataset_output_t * output) {
+    SCDC_TRACE("do_cmd_ls: '" << params << "'");
+
+    SCDC_DATASET_OUTPUT_CLEAR(output);
+
+    if (output == NULL || SCDC_DATASET_INOUT_BUF_PTR(output) == NULL) {
+        SCDC_FAIL("do_cmd_ls: Output must contain a buffer to store the result!");
+        return SCDC_FAILURE;
+    }
+
+    scdc_dataprov_webdav_access *dataprov_webdav = static_cast<scdc_dataprov_webdav_access *> (dataprov);
+
+    string result = dataprov_webdav->session_handler->read_dir(params);
+
+    if (!result.empty()) {
+        if (static_cast<size_t>(SCDC_DATASET_INOUT_BUF_SIZE(output)) < result.size()) { //FIXEME implement next function for output for do_cmd_ls
+            SCDC_ERROR("do_cmd_ls: the given buffer is to small to hold all the information.");
+        }
+        set_string_result_to_inout(result, output);
+        return SCDC_SUCCESS;
+    } else {
+        set_response_error_to_inout(dataprov_webdav->session_handler, output);
+        return SCDC_FAILURE;
+    }
+}
+
+bool scdc_dataset_webdav_access::do_cmd_put(const string& params, scdc_dataset_input_t* input, scdc_dataset_output_t * output) {
+    SCDC_TRACE("do_cmd_put: '" << params << "'");
+
+    scdc_dataprov_webdav_access *dataprov_webdav = static_cast<scdc_dataprov_webdav_access *> (dataprov);
+
+    if (SCDC_DATASET_INOUT_BUF_PTR(input) == NULL) { //check buffer
+        SCDC_FAIL("do_cmd_put: Input must contain pointer to buffer with minimum size 1! (use buf and total_size attributes)");
+        return SCDC_FAILURE;
+    }
+
+    if (SCDC_DATASET_INOUT_BUF_CURRENT(input) > SCDC_DATASET_INOUT_BUF_SIZE(input)) { //check buffer size
+        SCDC_FAIL("do_cmd_put: incorrect input: buf.current is bigger than buf.size!");
+        return SCDC_FAILURE;
+    }
+
+    scdcint_t total_num_of_bytes = dataprov_webdav->session_handler->write_buffer_to_file(SCDC_DATASET_INOUT_BUF_PTR(input), SCDC_DATASET_INOUT_BUF_CURRENT(input));
+
+    if (total_num_of_bytes < 0) {
+        set_response_error_to_inout(dataprov_webdav->session_handler, output);
+        input->total_size = total_num_of_bytes;
+        return SCDC_FAILURE;
+    }
+
+    //SCDC_INFO("buffer size: " << input->buf.size); //doesn't work! -> request for member ‘size’ in ‘input->_scdc_dataset_inout_t::buf’, which is of non-class type ‘void*
+
+    while (input->next) {
+        input->next(input);
+
+        scdcint_t current_num_of_bytes = dataprov_webdav->session_handler->write_buffer_to_file(SCDC_DATASET_INOUT_BUF_PTR(input), SCDC_DATASET_INOUT_BUF_CURRENT(input));
+
+        if (current_num_of_bytes < 0) {
+            set_response_error_to_inout(dataprov_webdav->session_handler, output);
+            //TODO check the status of the file after this because some bytes may have been written to the tmp-file (at least close it maybe)
+            input->total_size = total_num_of_bytes;
+            return SCDC_FAILURE;
+
+        } else {
+            total_num_of_bytes += current_num_of_bytes;
+        }
+    }
+
+    input->total_size = total_num_of_bytes;
+
+    return SCDC_SUCCESS;
+}
+
+bool scdc_dataset_webdav_access::do_cmd_get(const string& params, scdc_dataset_input_t* input, scdc_dataset_output_t * output) {
+    SCDC_TRACE("do_cmd_get: '" << params << "'");
+
+    if (output == NULL || SCDC_DATASET_INOUT_BUF_PTR(output) == NULL || SCDC_DATASET_INOUT_BUF_SIZE(output) < 1) {
+        SCDC_FAIL("do_cmd_get: Output must contain buffer with minimum size of one byte!");
+        return false;
+    }
+
+    scdc_dataprov_webdav_access *dataprov_webdav = static_cast<scdc_dataprov_webdav_access *> (dataprov);
+
+    output->data = static_cast<scdc_dataprov_webdav_access *> (dataprov);
+    output->next = dataset_webdav_read_file_next;
+
+    //request the first data from the given file
+    if (output->next(output)) { //check for error
+        return SCDC_SUCCESS;
+    } else {
+        set_response_error_to_inout(dataprov_webdav->session_handler, output);
+        return SCDC_FAILURE;
+    }
+}
+
+scdcint_t scdc_dataset_webdav_access::dataset_webdav_read_file_next(scdc_dataset_inout_t * inout) {
+
+    if (inout == NULL) {
+        return SCDC_FAILURE;
+    }
+
+    if (inout->data == NULL) {
+        set_string_result_to_inout("dataset_webdav_read_file_next: the data attribute was NULL (should be a pointer to a scdc_dataprov_webdav_access object)", inout);
+        return SCDC_FAILURE;
+    }
+
+    scdc_dataprov_webdav_access *dataprov_webdav = static_cast<scdc_dataprov_webdav_access *> (inout->data);
+
+    //read next bytes of data from the file
+    SCDC_DATASET_INOUT_BUF_CURRENT(inout) = dataprov_webdav->session_handler->read_into_buffer(SCDC_DATASET_INOUT_BUF_PTR(inout), SCDC_DATASET_INOUT_BUF_SIZE(inout));
+
+
+    if (SCDC_DATASET_INOUT_BUF_CURRENT(inout) <= 0) { //0 is eof, negative number is error
+        inout->data = NULL;
+        inout->next = NULL;
+
+        //error occurred
+        if (SCDC_DATASET_INOUT_BUF_CURRENT(inout) < 0) {
+            //this would override the content of the buffer with the error message which is maybe not wanted           
+            //set_response_error_to_inout(dataprov_webdav->session_handler, NULL); //uses SCDC_ERROR() 
+            //FIXME export error message
+            return SCDC_FAILURE;
+        }
+    }
+
+    //TODO set inout->total_size and inout->total_size_given
+
+    return SCDC_SUCCESS;
+}
+
+bool scdc_dataset_webdav_access::do_cmd_rm(const string& params, scdc_dataset_input_t* input, scdc_dataset_output_t * output) {
+    SCDC_TRACE("do_cmd_rm: '" << params << "'");
+
+    scdc_dataprov_webdav_access *dataprov_webdav = static_cast<scdc_dataprov_webdav_access *> (dataprov);
+
+    if (dataprov_webdav->session_handler->remove_file(params)) {
+        return true;
+
+    } else {
+        set_response_error_to_inout(dataprov_webdav->session_handler, output);
+
+        return false;
+    }
+}
+
+bool scdc_dataset_webdav_access::do_cmd_lseek(const string& params, scdc_dataset_input_t* input, scdc_dataset_output_t * output) {
+    SCDC_TRACE("do_cmd_lseek: '" << params << "'");
+
+    //separate flag and offset from the params
+    stringlist confs(' ', params);
+    string flag_as_string = confs.front_pop();
+    string offset_as_string = confs.front_pop();
+
+    int flag;
+
+    if (flag_as_string.compare("SEEK_SET") == 0) {
+        flag = SEEK_SET;
+    } else if (flag_as_string.compare("SEEK_CUR") == 0) {
+        flag = SEEK_CUR;
+    } else if (flag_as_string.compare("SEEK_END") == 0) {
+        flag = SEEK_END;
+    } else {
+        SCDC_FAIL("do_cmd_lseek: the flag '" << flag_as_string << "' is not supported");
+        return SCDC_FAILURE;
+    }
+
+    scdcint_t offset;
+    try {
+        offset = stoll(offset_as_string);
+    } catch (const std::invalid_argument& ex) {
+        SCDC_FAIL("do_cmd_lseek: given offset could not be converted into an integer: " << ex.what());
+        return SCDC_FAILURE;
+    } catch (const std::out_of_range& ex) {
+        SCDC_FAIL("do_cmd_lseek: given offset could not be converted into an integer: " << ex.what());
+        return SCDC_FAILURE;
+    }
+
+    scdc_dataprov_webdav_access *dataprov_webdav = static_cast<scdc_dataprov_webdav_access *> (dataprov);
+
+    scdcint_t result = dataprov_webdav->session_handler->lseek(flag, offset);
+
+    if (result == -1) {
+        set_response_error_to_inout(dataprov_webdav->session_handler, output);
+        return SCDC_FAILURE;
+    } else {
+
+        if (output != NULL && SCDC_DATASET_INOUT_BUF_PTR(output) != NULL && static_cast<size_t>(SCDC_DATASET_INOUT_BUF_SIZE(output)) >= sizeof (result)) {
+            scdcint_t *out = static_cast<scdcint_t*> (SCDC_DATASET_INOUT_BUF_PTR(output));
+            *out = result;
+        } else {
+            SCDC_INFO("do_cmd_lseek: no output or buffer given to save the result.");
+        }
+    }
+
+    return SCDC_SUCCESS;
+}
+
+bool scdc_dataset_webdav_access::do_cmd_close(const string& params, scdc_dataset_input_t* input, scdc_dataset_output_t * output) {
+    SCDC_TRACE("do_cmd_close: '" << params << "'");
+
+    scdc_dataprov_webdav_access *dataprov_webdav = static_cast<scdc_dataprov_webdav_access *> (dataprov);
+
+    if (!dataprov_webdav->session_handler->close_file()) {
+        set_response_error_to_inout(dataprov_webdav->session_handler, output);
+
+        return false;
+    }
+
+    return true;
+}
+
+bool scdc_dataset_webdav_access::do_cmd_open(const string& params, scdc_dataset_input_t* input, scdc_dataset_output_t * output) {
+    SCDC_TRACE("do_cmd_open: '" << params << "'");
+
+    //separate filename and open mode from the params
+    stringlist confs(' ', params);
+    string filename = confs.front_pop();
+    string mode_as_string = confs.front_pop();
+
+    if (filename.find('/') != filename.npos) { //check if given filename contains any '/'
+        SCDC_FAIL("do_cmd_open: the given parameters '" << params << "' contain directories but only a filename is allowed. Use do_cmd_cd for changing the base path.");
+        return SCDC_FAILURE;
+    }
+
+    int mode;
+    try {
+        mode = stoi(mode_as_string);
+    } catch (const std::invalid_argument& ex) {
+        SCDC_FAIL("do_cmd_open: given mode could not be converted into an int: " << ex.what());
+        return SCDC_FAILURE;
+    } catch (const std::out_of_range& ex) {
+        SCDC_FAIL("do_cmd_open: given mode could not be converted into an int: " << ex.what());
+        return SCDC_FAILURE;
+    }
+
+
+    scdc_dataprov_webdav_access *dataprov_webdav = static_cast<scdc_dataprov_webdav_access *> (dataprov);
+
+    //open file
+    if (!dataprov_webdav->session_handler->open_file(filename, mode)) {
+        set_response_error_to_inout(dataprov_webdav->session_handler, output);
+
+        return SCDC_FAILURE;
+    }
+
+    return SCDC_SUCCESS;
+}
+
+void scdc_dataset_webdav_access::set_string_result_to_inout(string result, scdc_dataset_inout_t * inout) {
+    SCDC_TRACE("set_string_result_to_inout");
+    //FIXEME set_string_result_to_inout: implement next function for inout
+
+    if (inout == NULL) {
+        SCDC_INFO("set_string_result_to_inout: inout was NULL -> result information not set");
+        return;
+    }
+
+    if (SCDC_DATASET_INOUT_BUF_PTR(inout) == NULL) {
+        SCDC_INFO("set_string_result_to_inout: no buffer was given -> result information not set");
+        return;
+    }
+
+    char* buffer = static_cast<char*> (SCDC_DATASET_INOUT_BUF_PTR(inout));
+
+    strncpy(buffer, result.c_str(), SCDC_DATASET_INOUT_BUF_SIZE(inout));
+
+    if (result.size() < static_cast<size_t>(SCDC_DATASET_INOUT_BUF_SIZE(inout))) {
+        SCDC_DATASET_INOUT_BUF_CURRENT(inout) = result.size();
+        inout->total_size = result.size() + 1; //because of '/0';
+    } else {
+        SCDC_DATASET_INOUT_BUF_CURRENT(inout) = SCDC_DATASET_INOUT_BUF_SIZE(inout);
+        inout->total_size = SCDC_DATASET_INOUT_BUF_SIZE(inout);
+    }
+
+    inout->total_size_given = SCDC_DATASET_INOUT_TOTAL_SIZE_GIVEN_EXACT;
+    strncpy(inout->format, "text", SCDC_FORMAT_MAX_SIZE);
+}
+
+void scdc_dataset_webdav_access::set_response_error_to_inout(scdc_dataprov_webdav_session_handler *session_handler, scdc_dataset_inout_t * inout) {
+    SCDC_TRACE("set_response_error_to_inout");
+
+    if (session_handler == NULL) {
+        SCDC_INFO("set_response_error_to_inout: session_handler was NULL -> error information is lost");
+        return;
+    }
+
+    string error = session_handler->get_response_data()->error_message;
+    string response_body = session_handler->get_response_data()->response_body;
+
+    //combine the error message and the full response from the Server
+    if (!response_body.empty()) {
+        error += "\nresponse body:\n" + response_body;
+    }
+
+    if (inout == NULL || SCDC_DATASET_INOUT_BUF_PTR(inout) == NULL) {
+        SCDC_ERROR(error);
+
+    } else {
+        char* buffer = static_cast<char*> (SCDC_DATASET_INOUT_BUF_PTR(inout));
+
+        strncpy(buffer, error.c_str(), SCDC_DATASET_INOUT_BUF_SIZE(inout));
+
+        if (error.size() < static_cast<size_t>(SCDC_DATASET_INOUT_BUF_SIZE(inout))) { //FIXEME implement next function for output for set_response_error_to_inout
+            SCDC_DATASET_INOUT_BUF_CURRENT(inout) = error.size();
+            inout->total_size = error.size() + 1; //because of '/0';
+        } else {
+            SCDC_DATASET_INOUT_BUF_CURRENT(inout) = SCDC_DATASET_INOUT_BUF_SIZE(inout);
+            inout->total_size = SCDC_DATASET_INOUT_BUF_SIZE(inout);
+        }
+
+        inout->total_size_given = SCDC_DATASET_INOUT_TOTAL_SIZE_GIVEN_EXACT;
+        strncpy(inout->format, "text", SCDC_FORMAT_MAX_SIZE);
+
+    }
+}
+
+#undef SCDC_LOG_PREFIX
+
+#define SCDC_LOG_PREFIX  "dataprov-webdav-access: "
+
+scdc_dataprov_webdav_access::scdc_dataprov_webdav_access()
+: scdc_dataprov("webdav") {
+
+    this->session_handler = scdc_dataprov_webdav_session_handler_factory::get_new_session_hander();
+}
+
+scdc_dataprov_webdav_access::~scdc_dataprov_webdav_access() {
+    delete this->session_handler;
+}
+
+bool scdc_dataprov_webdav_access::open(const char *conf, scdc_args * args) {
+    SCDC_TRACE("open: conf: '" << conf << "'");
+
+    bool ret = true; //return value
+
+    //check if config
+    const char *webdav_config;
+    if (args->get<const char *>(SCDC_ARGS_TYPE_CSTR, &webdav_config) == SCDC_ARG_REF_NULL) {
+        SCDC_ERROR("open: getting WebDAV configuration");
+        ret = false;
+        goto do_quit;
+    }
+
+    SCDC_TRACE("open: webdav conf: '" << webdav_config << "'");
+
+    if (!scdc_dataprov::open(conf, args)) {
+        SCDC_FAIL("open: opening base");
+        ret = false;
+
+    } else {
+
+        //set config struct
+        if (!session_handler->set_session_handler_config(webdav_config)) {
+            SCDC_ERROR("open: setting WebDAV configuration");
+            ret = false;
+            goto do_close;
+        }
+
+        //connect to Server
+        if (!session_handler->new_session()) {
+            SCDC_ERROR("open: Error message: " << session_handler->get_response_data()->error_message);
+
+            ret = false;
+            goto do_close;
+        }
+
+        //dataset_cmds_add("pwd", static_cast<dataset_cmds_do_cmd_f> (&scdc_dataset_webdav_access::do_cmd_pwd));
+        dataset_cmds_add("info", static_cast<dataset_cmds_do_cmd_f> (&scdc_dataset_webdav_access::do_cmd_info));
+        dataset_cmds_add("cd", static_cast<dataset_cmds_do_cmd_f> (&scdc_dataset_webdav_access::do_cmd_cd));
+        dataset_cmds_add("ls", static_cast<dataset_cmds_do_cmd_f> (&scdc_dataset_webdav_access::do_cmd_ls));
+        dataset_cmds_add("put", static_cast<dataset_cmds_do_cmd_f> (&scdc_dataset_webdav_access::do_cmd_put));
+        dataset_cmds_add("get", static_cast<dataset_cmds_do_cmd_f> (&scdc_dataset_webdav_access::do_cmd_get));
+        dataset_cmds_add("rm", static_cast<dataset_cmds_do_cmd_f> (&scdc_dataset_webdav_access::do_cmd_rm));
+
+        //dataset_cmds_add("get_buffered", static_cast<dataset_cmds_do_cmd_f> (&scdc_dataset_webdav_access::do_cmd_get_buffered));
+        dataset_cmds_add("lseek", static_cast<dataset_cmds_do_cmd_f> (&scdc_dataset_webdav_access::do_cmd_lseek));
+        dataset_cmds_add("open", static_cast<dataset_cmds_do_cmd_f> (&scdc_dataset_webdav_access::do_cmd_open));
+        dataset_cmds_add("close", static_cast<dataset_cmds_do_cmd_f> (&scdc_dataset_webdav_access::do_cmd_close));
+
+        SCDC_TRACE("open: datastore is open");
+
+do_close:
+        if (!ret) scdc_dataprov::close();
+    }
+
+do_quit:
+
+    return ret;
+}
+
+
+void scdc_dataprov_webdav_access::close() {
+
+    SCDC_TRACE("close:");
+    scdc_dataprov::close();
+}
+
+scdc_dataset * scdc_dataprov_webdav_access::dataset_open(const char *path, scdcint_t path_size, scdc_dataset_output_t * output) {
+    SCDC_TRACE("dataset_open: '" << string(path, path_size) << "'");
+
+    scdc_dataset *dataset = 0;
+
+    if (config_open(path, path_size, output, &dataset)) return dataset;
+
+    scdc_dataset_webdav_access * dataset_webdav = new scdc_dataset_webdav_access(this);
+
+
+    //TODO set this to something usefull (if the server is reacheable is alreday checked in scdc_dataprov_webdav_access::scdc_dataprov_webdav_access())
+
+    //    if (path && !dataset_webdav->do_cmd_cd(string(path, path_size).c_str(), NULL, output)) {
+    //        SCDC_FAIL("dataset_open: do_cmd_cd: failed: '" << SCDC_DATASET_OUTPUT_STR(output) << "'");
+    //        delete dataset_webdav;
+    //        return 0;
+    //    }
+
+
+    SCDC_TRACE("dataset_open: return: '" << dataset_webdav << "'");
+
+    return dataset_webdav;
+}
+
+void scdc_dataprov_webdav_access::dataset_close(scdc_dataset *dataset, scdc_dataset_output_t * output) {
+    SCDC_TRACE("dataset_close: '" << dataset << "'");
+
+    if (config_close(dataset, output)) return;
+
+    delete dataset;
+
+    SCDC_TRACE("dataset_close: return");
+}
+
+#undef SCDC_LOG_PREFIX
+
+
+#define SCDC_LOG_PREFIX  "dataset-webdav-access: "
+
+
+#define DIR_STORE_PREFIX  "store_v1_"
+#define DIR_ENTRY_PREFIX  "entry_v1_"
+#define DIR_ENTRY_SUFFIX  ""
+
+
+static scdcint_t dir_count_stores()
+{
+  return 0;
+}
+
+
+static scdcint_t dir_count_entries()
+{
+  return 0;
+}
+
+class scdc_dataset_webdav_store : public scdc_dataset {
+public:
+
+    scdc_dataset_webdav_store(scdc_dataprov *dataprov_) : scdc_dataset(dataprov_), admin(false) {
+    };
+
+    /**
+     * Reads meta data of the file with the given url. Behavior similar to the POSIX stat function.
+     * If no url is given and a  file was opened with de do_cmd_open method the meta data of this file is read.
+     * @param params url of the directory relative to the base path.
+     * @param input not used
+     * @param output the buf struct points to a big enough buffer to hold a stat struct which is set after success.
+     * If an error occurs the buffer contains the error message. The size is checked via the buf.size attribute.
+     * @return true on success and false if an error occurred
+     */
+    bool do_cmd_info(const string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output);
+
+    /**
+     * Changes the working directory (base path) on the host.
+     * If the given path is invalid the old value is restored.
+     * @param params base path
+     * @param input not used here
+     * @param output the buf struct points to a big enough buffer to save an error message for errors that may occur (the size is checked via the buf.size attribute).
+     * @return true on success and false if an error occurred
+     */
+    bool do_cmd_cd(const string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output);
+
+    /**
+     * Requests the content of directory with the given url from the WebDAV server.
+     * @param params url of the directory relative to the base path
+     * if the params string is empty the content of the base path read
+     * @param input not used
+     * @param output the buf struct points to a big enough buffer (the size is checked via the buf.size attribute) to save content of the directory as string formated as name:type:size| \n
+     * : is used as a separator for the attributes of a file or directory\n
+     * | is used as a separator for the different files or directories
+     * total_size (and the buf.current) attribute contains the length of the string
+     * @return true on success and false if an error occurred
+     */
+    bool do_cmd_ls(const string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output);
+
+    /**
+     * Writes the content of the given buffer (via input) to the previous opened file (use do_cmd_open).
+     * @param params not used
+     * @param input the buf struct points to a buffer that contain the data to write.  The next field is used to extract all data if set.
+     * On success total_size attributes holds the amount of bytes successfully written to the file.
+     * @param output the buf struct points to a big enough buffer to save an error message for errors that may occur (the size is checked via the buf.size attribute).
+     * @return true on success and false if an error occurred
+     */
+    bool do_cmd_put(const string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output);
+
+    /**
+     * Reads data from a previous opened file (use do_cmd_open) into the given buffer specified in the input parameter.\n
+     * If buf.current is 0 EOF is reached and the next function is set to NULL. \n
+     * Even if plain text is read the content written into the buffer is not null terminated!
+     * (Use the buf.current attribute to determine how many bytes have been written.) \n
+     * Use the next function of the output parameter to download more data (e.g. when buf.current equals the size of the given buffer).
+     * The next function returns 1 (SCDC_SUCCESS) on success and 0 (SCDC_FAILURE) if an error occurred.
+     * In case of an error a error message is saved in the buf attribute of the output. (Does not work with next function!)
+     * @param params no extra parameters used
+     * @param input the buf struct points to a buffer with a minimum size of 1 byte and the set buf.size must contain the size of this buffer.
+     * After execution the buffer contains the data downloaded from the file.
+     * The amount of written bytes to the pointer is saved in buf.current.
+     * If the next pointer is not NULL more data from the file can be downloaded and EOF is not reached yet.
+     * @param output if set informations about the error that may occur are saved in the given buffer (if the buffer is to small the error message may not be complete).
+     * @return SCDC_SUCCESS on success and SCDC_FAILURE if an error occurred and the given buffer (via output) then contains a description of the error.
+     * @see use do_cmd_open do_cmd_lseek do_cmd_close
+     */
+    bool do_cmd_get(const string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output);
+
+    /**
+     * Removes the the given file from the WebDAV server.
+     * @param params the url of the file relative to the base path as string
+     * @param input is not used here
+     * @param output contains information about errors that may occur if the buf attribute points to a big enough buffer
+     * @return true on success and false if an error occurred
+     */
+    bool do_cmd_rm(const string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output);
+
+private:
+    bool admin;
+
+    /**
+     * Sets the given result to the output struct.
+     * @param result of the request
+     * @param output output struct
+     */
+    static void set_string_result_to_inout(string result, scdc_dataset_inout_t *output);
+
+    /**
+     * Sets the error information from the response data to the output struct.
+     * @param dataprov_webdav dataprovider
+     * @param output output struct
+     */
+    static void set_response_error_to_inout(scdc_dataprov_webdav_session_handler *session_handler, scdc_dataset_inout_t *output);
+
+    /**
+     * next function for reading a file
+     * @param inout dataset
+     * @return SCDC_SUCCSES if read was successful, SCDC_FAILURE otherwise and an error information is ste to the given dataset
+     */
+    static scdcint_t dataset_webdav_read_file_next(scdc_dataset_inout_t *inout);
+};
+
+bool scdc_dataset_webdav_store::do_cmd_info(const string& params, scdc_dataset_input_t* input, scdc_dataset_output_t * output)
+{
+    SCDC_TRACE("do_cmd_info: '" << params << "'");
+
+    SCDC_DATASET_OUTPUT_CLEAR(output);
+
+    // scdc_dataprov_webdav_store *dataprov_webdav = static_cast<scdc_dataprov_webdav_store *> (dataprov);
+
+    scdcint_t stores = dir_count_stores();
+
+    SCDC_DATASET_OUTPUT_PRINTF(output, "admin: %s, stores: %" scdcint_fmt, (admin?"yes":"no"), stores);
+
+    return true;
+}
+
+bool scdc_dataset_webdav_store::do_cmd_cd(const string& params, scdc_dataset_input_t* input, scdc_dataset_output_t * output) {
+
+    SCDC_TRACE("do_cmd_cd: '" << params << "'");
+
+    SCDC_DATASET_OUTPUT_CLEAR(output);
+
+    if (params == "ADMIN")
+    {
+      admin = true;
+      return scdc_dataset::do_cmd_cd(params, input, output);
+    }
+
+    scdc_dataprov_webdav_store *dataprov_webdav = static_cast<scdc_dataprov_webdav_store *> (dataprov);
+
+    if (!params.empty())
+    {
+      string store_path = DIR_STORE_PREFIX + string(params) + "/";
+
+      SCDC_TRACE("do_cmd_cd: store_path: '" << store_path << "'");
+
+      if (!dataprov_webdav->session_handler->is_dir(params))
+      {
+        SCDC_FAIL("do_cmd_cd: store '" << params << "' does not exist");
+        SCDC_DATASET_OUTPUT_PRINTF(output, "store does not exist");
+        return false;
+      }
+
+      dataprov_webdav->session_handler->set_base_path(params);
+    }
+
+    admin = false;
+
+    return scdc_dataset::do_cmd_cd(params, input, output);
 }
 
 bool scdc_dataset_webdav_store::do_cmd_ls(const string& params, scdc_dataset_input_t* input, scdc_dataset_output_t * output) {
@@ -1179,12 +1840,12 @@ bool scdc_dataset_webdav_store::do_cmd_put(const string& params, scdc_dataset_in
 
     scdc_dataprov_webdav_store *dataprov_webdav = static_cast<scdc_dataprov_webdav_store *> (dataprov);
 
-    if (SCDC_DATASET_INOUT_BUF_PTR(input) == NULL) { //check buffer 
+    if (SCDC_DATASET_INOUT_BUF_PTR(input) == NULL) { //check buffer
         SCDC_FAIL("do_cmd_put: Input must contain pointer to buffer with minimum size 1! (use buf and total_size attributes)");
         return SCDC_FAILURE;
     }
 
-    if (SCDC_DATASET_INOUT_BUF_CURRENT(input) > SCDC_DATASET_INOUT_BUF_SIZE(input)) { //check buffer size 
+    if (SCDC_DATASET_INOUT_BUF_CURRENT(input) > SCDC_DATASET_INOUT_BUF_SIZE(input)) { //check buffer size
         SCDC_FAIL("do_cmd_put: incorrect input: buf.current is bigger than buf.size!");
         return SCDC_FAILURE;
     }
@@ -1265,9 +1926,9 @@ scdcint_t scdc_dataset_webdav_store::dataset_webdav_read_file_next(scdc_dataset_
 
         //error occurred
         if (SCDC_DATASET_INOUT_BUF_CURRENT(inout) < 0) {
-            //this would override the content of the buffer with the error message which is maybe not wanted           
-            set_response_error_to_inout(dataprov_webdav->session_handler, NULL); //uses SCDC_ERROR() 
-            //FIXME export error message 
+            //this would override the content of the buffer with the error message which is maybe not wanted
+            set_response_error_to_inout(dataprov_webdav->session_handler, NULL); //uses SCDC_ERROR()
+            //FIXME export error message
             return SCDC_FAILURE;
         }
     }
@@ -1290,109 +1951,6 @@ bool scdc_dataset_webdav_store::do_cmd_rm(const string& params, scdc_dataset_inp
 
         return false;
     }
-}
-
-bool scdc_dataset_webdav_store::do_cmd_lseek(const string& params, scdc_dataset_input_t* input, scdc_dataset_output_t * output) {
-    SCDC_TRACE("do_cmd_lseek: '" << params << "'");
-
-    //separate flag and offset from the params
-    stringlist confs(' ', params);
-    string flag_as_string = confs.front_pop();
-    string offset_as_string = confs.front_pop();
-
-    int flag;
-
-    if (flag_as_string.compare("SEEK_SET") == 0) {
-        flag = SEEK_SET;
-    } else if (flag_as_string.compare("SEEK_CUR") == 0) {
-        flag = SEEK_CUR;
-    } else if (flag_as_string.compare("SEEK_END") == 0) {
-        flag = SEEK_END;
-    } else {
-        SCDC_FAIL("do_cmd_lseek: the flag '" << flag_as_string << "' is not supported");
-        return SCDC_FAILURE;
-    }
-
-    scdcint_t offset;
-    try {
-        offset = stoll(offset_as_string);
-    } catch (const std::invalid_argument& ex) {
-        SCDC_FAIL("do_cmd_lseek: given offset could not be converted into an integer: " << ex.what());
-        return SCDC_FAILURE;
-    } catch (const std::out_of_range& ex) {
-        SCDC_FAIL("do_cmd_lseek: given offset could not be converted into an integer: " << ex.what());
-        return SCDC_FAILURE;
-    }
-
-    scdc_dataprov_webdav_store *dataprov_webdav = static_cast<scdc_dataprov_webdav_store *> (dataprov);
-
-    scdcint_t result = dataprov_webdav->session_handler->lseek(flag, offset);
-
-    if (result == -1) {
-        set_response_error_to_inout(dataprov_webdav->session_handler, output);
-        return SCDC_FAILURE;
-    } else {
-
-        if (output != NULL && SCDC_DATASET_INOUT_BUF_PTR(output) != NULL && static_cast<size_t>(SCDC_DATASET_INOUT_BUF_SIZE(output)) >= sizeof (result)) {
-            scdcint_t *out = static_cast<scdcint_t*> (SCDC_DATASET_INOUT_BUF_PTR(output));
-            *out = result;
-        } else {
-            SCDC_INFO("do_cmd_lseek: no output or buffer given to save the result.");
-        }
-    }
-
-    return SCDC_SUCCESS;
-}
-
-bool scdc_dataset_webdav_store::do_cmd_close(const string& params, scdc_dataset_input_t* input, scdc_dataset_output_t * output) {
-    SCDC_TRACE("do_cmd_close: '" << params << "'");
-
-    scdc_dataprov_webdav_store *dataprov_webdav = static_cast<scdc_dataprov_webdav_store *> (dataprov);
-
-    if (!dataprov_webdav->session_handler->close_file()) {
-        set_response_error_to_inout(dataprov_webdav->session_handler, output);
-
-        return false;
-    }
-
-    return true;
-}
-
-bool scdc_dataset_webdav_store::do_cmd_open(const string& params, scdc_dataset_input_t* input, scdc_dataset_output_t * output) {
-    SCDC_TRACE("do_cmd_open: '" << params << "'");
-
-    //separate filename and open mode from the params
-    stringlist confs(' ', params);
-    string filename = confs.front_pop();
-    string mode_as_string = confs.front_pop();
-
-    if (filename.find('/') != filename.npos) { //check if given filename contains any '/'
-        SCDC_FAIL("do_cmd_open: the given parameters '" << params << "' contain directories but only a filename is allowed. Use do_cmd_cd for changing the base path.");
-        return SCDC_FAILURE;
-    }
-
-    int mode;
-    try {
-        mode = stoi(mode_as_string);
-    } catch (const std::invalid_argument& ex) {
-        SCDC_FAIL("do_cmd_open: given mode could not be converted into an int: " << ex.what());
-        return SCDC_FAILURE;
-    } catch (const std::out_of_range& ex) {
-        SCDC_FAIL("do_cmd_open: given mode could not be converted into an int: " << ex.what());
-        return SCDC_FAILURE;
-    }
-
-
-    scdc_dataprov_webdav_store *dataprov_webdav = static_cast<scdc_dataprov_webdav_store *> (dataprov);
-
-    //open file
-    if (!dataprov_webdav->session_handler->open_file(filename, mode)) {
-        set_response_error_to_inout(dataprov_webdav->session_handler, output);
-
-        return SCDC_FAILURE;
-    }
-
-    return SCDC_SUCCESS;
 }
 
 void scdc_dataset_webdav_store::set_string_result_to_inout(string result, scdc_dataset_inout_t * inout) {
@@ -1465,7 +2023,7 @@ void scdc_dataset_webdav_store::set_response_error_to_inout(scdc_dataprov_webdav
 
 #undef SCDC_LOG_PREFIX
 
-#define SCDC_LOG_PREFIX  "dataprov-webdav-store: "
+#define SCDC_LOG_PREFIX  "dataprov-webdav-access: "
 
 scdc_dataprov_webdav_store::scdc_dataprov_webdav_store()
 : scdc_dataprov("webdav") {
@@ -1499,7 +2057,7 @@ bool scdc_dataprov_webdav_store::open(const char *conf, scdc_args * args) {
     } else {
 
         //set config struct
-        if (!set_session_handler_config(webdav_config)) {
+        if (!session_handler->set_session_handler_config(webdav_config)) {
             SCDC_ERROR("open: setting WebDAV configuration");
             ret = false;
             goto do_close;
@@ -1521,11 +2079,6 @@ bool scdc_dataprov_webdav_store::open(const char *conf, scdc_args * args) {
         dataset_cmds_add("get", static_cast<dataset_cmds_do_cmd_f> (&scdc_dataset_webdav_store::do_cmd_get));
         dataset_cmds_add("rm", static_cast<dataset_cmds_do_cmd_f> (&scdc_dataset_webdav_store::do_cmd_rm));
 
-        //dataset_cmds_add("get_buffered", static_cast<dataset_cmds_do_cmd_f> (&scdc_dataset_webdav_store::do_cmd_get_buffered));
-        dataset_cmds_add("lseek", static_cast<dataset_cmds_do_cmd_f> (&scdc_dataset_webdav_store::do_cmd_lseek));
-        dataset_cmds_add("open", static_cast<dataset_cmds_do_cmd_f> (&scdc_dataset_webdav_store::do_cmd_open));
-        dataset_cmds_add("close", static_cast<dataset_cmds_do_cmd_f> (&scdc_dataset_webdav_store::do_cmd_close));
-
         SCDC_TRACE("open: datastore is open");
 
 do_close:
@@ -1535,46 +2088,6 @@ do_close:
 do_quit:
 
     return ret;
-}
-
-bool scdc_dataprov_webdav_store::set_session_handler_config(const string & config) {
-    stringlist confs(':', config);
-    string protocol, tmp;
-
-    confs.front_pop(protocol);
-    session_handler->set_protocol("http"); //default is HTTP
-
-    //Host
-    if (confs.front_pop(tmp)) {
-        session_handler->set_host(tmp);
-    } else {
-        SCDC_ERROR("setting session configuration: no Host specified");
-        return false;
-    }
-
-    //if protocol is https a username and password is needed
-    if (protocol.compare("https") == 0 || protocol.compare("HTTPS") == 0) {
-        session_handler->set_protocol("https");
-
-        string username, password;
-
-        //username
-        if (!confs.front_pop(username)) {
-            SCDC_ERROR("setting session configuration: no username specified");
-            return false;
-        }
-
-        //password
-        if (!confs.front_pop(password)) {
-            SCDC_ERROR("setting session configuration: no password specified");
-
-            return false;
-        }
-
-        session_handler->set_username_password(username, password);
-
-    }
-    return true;
 }
 
 void scdc_dataprov_webdav_store::close() {
