@@ -23,6 +23,8 @@
 
 #include <iostream>
 #include <string>
+#include <cstdio>
+#include <cstdarg>
 
 namespace FSTREAM_SCDC_NAMESPACE _GLIBCXX_VISIBILITY(default)
 {
@@ -30,20 +32,24 @@ namespace FSTREAM_SCDC_NAMESPACE _GLIBCXX_VISIBILITY(default)
     public:
       fstream_scdc_logger();
 
-      static void TRACE(const char *c, const char* f, std::string msg) {
-        std::cout << c << "::" << f << ": " << msg << std::endl;
+      static void TRACE(const char *c, const char* f, std::string msg, ...) {
+        char s[1024];
+        va_list argp;
+        va_start(argp, msg);
+        vsnprintf(s, sizeof(s), msg.c_str(), argp);
+        va_end(argp);
+        if (c) std::cout << c << "::";
+        std::cout << f << ": " << s << std::endl;
       }
 
-      static void ERROR(const char *c, const char* f, std::string msg) {
-        std::cerr << c << "::" << f << ": " << msg << std::endl;
-      }
-
-      static void TRACE(const char* f, std::string msg) {
-        std::cout << f << ": " << msg << std::endl;
-      }
-
-      static void ERROR(const char* f, std::string msg) {
-        std::cerr << f << ": " << msg << std::endl;
+      static void ERROR(const char *c, const char* f, std::string msg, ...) {
+        char s[1024];
+        va_list argp;
+        va_start(argp, msg);
+        vsnprintf(s, sizeof(s), msg.c_str(), argp);
+        va_end(argp);
+        if (c) std::cout << c << "::";
+        std::cerr << f << ": " << s << std::endl;
       }
 
     private:

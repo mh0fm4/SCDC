@@ -1,0 +1,18 @@
+# This is a Makefile!
+
+SCDC_SRC:=../../src/
+
+include ../../Makefile.in
+
+DEPS+=../../Makefile.in $(LIBSCDC_DEPENDS)
+
+CPPFLAGS+=$(LIBSCDC_CPPFLAGS)
+LDFLAGS+=$(LIBSCDC_LDFLAGS)
+LIBS+=$(LIBSCDC_LIBS)
+
+CEXEC:=particles particles_compC
+
+#CPPFLAGS+=-DUSE_SCDC=1
+
+particles.c_CPPFLAGS=-DUSE_COMP_ALL=1
+particles_compC.c_CPPFLAGS=-DUSE_COMPC=1 -DUSE_SCDC_UDS=1

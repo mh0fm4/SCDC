@@ -27,6 +27,7 @@ SUBDIRS+=fstream
 SUBDIRS+=hook
 SUBDIRS+=multi
 SUBDIRS+=parnum2017
+SUBDIRS+=particles
 SUBDIRS+=relay
 SUBDIRS+=repo
 SUBDIRS+=simpat

@@ -18,8 +18,8 @@
  */
 
 
-#ifndef __LOG_H__
-#define __LOG_H__
+#ifndef __PYLOG_H__
+#define __PYLOG_H__
 
 
 #include <stdio.h>
@@ -152,4 +152,4 @@ void pyscdc_pyerr_log_cout_print(void);
 #define PYSCDC_NEXT_IS_UNPACK(_n_)  ((_n_) == PYSCDC_NEXT_UNPACK)
 
 
-#endif /* __LOG_H__ */
+#endif /* __PYLOG_H__ */

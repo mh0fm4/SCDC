@@ -47,27 +47,35 @@
 
 #define BASIC_FILE_SCDC_APPEND  0
 
+
 #define __basic_file  __basic_file_scdc
 
 namespace FSTREAM_SCDC_NAMESPACE _GLIBCXX_VISIBILITY(default)
 {
   using namespace std;
 
-#define __class__  "basic_file_scdc"
+  static const char *fstream_scdc_local_base = 0;
+  static const char *fstream_scdc_local_path = 0;
+  static scdc_dataprov_t fstream_scdc_dp_local = SCDC_DATAPROV_NULL;
 
-  class basic_file_scdc
+#define __class__  "fstream_scdc_env"
+
+  class fstream_scdc_env
   {
     protected:
       int initialized;
 
     public:
-      basic_file_scdc():initialized(-1)
+      fstream_scdc_env():initialized(-1)
       {
         TRACE(__class__, __func__, "");
       }
-      ~basic_file_scdc()
+
+      ~fstream_scdc_env()
       {
         TRACE(__class__, __func__, "");
+        initialized = -1;
+        release();
       }
 
       void init()
@@ -77,10 +85,23 @@ namespace FSTREAM_SCDC_NAMESPACE _GLIBCXX_VISIBILITY(default)
         {
           TRACE(__class__, __func__, "first init");
 
-          initialized = 0;
-
           /* on first init */
+          initialized = 0;
           scdc_init(SCDC_INIT_DEFAULT);
+
+#ifdef USE_FSTREAM_SCDC_LOCAL
+          const char *local_base = fstream_scdc_local_base;
+          const char *local_path = fstream_scdc_local_path;
+          if (!local_base || !local_path)
+          {
+            local_base = FSTREAM_SCDC_LOCAL_BASE;
+            local_path = FSTREAM_SCDC_LOCAL_PATH;
+          }
+
+          TRACE(__class__, __func__, std::string("local data provider '") + local_base + "' with path '" + local_path + "'");
+
+          fstream_scdc_dp_local = scdc_dataprov_open(local_base, "fs:access", local_path);
+#endif /* USE_FSTREAM_SCDC_LOCAL */
         }
 
       if (initialized == 0)
@@ -95,6 +116,19 @@ namespace FSTREAM_SCDC_NAMESPACE _GLIBCXX_VISIBILITY(default)
 
     void release()
     {
+      TRACE(__class__, __func__ , "");
+      if (initialized < 0)
+      {
+        TRACE(__class__, __func__, "last release");
+
+          /* on last release */
+#ifdef USE_FSTREAM_SCDC_LOCAL
+          scdc_dataprov_close(fstream_scdc_dp_local);
+#endif /* USE_FSTREAM_SCDC_LOCAL */
+
+          scdc_release();
+      }
+
       if (initialized <= 0) return;
 
       --initialized;
@@ -108,9 +142,9 @@ namespace FSTREAM_SCDC_NAMESPACE _GLIBCXX_VISIBILITY(default)
     }
   };
 
-  basic_file_scdc basic_file_scdc_env;
-
 #undef __class__
+
+  static fstream_scdc_env the_fstream_scdc_env;
 
 #define __class__  "basic_file_scdc"
 
@@ -206,7 +240,7 @@ namespace FSTREAM_SCDC_NAMESPACE _GLIBCXX_VISIBILITY(default)
           ++f;
         }
 
-        basic_file_scdc_env.init();
+        the_fstream_scdc_env.init();
 
         // open path without file and fail if it fails (i.e., does not exist)
         _M_dataset = scdc_dataset_open(p);
@@ -214,12 +248,16 @@ namespace FSTREAM_SCDC_NAMESPACE _GLIBCXX_VISIBILITY(default)
 
         char cmd[256];
 
-        // if trunc and in then 'rm file' and 'put file' without input -> create empty file
+        // if trunc and out then 'rm file'
         if (do_truncate && do_write)
         {
           sprintf(cmd, "rm %s", f);
           scdc_dataset_cmd(_M_dataset, cmd, NULL, NULL);
+        }
 
+        // if out then 'put file' without input -> create empty file if it does not exist, yet
+        if (do_write)
+        {
           sprintf(cmd, "put %s", f);
           scdc_dataset_cmd(_M_dataset, cmd, NULL, NULL);
         }
@@ -238,7 +276,7 @@ do_return:
           _M_dataset = SCDC_DATASET_NULL;
         }
 
-        if (_M_dataset == SCDC_DATASET_NULL) basic_file_scdc_env.release();
+        if (_M_dataset == SCDC_DATASET_NULL) the_fstream_scdc_env.release();
 
         return ret;
       }
@@ -258,6 +296,8 @@ do_return:
 
         scdc_dataset_close(_M_dataset);
         _M_dataset = SCDC_DATASET_NULL;
+
+        the_fstream_scdc_env.release();
 
         return ret;
       }
@@ -284,7 +324,7 @@ do_return:
       streamsize 
       xsputn(const char* __s, streamsize __n)
       {
-        TRACE(__class__, __func__, "__n: ");
+        TRACE(__class__, __func__, "n: %lld", (long long) __n);
 
         streamsize ret = -1;
         streamsize noffset = offset;
@@ -331,6 +371,8 @@ do_return:
           }
         }
 
+        TRACE(__class__, __func__, "return: %lld, offset: %lld", (long long) ret, (long long) offset);
+
         return ret;
       }
 
@@ -344,14 +386,18 @@ do_return:
       streamsize 
       xsgetn(char* __s, streamsize __n)
       {
-        TRACE(__class__, __func__, "");
+        TRACE(__class__, __func__, "n: %lld", (long long) __n);
 
         streamsize ret = -1;
         streamsize noffset = offset;
 
         if (!do_read) goto do_return;
 
-        if (eof) goto do_return;
+        if (eof)
+        {
+          ret = 0;
+          goto do_return;
+        }
 
         char cmd[256];
         sprintf(cmd, "get %" scdcint_fmt "F:%" scdcint_fmt, noffset, __n);
@@ -394,12 +440,14 @@ do_return:
         }
 
 do_return:
-        if (ret > 0)
+        if (ret >= 0)
         {
           if (ret < __n) eof = true;
 
           offset = noffset;
         }
+
+        TRACE(__class__, __func__, "return: %lld, offset: %lld, eof: %d", (long long) ret, (long long) offset, (int) eof);
 
         return ret;
       }

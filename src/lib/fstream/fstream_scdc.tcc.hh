@@ -43,7 +43,7 @@ namespace FSTREAM_SCDC_NAMESPACE _GLIBCXX_VISIBILITY(default)
 {
   using namespace std;
 
-#define __class__  "basic_filebuf"
+#define __class__  "basic_filebuf_scdc"
 
   template<typename _CharT, typename _Traits>
     void
@@ -196,7 +196,7 @@ namespace FSTREAM_SCDC_NAMESPACE _GLIBCXX_VISIBILITY(default)
     basic_filebuf<_CharT, _Traits>::
     open(const char* __s, ios_base::openmode __mode)
     {
-      TRACE(__class__, __func__, "");
+      TRACE(__class__, __func__, "s: %s", __s);
       __filebuf_type *__ret = 0;
       if (!this->is_open())
 	{
@@ -592,7 +592,7 @@ namespace FSTREAM_SCDC_NAMESPACE _GLIBCXX_VISIBILITY(default)
     basic_filebuf<_CharT, _Traits>::
     overflow(int_type __c)
     {
-      TRACE(__class__, __func__, "");
+      TRACE(__class__, __func__, "c: %lld", (long long) __c);
       int_type __ret = traits_type::eof();
       const bool __testeof = traits_type::eq_int_type(__c, __ret);
       const bool __testout = (_M_mode & ios_base::out
@@ -745,7 +745,7 @@ namespace FSTREAM_SCDC_NAMESPACE _GLIBCXX_VISIBILITY(default)
     basic_filebuf<_CharT, _Traits>::
     xsgetn(_CharT* __s, streamsize __n)
     {
-      TRACE(__class__, __func__, "");
+      TRACE(__class__, __func__, "n: %lld", (long long) __n);
       // Clear out pback buffer before going on to the real deal...
       streamsize __ret = 0;
       if (_M_pback_init)
@@ -834,6 +834,7 @@ namespace FSTREAM_SCDC_NAMESPACE _GLIBCXX_VISIBILITY(default)
       else
  	 __ret += __streambuf_type::xsgetn(__s, __n);
  
+      TRACE(__class__, __func__, "return: %lld", (long long) __ret);
       return __ret;
     }
 
@@ -842,7 +843,7 @@ namespace FSTREAM_SCDC_NAMESPACE _GLIBCXX_VISIBILITY(default)
     basic_filebuf<_CharT, _Traits>::
     xsputn(const _CharT* __s, streamsize __n)
     {
-      TRACE(__class__, __func__, "");
+      TRACE(__class__, __func__, "n: %lld", (long long) __n);
       streamsize __ret = 0;
       // Optimization in the always_noconv() case, to be generalized in the
       // future: when __n is sufficiently large we write directly instead of
@@ -891,6 +892,7 @@ namespace FSTREAM_SCDC_NAMESPACE _GLIBCXX_VISIBILITY(default)
 	}
        else
 	 __ret = __streambuf_type::xsputn(__s, __n);
+      TRACE(__class__, __func__, "return: %lld", (long long) __ret);
        return __ret;
     }
 
@@ -999,7 +1001,7 @@ namespace FSTREAM_SCDC_NAMESPACE _GLIBCXX_VISIBILITY(default)
     basic_filebuf<_CharT, _Traits>::
     seekpos(pos_type __pos, ios_base::openmode)
     {
-      TRACE(__class__, __func__, "");
+      TRACE(__class__, __func__, "pos: %lld", (long long) __pos);
       pos_type __ret =  pos_type(off_type(-1));
       if (this->is_open())
 	{
@@ -1007,6 +1009,7 @@ namespace FSTREAM_SCDC_NAMESPACE _GLIBCXX_VISIBILITY(default)
 	  _M_destroy_pback();
 	  __ret = _M_seek(off_type(__pos), ios_base::beg, __pos.state());
 	}
+      TRACE(__class__, __func__, "return: %lld", (long long) __ret);
       return __ret;
     }
 
@@ -1231,6 +1234,6 @@ namespace FSTREAM_SCDC_NAMESPACE _GLIBCXX_VISIBILITY(default)
 
 #undef __class__
 
-} // namespace std FSTREAM_SCDC_NAMESPACE
+} // namespace FSTREAM_SCDC_NAMESPACE
 
 #endif /* __FSTREAM_SCDC_TCC__ */

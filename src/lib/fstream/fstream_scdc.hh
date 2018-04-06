@@ -41,6 +41,10 @@
 #define FSTREAM_SCDC_NAMESPACE  scdc
 // #define FSTREAM_SCDC_SUFFIX     _scdc
 
+#define USE_FSTREAM_SCDC_LOCAL   1
+#define FSTREAM_SCDC_LOCAL_BASE  "store"
+#define FSTREAM_SCDC_LOCAL_PATH  "store"
+
 #include <istream>
 #include <ostream>
 #include <bits/codecvt.h>

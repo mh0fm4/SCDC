@@ -29,9 +29,8 @@
 #include "log.hh"
 #include "dataset_inout.h"
 #include "dataprov.hh"
+#include "dataprov_store_stub.hh"
 #include "dataprov_fs.hh"
-#include "dataprov_bench.hh"
-#include "dataprov_hook.hh"
 #if USE_MYSQL
 # include "dataprov_mysql.hh"
 #endif
@@ -41,6 +40,8 @@
 #if USE_NFS
 # include "dataprov_nfs.hh"
 #endif
+#include "dataprov_bench.hh"
+#include "dataprov_hook.hh"
 #include "dataprov_register.hh"
 #include "dataprov_relay.hh"
 #include "dataprov_jobrun.hh"
@@ -134,6 +135,11 @@ scdc_dataprov *scdc_dataprov_pool::open(const char *base_path, const char *conf,
       confs.front_pop();
       dp_type = "store_nfs";
 
+    } else if (s == "stub")
+    {
+      confs.front_pop();
+      dp_type = "store_stub";
+
     } else if (s == "none")
     {
       confs.front_pop();
@@ -164,10 +170,10 @@ scdc_dataprov *scdc_dataprov_pool::open(const char *base_path, const char *conf,
 
   scdc_dataprov *dataprov = 0;
 
-  if (dp_type == "fs_access") dataprov = new scdc_dataprov_fs_access();
+  if (dp_type == "store_stub") dataprov = new scdc_dataprov_store_stub();
+  // else if (dp_type == "store_mem") dataprov = new scdc_dataprov_store_mem();
+  else if (dp_type == "fs_access") dataprov = new scdc_dataprov_fs_access();
   else if (dp_type == "fs_store" || dp_type == "store_fs") dataprov = new scdc_dataprov_fs_store();
-  else if (dp_type == "bench" || dp_type == "gen") dataprov = new scdc_dataprov_bench();
-  else if (dp_type == "hook" || dp_type == "config") dataprov = new scdc_dataprov_hook();
 #if USE_MYSQL
   else if (dp_type == "mysql_store" || dp_type == "store_mysql") dataprov = new scdc_dataprov_mysql_store();
 #endif
@@ -178,6 +184,8 @@ scdc_dataprov *scdc_dataprov_pool::open(const char *base_path, const char *conf,
 #if USE_NFS
   else if (dp_type == "nfs_store" || dp_type == "store_nfs") dataprov = new scdc_dataprov_nfs_store();
 #endif
+  else if (dp_type == "bench" || dp_type == "gen") dataprov = new scdc_dataprov_bench();
+  else if (dp_type == "hook" || dp_type == "config") dataprov = new scdc_dataprov_hook();
   else if (dp_type == "register") dataprov = new scdc_dataprov_register();
   else if (dp_type == "relay") dataprov = new scdc_dataprov_relay();
   else if (dp_type == "jobrun_system") dataprov = new scdc_dataprov_jobrun_system();

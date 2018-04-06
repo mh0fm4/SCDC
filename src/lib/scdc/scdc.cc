@@ -44,6 +44,8 @@ using namespace std;
 const scdcint_t SCDC_USE_ZLIB = USE_ZLIB;
 const scdcint_t SCDC_USE_MYSQL = USE_MYSQL;
 const scdcint_t SCDC_USE_MPI = USE_MPI;
+const scdcint_t SCDC_USE_WEBDAV = USE_WEBDAV;
+const scdcint_t SCDC_USE_NFS = USE_NFS;
 
 
 #define SCDC_LOG_PREFIX  "libscdc: "
@@ -228,6 +230,8 @@ const static scdc_dataprov_hook_t scdc_main_config_hook = {
 };
 
 
+static bool scdc_main_context_destroyed = false;
+
 class scdc_context
 {
   public:
@@ -248,6 +252,7 @@ class scdc_context
     ~scdc_context()
     {
       if (data) release();
+      scdc_main_context_destroyed = true;
     }
 
     bool init(const char *conf, scdc_args_t *args)
@@ -332,7 +337,7 @@ class scdc_context
 };
 
 
-scdc_context scdc_main_context;
+static scdc_context scdc_main_context;
 scdc_log *scdc_main_context_log = &scdc_main_context.log;
 
 
@@ -592,7 +597,7 @@ void scdc_dataprov_close(scdc_dataprov_t dataprov)
 
   if (dataprov == SCDC_DATAPROV_NULL) return;
 
-  scdc_main_context.data->dataprovs.close(static_cast<scdc_dataprov *>(dataprov));
+  if (!scdc_main_context_destroyed) scdc_main_context.data->dataprovs.close(static_cast<scdc_dataprov *>(dataprov));
 
   SCDC_TRACE(__func__ << ": return");
 }
@@ -638,7 +643,7 @@ void scdc_nodeport_close(scdc_nodeport_t nodeport)
 
   if (nodeport == SCDC_NODEPORT_NULL) return;
 
-  scdc_main_context.data->nodeports.close(static_cast<scdc_nodeport *>(nodeport));
+  if (!scdc_main_context_destroyed) scdc_main_context.data->nodeports.close(static_cast<scdc_nodeport *>(nodeport));
 
   SCDC_TRACE(__func__ << ": return");
 }

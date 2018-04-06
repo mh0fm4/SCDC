@@ -34,9 +34,11 @@ extern "C" {
 #endif
 
 
-extern const scdcint_t SCDC_USE_ZLIB;  /**< @brief Defines whether zlib support is available. */
-extern const scdcint_t SCDC_USE_MYSQL; /**< @brief Defines whether MySQL support is available. */
-extern const scdcint_t SCDC_USE_MPI;   /**< @brief Defines whether MPI support is available. */
+extern const scdcint_t SCDC_USE_ZLIB;   /**< @brief Defines whether zlib support is available. */
+extern const scdcint_t SCDC_USE_MYSQL;  /**< @brief Defines whether MySQL support is available. */
+extern const scdcint_t SCDC_USE_MPI;    /**< @brief Defines whether MPI support is available. */
+extern const scdcint_t SCDC_USE_WEBDAV; /**< @brief Defines whether WebDAV support is available. */
+extern const scdcint_t SCDC_USE_NFS;    /**< @brief Defines whether NFS support is available. */
 
 
 /** @hideinitializer

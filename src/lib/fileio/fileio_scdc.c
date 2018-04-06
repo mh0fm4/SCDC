@@ -79,7 +79,7 @@ static void fileio_scdc_init()
     TRACE_F_CTRL_BODY("fileio_scdc_init: local data provider '%s' with path '%s'", local_base, local_path);
 
     dp_local = scdc_dataprov_open(local_base, "fs:access", local_path);
-#endif
+#endif /* FILEIO_SCDC_LOCAL */
   }
 
   if (fileio_scdc_initialized == 0)

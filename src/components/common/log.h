@@ -18,8 +18,8 @@
  */
 
 
-#ifndef __SCDC_LOG_H__
-#define __SCDC_LOG_H__
+#ifndef __LOG_H__
+#define __LOG_H__
 
 
 #ifdef __cplusplus
@@ -40,7 +40,7 @@ int scdc_log_cerr_printf_nl(const char *format, ...);
 
 
 /* the C++ header will define it's own macros! */
-#ifndef __SCDC_LOG_HH__
+#ifndef __LOG_HH__
 
 #if HAVE_SCDC_INFO
 # define SCDC_INFO_PREFIX   "SCDC-INFO: "
@@ -94,7 +94,7 @@ int scdc_log_cerr_printf_nl(const char *format, ...);
 # define SCDC_FATAL(_x_...)  Z_NOP()
 #endif
 
-#endif /* __SCDC_LOG_HH__ */
+#endif /* __LOG_HH__ */
 
 
 #ifdef __cplusplus
@@ -102,4 +102,4 @@ int scdc_log_cerr_printf_nl(const char *format, ...);
 #endif
 
 
-#endif /* __SCDC_LOG_H__ */
+#endif /* __LOG_H__ */
