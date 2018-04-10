@@ -11,18 +11,18 @@ typedef struct _compL_data_t
   
 } compL_data_t;
 
-struct _compC_t;
-struct _compI_t;
-struct _compG_t;
-
 typedef struct _compL_t
 {
   compL_data_t data;
 
+#if USE_SCDC
+  char compC_uri[MAX_STRING_SIZE];
+#else
   struct _compC_t *compC;
+#endif
+
   struct _compI_t *compI;
   struct _compG_t *compG;
-  char compC_uri[MAX_STRING_SIZE], compI_uri[MAX_STRING_SIZE], compG_uri[MAX_STRING_SIZE];
 
 } compL_t;
 

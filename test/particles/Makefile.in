@@ -1,18 +1,27 @@
 # This is a Makefile!
 
+#USE_MPI=yes
+#USE_SCDC=yes
+
 SCDC_SRC:=../../src/
 
 include ../../Makefile.in
 
-DEPS+=../../Makefile.in $(LIBSCDC_DEPENDS)
+DEPS+=../../Makefile.in
 
-CPPFLAGS+=$(LIBSCDC_CPPFLAGS)
-LDFLAGS+=$(LIBSCDC_LDFLAGS)
-LIBS+=$(LIBSCDC_LIBS)
+ifneq ($(USE_SCDC),)
+  DEPS+=$(LIBSCDC_DEPENDS)
+  CPPFLAGS+=$(LIBSCDC_CPPFLAGS) -DUSE_SCDC=1
+  LDFLAGS+=$(LIBSCDC_LDFLAGS)
+  LIBS+=$(LIBSCDC_LIBS)
+endif
 
-CEXEC:=particles particles_compC
+ifneq ($(USE_MPI),)
+  CPPFLAGS+=-DUSE_MPI=1
+endif
 
-#CPPFLAGS+=-DUSE_SCDC=1
+CEXEC:=particles particles_compC particles_compUDGLI
 
 particles.c_CPPFLAGS=-DUSE_COMP_ALL=1
 particles_compC.c_CPPFLAGS=-DUSE_COMPC=1 -DUSE_SCDC_UDS=1
+particles_compUDGLI.c_CPPFLAGS=-DUSE_COMP_ALL=1 -DUSE_COMPC=0

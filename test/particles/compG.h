@@ -3,6 +3,8 @@
 #define __COMPG_H__
 
 
+#include "defs.h"
+
 typedef struct _compG_data_t
 {
   float value;

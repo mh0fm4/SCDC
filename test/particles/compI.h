@@ -3,6 +3,8 @@
 #define __COMPI_H__
 
 
+#include "defs.h"
+
 typedef struct _compI_data_t
 {
   float current, inc;

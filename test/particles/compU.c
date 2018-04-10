@@ -61,12 +61,13 @@ void compU_main(compU_t *c)
   else PARTICLES_TRACE("main: have no component D");
 
   /* prepare component L */
-  c->compL->compC = c->compC;
+#if USE_SCDC
   strncpy(c->compL->compC_uri, c->compC_uri, MAX_STRING_SIZE);
+#else
+  c->compL->compC = c->compC;
+#endif
   c->compL->compI = c->compI;
-  strncpy(c->compL->compI_uri, c->compI_uri, MAX_STRING_SIZE);
   c->compL->compG = c->compG;
-  strncpy(c->compL->compG_uri, c->compG_uri, MAX_STRING_SIZE);
 
   /* prepare input data of component L */
   compL_data_t dataL;

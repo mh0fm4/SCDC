@@ -3,6 +3,8 @@
 #define __COMPD_H__
 
 
+#include "defs.h"
+
 typedef struct _compD_data_t
 {
   float start, max_inc, end;
