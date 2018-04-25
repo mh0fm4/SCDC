@@ -1,0 +1,49 @@
+# This is a Makefile!
+
+#  
+#  Copyright (C) 2014, 2015, 2016, 2017, 2018 Michael Hofmann
+#  
+#  This file is part of the Simulation Component and Data Coupling (SCDC) library.
+#  
+#  The SCDC library is free software: you can redistribute it and/or
+#  modify it under the terms of the GNU Lesser Public License as published
+#  by the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+#  
+#  The SCDC library is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU Lesser Public License for more details.
+#  
+#  You should have received a copy of the GNU Lesser Public License
+#  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#  
+
+
+USE_MPI=yes
+
+SCDC_SRC:=../../../
+
+include ../Makefile.in
+
+DEPS+=../Makefile.in
+
+DEPS+=$(LIBSCDC_DEPENDS)
+CPPFLAGS+=$(LIBSCDC_CPPFLAGS) -DHAVE_CONFIG_H=1 -DHAVE_Z_CONFIG_H=1 -DZ_OVERRIDE_CONFIG_H=1
+LDFLAGS+=$(LIBSCDC_LDFLAGS)
+LIBS+=$(LIBSCDC_LIBS)
+
+#CPPFLAGS+=-DLIBFCS_SCDC_PROGRESS=1
+
+SCAFACOS_DIR    = ./scafacos_install/
+SCAFACOS_CFLAGS = $(shell PKG_CONFIG_PATH=${SCAFACOS_DIR}lib/pkgconfig/ pkg-config --cflags scafacos)
+SCAFACOS_LIBS   = $(shell PKG_CONFIG_PATH=${SCAFACOS_DIR}lib/pkgconfig/ pkg-config --libs scafacos)
+
+#FCS_LDFLAGS:=
+FCS_LIBS:=${SCAFACOS_LIBS}
+
+fcs_scdc.o_CPPFLAGS:=-DUSE_MPI=1
+
+test_fcs_native_CPPFLAGS:=-DUSE_MPI=1
+test_fcs_scdc_CPPFLAGS:=-DUSE_MPI=1
+test_fcs_scdc_linked_CPPFLAGS:=-DUSE_MPI=1

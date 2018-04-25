@@ -32,11 +32,32 @@ class scdc_dataprov_store_stub_handler
   public:
     static const char * const type;
 
-    typedef void *entry_t;
     typedef void *store_t;
+    static const store_t store_null;
+    typedef void *entry_t;
+    static const entry_t entry_null;
 
-    static entry_t open_entry(const char *path);
-    static void close_entry(entry_t entry);
+    bool ls_stores(std::string &result);
+    bool info_store(const char *path, std::string &result);
+    bool mk_store(const char *path);
+    bool rm_store(const char *path);
+
+    store_t store_open(const char *path);
+    void store_close(store_t store);
+    bool store_match(store_t store, const char *path);
+
+    bool ls_entries(store_t store, std::string &result);
+    bool info_entry(store_t store, const char *path, std::string &result);
+    bool rm_entry(store_t store, const char *path);
+
+    entry_t entry_open(store_t store, const char *path, bool read, bool write, bool create);
+    entry_t entry_reopen(store_t store, const char *path, bool read, bool write, bool create, entry_t entry);
+    void entry_close(store_t store, entry_t entry);
+    bool entry_match(store_t store, entry_t entry, const char *path);
+
+    bool entry_read_access_at(store_t store, entry_t entry, scdcint_t size, scdcint_t pos, scdc_buf_t &buf);
+    scdcint_t entry_read_at(store_t store, entry_t entry, void *ptr, scdcint_t size, scdcint_t pos);
+    scdcint_t entry_write_at(store_t store, entry_t entry, const void *ptr, scdcint_t size, scdcint_t pos);
 };
 
 

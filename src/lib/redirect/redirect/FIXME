@@ -1,0 +1,7 @@
+
+- allok Puffer nur wenn hinterlegter nicht passt und dann Warnung bei Tracing
+- zero copy bei direct
+  -> multibuffer nutzen, nur ptr rausgeben (bzw. alloc. und copy nach next)
+- bei get möglichst nur ptr rausgeben (ohne alloc und copy)
+  -> alloc und copy erst wenn next gemacht wurde
+  -> zeiger auf herausgegebene zeiger merken und vor notwendigem next dann alloc und copy machen

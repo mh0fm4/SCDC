@@ -25,7 +25,4 @@ SUBDIRS+=scdc
 ifneq ($(USE_PYTHON),)
  SUBDIRS+=scdc.py
 endif
-SUBDIRS+=fileio
-SUBDIRS+=redirect
-SUBDIRS+=blas
-SUBDIRS+=lapack
+#SUBDIRS+=redirect

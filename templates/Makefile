@@ -38,8 +38,10 @@ CEXEC_CFILES:=
 CEXEC_HFILES:=
 CXXFILES:=
 HXXFILES:=
+TCCFILES:=
 CXXEXEC_CXXFILES:=
 CXXEXEC_HXXFILES:=
+CXXEXEC_TCCFILES:=
 OFILES:=
 CEXEC_OFILES:=
 CXXEXEC_OFILES:=
@@ -60,17 +62,20 @@ CFILES+=$(wildcard *.c) $(wildcard $(addsuffix /*.c,$(SUBDIRS)))
 HFILES+=$(wildcard *.h) $(wildcard $(addsuffix /*.h,$(SUBDIRS)))
 CXXFILES+=$(wildcard *.cc) $(wildcard $(addsuffix /*.cc,$(SUBDIRS)))
 HXXFILES+=$(wildcard *.hh) $(wildcard $(addsuffix /*.hh,$(SUBDIRS)))
+TCCFILES+=$(wildcard *.tcc) $(wildcard $(addsuffix /*.tcc,$(SUBDIRS)))
 PYFILES+=$(wildcard *.py) $(wildcard $(addsuffix /*.py,$(SUBDIRS)))
 
 CEXEC_CFILES:=$(wildcard $(addsuffix .c,$(CEXEC)))
 CEXEC_HFILES:=$(wildcard $(addsuffix .h,$(CEXEC)))
 CXXEXEC_CXXFILES:=$(wildcard $(addsuffix .cc,$(CXXEXEC)))
 CXXEXEC_HXXFILES:=$(wildcard $(addsuffix .hh,$(CXXEXEC)))
+CXXEXEC_TCCFILES:=$(wildcard $(addsuffix .tcc,$(CXXEXEC)))
 
 CFILES:=$(filter-out $(CFILES_IGNORE) $(CEXEC_CFILES),$(CFILES))
 HFILES:=$(filter-out $(HFILES_IGNORE) $(CEXEC_HFILES),$(HFILES))
 CXXFILES:=$(filter-out $(CXXFILES_IGNORE) $(CXXEXEC_CXXFILES),$(CXXFILES))
 HXXFILES:=$(filter-out $(HXXFILES_IGNORE) $(CXXEXEC_HXXFILES),$(HXXFILES))
+TCCFILES:=$(filter-out $(TCCFILES_IGNORE) $(CXXEXEC_TCCFILES),$(TCCFILES))
 PYFILES:=$(filter-out $(PYFILES_IGNORE),$(PYFILES))
 
 OFILES+=$(addsuffix .o,$(basename $(CFILES) $(CXXFILES)))
@@ -85,7 +90,7 @@ PYMOD_INSTALL:=install
 CLEAN+=$(LIB) $(CEXEC) $(CXXEXEC) $(OFILES) $(CEXEC_OFILES) $(CXXEXEC_OFILES) $(PYCFILES) $(PYMOD_BUILD) $(PYMOD_INSTALL)
 
 ifeq ($(ALL),)
- ALL:=lib exec
+ ALL:=sub lib exec
 endif
 
 CC_:=$(CC)
@@ -109,20 +114,29 @@ endif
 
 
 _all: $(ALL)
+
+sub:
 	$(foreach d,$(wildcard $(addsuffix /Makefile,$(SUBDIRS))),$(MAKE) -C $(dir $(d)) ;)
+
+sub_clean:
+	$(foreach d,$(wildcard $(addsuffix /Makefile,$(SUBDIRS))),$(MAKE) -C $(dir $(d)) clean;)
+
+sub_info:
+	@echo "SUBDIRS: $(SUBDIRS)"
+	$(foreach d,$(wildcard $(addsuffix /Makefile,$(SUBDIRS))),$(MAKE) -C $(dir $(d)) info;)
 
 lib: $(LIB)
 
-exec: $(CEXEC) $(CXXEXEC)
+exec: sub $(CEXEC) $(CXXEXEC)
 
 pymod: setup.py
 	PYMOD_INCDIRS="$(PYMOD_INCDIRS)" PYMOD_LIBS="$(PYMOD_LIBS)" PYMOD_LIBDIRS="$(PYMOD_LIBDIRS)" PYMOD_SOURCES="$(CFILES) $(PYMOD_SOURCES)" PYMOD_DEPENDS="$(HFILES) $(PYMOD_DEPENDS)" PYMOD_MACROS="$(PYMOD_MACROS)" OPT="$(CFLAGS)" $(PYTHON) setup.py build --build-base=$(PYMOD_BUILD)
 	PYMOD_INCDIRS="$(PYMOD_INCDIRS)" PYMOD_LIBS="$(PYMOD_LIBS)" PYMOD_LIBDIRS="$(PYMOD_LIBDIRS)" PYMOD_SOURCES="$(CFILES) $(PYMOD_SOURCES)" PYMOD_DEPENDS="$(HFILES) $(PYMOD_DEPENDS)" PYMOD_MACROS="$(PYMOD_MACROS)" OPT="$(CFLAGS)" $(PYTHON) setup.py install --home=$(PYMOD_INSTALL)
 
-%.o: %.c $(HFILES) $(CEXEC_HFILES) $(HXXFILES) $(DEPS)
+%.o: %.c $(HFILES) $(CEXEC_HFILES) $(DEPS)
 	$(CC_) $(CPPFLAGS) $($(notdir $<)_CPPFLAGS) $(CFLAGS_) $($(notdir $<)_CFLAGS) -c -o $@ $<
 
-%.o: %.cc $(HFILES) $(CEXEC_HFILES) $(HXXFILES) $(CXXEXEC_HXXFILES) $(DEPS)
+%.o: %.cc $(HFILES) $(CEXEC_HFILES) $(HXXFILES) $(CXXEXEC_HXXFILES) $(TCCFILES) $(CXXEXEC_TCCFILES) $(DEPS)
 	$(CXX_) $(CPPFLAGS) $($(notdir $<)_CPPFLAGS) $(CXXFLAGS_) $($(notdir $<)_CXXFLAGS) -c -o $@ $<
 
 $(LIB): $(OFILES) $(AFILES)
@@ -135,15 +149,12 @@ $(CEXEC): $(OFILES) $(CEXEC_OFILES) $(AFILES) $(DEPS)
 $(CXXEXEC): $(OFILES) $(CXXEXEC_OFILES) $(AFILES) $(DEPS)
 	$(LDCXX_) $($@_LDFLAGS) $(LDFLAGS_) $($@_LDCXXFLAGS) $(LDCXXFLAGS_) -o $@ $@.o $(OFILES) $(AFILES) $($@_LIBS) $(LIBS)
 
-clean:
-	$(foreach d,$(wildcard $(addsuffix /Makefile,$(SUBDIRS))),$(MAKE) -C $(dir $(d)) clean;)
+clean: sub_clean
 ifneq ($(wildcard $(CLEAN)),)
 	rm -rf $(wildcard $(CLEAN))
 endif
 
-info:
-	@echo "SUBDIRS: $(SUBDIRS)"
-	$(foreach d,$(wildcard $(addsuffix /Makefile,$(SUBDIRS))),$(MAKE) -C $(dir $(d)) info;)
+info: sub_info
 	@echo "DEPS: $(DEPS)"
 	@echo "LIB: $(LIB)"
 	@echo "CEXEC: $(CEXEC)"
@@ -154,8 +165,10 @@ info:
 	@echo "CXXEXEC: $(CXXEXEC)"
 	@echo "CXXFILES: $(CXXFILES)"
 	@echo "HXXFILES: $(HXXFILES)"
+	@echo "TCCFILES: $(TCCFILES)"
 	@echo "CXXEXEC_CXXFILES: $(CXXEXEC_CXXFILES)"
 	@echo "CXXEXEC_HXXFILES: $(CXXEXEC_HXXFILES)"
+	@echo "CXXEXEC_TCCFILES: $(CXXEXEC_TCCFILES)"
 	@echo "OFILES: $(OFILES)"
 	@echo "CEXEC_OFILES: $(CEXEC_OFILES)"
 	@echo "CXXEXEC_OFILES: $(CXXEXEC_OFILES)"

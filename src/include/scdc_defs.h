@@ -69,6 +69,12 @@ typedef long long scdcint_t;
 * @brief Macro to define the format specifier for a printf-like output of an #scdcint_t. */
 #define scdcint_fmt  "lld"
 /** @hideinitializer
+* @brief Macro to return a constant of type #scdcint_t. */
+#define scdcint_const(_c_)  _c_##LL
+/** @hideinitializer
+* @brief Macro to cast a value to type #scdcint_t. */
+#define scdcint_cast(_v_)  static_cast<scdcint_t>(_v_)
+/** @hideinitializer
 * @brief Macro to define the minimum value that can be represented by an #scdcint_t. */
 #define scdcint_min  LONG_LONG_MIN
 /** @hideinitializer
@@ -245,7 +251,7 @@ typedef struct _scdc_dataset_inout_t
 * @param \_inout\_ Dataset input/output object.
 * @return Memory location of a (single) data buffer or 0 in case of a multiple data buffer.
 */
-#define SCDC_DATASET_INOUT_BUF_GET_P(_inout_)       (SCDC_DATASET_INOUT_BUF_SIZE(_inout_) >= 0)?SCDC_DATASET_INOUT_BUF_PTR(_inout_):SCDC_NULL)
+#define SCDC_DATASET_INOUT_BUF_GET_P(_inout_)       ((SCDC_DATASET_INOUT_BUF_SIZE(_inout_) >= 0)?SCDC_DATASET_INOUT_BUF_PTR(_inout_):SCDC_NULL)
 
 /** @hideinitializer
 * @brief Macro to set the size of the memory location of a (single) data buffer in a dataset input/output object.
@@ -260,7 +266,7 @@ typedef struct _scdc_dataset_inout_t
 * @param \_inout\_ Dataset input/output object.
 * @return Size of the memory location of a (single) data buffer or 0 in case of a multiple data buffer.
 */
-#define SCDC_DATASET_INOUT_BUF_GET_S(_inout_)       (SCDC_DATASET_INOUT_BUF_SIZE(_inout_) >= 0)?SCDC_DATASET_INOUT_BUF_SIZE(_inout_):0)
+#define SCDC_DATASET_INOUT_BUF_GET_S(_inout_)       ((SCDC_DATASET_INOUT_BUF_SIZE(_inout_) >= 0)?SCDC_DATASET_INOUT_BUF_SIZE(_inout_):0)
 
 /** @hideinitializer
 * @brief Macro to set the current data size of a (single) data buffer in a dataset input/output object.
@@ -275,9 +281,19 @@ typedef struct _scdc_dataset_inout_t
 * @param \_inout\_ Dataset input/output object.
 * @return Current data size of a (single) data buffer or 0 in case of a multiple data buffer.
 */
-#define SCDC_DATASET_INOUT_BUF_GET_C(_inout_)       (SCDC_DATASET_INOUT_BUF_CURRENT(_inout_) >= 0)?SCDC_DATASET_INOUT_BUF_CURRENT(_inout_):0)
+#define SCDC_DATASET_INOUT_BUF_GET_C(_inout_)       ((SCDC_DATASET_INOUT_BUF_CURRENT(_inout_) >= 0)?SCDC_DATASET_INOUT_BUF_CURRENT(_inout_):0)
 
-#define SCDC_DATASET_INOUT_BUF_SET(_inout_, _p_, _s_, _c_)  (SCDC_DATASET_INOUT_BUF_SET_P(_inout_, _p_), SCDC_DATASET_INOUT_BUF_SET_S(_inout_, _s_), SCDC_DATASET_INOUT_BUF_SET_C(_inout_, _c_))
+#define SCDC_DATASET_INOUT_BUF_SET(_inout_, _p_, _s_, _c_)  ( \
+  SCDC_DATASET_INOUT_BUF_SET_P(_inout_, _p_), \
+  SCDC_DATASET_INOUT_BUF_SET_S(_inout_, _s_), \
+  SCDC_DATASET_INOUT_BUF_SET_C(_inout_, _c_) \
+)
+
+#define SCDC_DATASET_INOUT_BUF_ASSIGN(_inout_, _rhs_)  ( \
+  SCDC_DATASET_INOUT_BUF_SET_P(_inout_, SCDC_DATASET_INOUT_BUF_GET_P(_rhs_)), \
+  SCDC_DATASET_INOUT_BUF_SET_S(_inout_, SCDC_DATASET_INOUT_BUF_GET_S(_rhs_)), \
+  SCDC_DATASET_INOUT_BUF_SET_C(_inout_, SCDC_DATASET_INOUT_BUF_GET_C(_rhs_)) \
+)
 
 #if SCDC_DATASET_INOUT_BUF_MULTIPLE
 
