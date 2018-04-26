@@ -241,3 +241,68 @@ do_return:
 
   return res;
 }
+
+
+FCSResult LIB_F(fcs_set_common)(FCS handle,
+  fcs_int near_field_flag,
+  const fcs_float *box_a, const fcs_float *box_b, const fcs_float *box_c,
+  const fcs_float *box_origin,
+  const fcs_int *periodicity, fcs_int total_particles)
+{
+  TRACE_F("%s: handle: %p, near_field_flag: %" FCS_LMOD_INT "d, "
+    "box_a: %" FCS_LMOD_FLOAT "f|%" FCS_LMOD_FLOAT "f|%" FCS_LMOD_FLOAT "f, "
+    "box_b: %" FCS_LMOD_FLOAT "f|%" FCS_LMOD_FLOAT "f|%" FCS_LMOD_FLOAT "f, "
+    "box_c: %" FCS_LMOD_FLOAT "f|%" FCS_LMOD_FLOAT "f|%" FCS_LMOD_FLOAT "f, "
+    "box_origin: %" FCS_LMOD_FLOAT "f|%" FCS_LMOD_FLOAT "f|%" FCS_LMOD_FLOAT "f, "
+    "periodicity: %" FCS_LMOD_INT "d|%" FCS_LMOD_INT "d|%" FCS_LMOD_INT "d, total_particles: %" FCS_LMOD_INT "d",
+    __func__, handle, near_field_flag,
+    box_a[0], box_a[1], box_a[2], box_b[0], box_b[1], box_b[2], box_c[0], box_c[1], box_c[2],
+    box_origin[0], box_origin[1], box_origin[2],
+    periodicity[0], periodicity[1], periodicity[2], total_particles
+  );
+
+  FCSResult res = FCS_RESULT_FAILURE;
+
+  libfcs_scdc_init();
+
+  fcs_handle_t *fh = handle;
+
+  fcs_call_t fc;
+
+  if (!FCS_CALL(create_scdc)(&fc, "fcs_set_common", NULL)) goto do_return;
+
+  FCS_CALL(set_handle)(&fc, fh);
+
+  struct {
+    fcs_int near_field_flag;
+    fcs_float box_a[3], box_b[3], box_c[3], box_origin[3];
+    fcs_int periodicity[3], total_particles;
+
+  } params;
+
+  params.near_field_flag = near_field_flag;
+  params.box_a[0] = box_a[0];  params.box_a[1] = box_a[1];  params.box_a[2] = box_a[2];
+  params.box_b[0] = box_b[0];  params.box_b[1] = box_b[1];  params.box_b[2] = box_b[2];
+  params.box_c[0] = box_c[0];  params.box_c[1] = box_c[1];  params.box_c[2] = box_c[2];
+  params.box_origin[0] = box_origin[0];  params.box_origin[1] = box_origin[1];  params.box_origin[2] = box_origin[2];
+  params.periodicity[0] = periodicity[0];  params.periodicity[1] = periodicity[1];  params.periodicity[2] = periodicity[2];
+  params.total_particles = total_particles;
+
+  FCS_CALL(put_input_param_vector_char)(&fc, "params", sizeof(params), (char *) &params);
+
+  if (!FCS_CALL(execute)(&fc)) goto do_return;
+
+  FCS_CALL(get_handle)(&fc, fh);
+
+  FCS_CALL(destroy_scdc)(&fc);
+
+  libfcs_scdc_release();
+
+  res = FCS_RESULT_SUCCESS;
+
+do_return:
+
+  TRACE_F("%s: return: %p", __func__, res);
+
+  return res;
+}

@@ -44,7 +44,7 @@
 
 int main(int argc, char *argv[])
 {
-  srandom(0);
+  srand(0);
 
   FCS fcs;
 
@@ -53,6 +53,15 @@ int main(int argc, char *argv[])
 #endif
 
   MANGLE_FCS(fcs_init)(&fcs, "direct", MPI_COMM_WORLD);
+
+  fcs_float box_a[] = { 1.0, 0.0, 0.0 };
+  fcs_float box_b[] = { 0.0, 1.0, 0.0 };
+  fcs_float box_c[] = { 0.0, 0.0, 1.0 };
+  fcs_float box_origin[] = { 0.0, 0.0, 0.0 };
+  fcs_int periodicity[] = { 0, 0, 0 };
+  fcs_int total_particles = 10;
+
+  MANGLE_FCS(fcs_set_common)(fcs, 1, box_a, box_b, box_c, box_origin, periodicity, total_particles);
 
   MANGLE_FCS(fcs_destroy)(fcs);
 

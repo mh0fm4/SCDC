@@ -34,12 +34,12 @@ template<class STORE_HANDLER>
 struct scdc_dataset_store_do_cmd_get_next_data_t
 {
   scdc_dataprov_store<STORE_HANDLER> *dp;
-  typename STORE_HANDLER::store_t store = STORE_HANDLER::store_null;
-  typename STORE_HANDLER::entry_t entry = STORE_HANDLER::entry_null;
-  scdcint_t pos = -1;
-  scdcint_t size = -1;
-  void *buf = 0;
-  scdcint_t buf_size = -1;
+  typename STORE_HANDLER::store_t store;
+  typename STORE_HANDLER::entry_t entry;
+  scdcint_t pos;
+  scdcint_t size;
+  void *buf;
+  scdcint_t buf_size;
 };
 
 

@@ -48,7 +48,7 @@ void init_vector(float *v, int n, int inc)
   {
     v[i * inc + 0] =
 #if RANDOM
-      random() / (float) RAND_MAX;
+      rand() / (float) RAND_MAX;
 #else
       i + 1.0;
 #endif
@@ -85,7 +85,7 @@ void init_matrix_cmo(float *m, int nrows, int ncols, int ld)
       {
         m[j * ld + i] =
 #if RANDOM
-          random() / (float) RAND_MAX;
+          rand() / (float) RAND_MAX;
 #else
     			(j <= i)?1.0:0.0;
 #endif
@@ -150,7 +150,7 @@ void test_sgesv()
 
 int main(int argc, char *argv[])
 {
-  srandom(0);
+  srand(0);
 
 #if 1
   test_sgesv();

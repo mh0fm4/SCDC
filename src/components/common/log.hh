@@ -32,6 +32,8 @@
 #include <cstdarg>
 #include <iostream>
 
+#include "config.hh"
+#include "common.hh"
 #include "args.hh"
 #include "log.h"
 

@@ -610,15 +610,17 @@ void redirect_call_get_handle(redirect_call_t *rc, redirect_handle_t *rh)
 {
   rh->client = rc->client;
 
+  char *rh_id_ptr = rh->id;
+
   if (rc->client)
   {
     rh->dataset = rc->dataset;
-    redirect_call_get_output_conf_char_p(rc, "hdl_id", reinterpret_cast<char **>(&rh->id));
+    redirect_call_get_output_conf_char_p(rc, "hdl_id", reinterpret_cast<char **>(&rh_id_ptr));
     redirect_call_get_output_conf_void_p(rc, "hdl_ptr", &rh->ptr);
 
   } else
   {
-    redirect_call_get_input_conf_char_p(rc, "hdl_id", reinterpret_cast<char **>(&rh->id));
+    redirect_call_get_input_conf_char_p(rc, "hdl_id", reinterpret_cast<char **>(&rh_id_ptr));
     redirect_call_get_input_conf_void_p(rc, "hdl_ptr", &rh->ptr);
   }
 }

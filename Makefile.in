@@ -87,8 +87,8 @@ MPILDCXX:=mpicxx
 PYTHON:=python
 
 #CPPFLAGS:=
-#CFLAGS:=
-#CXXFLAGS:=
+#CFLAGS:=-std=c99
+#CXXFLAGS:=-std=c++03
 #LDFLAGS:=
 #LDCXXFLAGS:=
 #LIBS:=

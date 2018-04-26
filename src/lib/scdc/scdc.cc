@@ -792,6 +792,16 @@ struct _scdc_dataset_t
 };
 
 
+static scdcint_t pointer2scdcint(void *p)
+{
+  union { scdcint_t i; void *p; } u = { .i = 0 };
+
+  u.p = p;
+
+  return u.i;
+}
+
+
 scdcint_t scdc_dataset_inout_next_hash(scdc_dataset_inout_t *inout)
 {
   SCDC_TRACE_DATASET_INPUT(inout, __func__ << ": inout: ");
@@ -802,9 +812,9 @@ scdcint_t scdc_dataset_inout_next_hash(scdc_dataset_inout_t *inout)
   SCDC_TRACE(__func__ << ": data: " << static_cast<void *>(inout->data));
   SCDC_TRACE(__func__ << ": intern_data: " << static_cast<void *>(inout->intern_data));
 
-  scdcint_t next_hash = static_cast<scdcint_t>(reinterpret_cast<intptr_t>(inout->next)) ^ static_cast<scdcint_t>(reinterpret_cast<intptr_t>(inout->data)) ^ static_cast<scdcint_t>(reinterpret_cast<intptr_t>(inout->intern_data));
+  scdcint_t next_hash = pointer2scdcint(reinterpret_cast<void *>(inout->next)) ^ pointer2scdcint(inout->data) ^ pointer2scdcint(inout->intern_data);
 
-  SCDC_TRACE(__func__ << ": next_hash: " << next_hash << " (" << static_cast<scdcint_t>(reinterpret_cast<intptr_t>(inout->next)) << " + " << static_cast<scdcint_t>(reinterpret_cast<intptr_t>(inout->data)) << " + " << static_cast<scdcint_t>(static_cast<intptr_t>(inout->intern_data)) << ")");
+  SCDC_TRACE(__func__ << ": next_hash: " << next_hash << " (" << pointer2scdcint(reinterpret_cast<scdcint_t>(inout->next)) << " + " << pointer2scdcint(inout->data) << " + " << pointer2scdcint(inout->intern_data) << ")");
 
   return next_hash;
 }

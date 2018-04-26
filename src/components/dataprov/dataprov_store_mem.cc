@@ -18,6 +18,8 @@
  */
 
 
+#include <cstdlib>
+
 #include "z_pack.h"
 
 #define SCDC_TRACE_NOT  !SCDC_TRACE_DATAPROV_STORE_MEM

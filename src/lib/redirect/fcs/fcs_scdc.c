@@ -112,18 +112,76 @@ static void do_fcs_destroy(fcs_call_t *fc)
 
   FCS_CALL(get_handle)(fc, &fh);
 
-  FCS fcs;
-  FCS_HANDLE(get_ptr)(&fh, &fcs);
+  FCS handle;
+  FCS_HANDLE(get_ptr)(&fh, &handle);
 
-  FCS_ORIG_F_INIT(fcs_init);
+  FCS_ORIG_F_INIT(fcs_destroy);
   FCS_TIMING_START(libfcs_scdc_timing_remote[0]);
-  FCSResult result = FCS_ORIG_F(MANGLE_FCS(fcs_destroy))(fcs);
-  fcs = FCS_NULL;
+  FCSResult result = FCS_ORIG_F(MANGLE_FCS(fcs_destroy))(handle);
+  handle = FCS_NULL;
   FCS_TIMING_STOP(libfcs_scdc_timing_remote[0]);
 
   TRACE_F("%s: result: %p", __func__, result);
 
-  FCS_HANDLE(set_ptr)(&fh, fcs);
+  FCS_HANDLE(set_ptr)(&fh, handle);
+
+  FCS_CALL(set_handle)(fc, &fh);
+
+  FCS_TIMING_REMOTE_PUT(fc, libfcs_scdc_timing_remote[0]);
+
+  FCS_TIMING_PRINT_F("%s: %f", __func__, libfcs_scdc_timing_remote[0]);
+
+  TRACE_F("%s: return", __func__);
+}
+
+
+static void do_fcs_set_common(fcs_call_t *fc)
+{
+  TRACE_F("%s: %p", __func__, fc);
+
+  FCS_TIMING_INIT_();
+
+  fcs_handle_t fh;
+
+  FCS_CALL(get_handle)(fc, &fh);
+
+  FCS handle;
+  FCS_HANDLE(get_ptr)(&fh, &handle);
+
+  struct {
+    fcs_int near_field_flag;
+    fcs_float box_a[3], box_b[3], box_c[3], box_origin[3];
+    fcs_int periodicity[3], total_particles;
+
+  } params, *params_ptr = &params;
+
+  FCS_CALL(get_input_param_vector_char)(fc, "params", sizeof(params), (char **) &params_ptr);
+
+  TRACE_F("%s: handle: %p, near_field_flag: %" FCS_LMOD_INT "d, "
+    "box_a: %" FCS_LMOD_FLOAT "f|%" FCS_LMOD_FLOAT "f|%" FCS_LMOD_FLOAT "f, "
+    "box_b: %" FCS_LMOD_FLOAT "f|%" FCS_LMOD_FLOAT "f|%" FCS_LMOD_FLOAT "f, "
+    "box_c: %" FCS_LMOD_FLOAT "f|%" FCS_LMOD_FLOAT "f|%" FCS_LMOD_FLOAT "f, "
+    "box_origin: %" FCS_LMOD_FLOAT "f|%" FCS_LMOD_FLOAT "f|%" FCS_LMOD_FLOAT "f, "
+    "periodicity: %" FCS_LMOD_INT "d|%" FCS_LMOD_INT "d|%" FCS_LMOD_INT "d, total_particles: %" FCS_LMOD_INT "d",
+    __func__, handle, params.near_field_flag,
+    params.box_a[0], params.box_a[1], params.box_a[2],
+    params.box_b[0], params.box_b[1], params.box_b[2],
+    params.box_c[0], params.box_c[1], params.box_c[2],
+    params.box_origin[0], params.box_origin[1], params.box_origin[2],
+    params.periodicity[0], params.periodicity[1], params.periodicity[2], params.total_particles
+  );
+
+  FCS_ORIG_F_INIT(fcs_set_common);
+  FCS_TIMING_START(libfcs_scdc_timing_remote[0]);
+  FCSResult result = FCS_ORIG_F(MANGLE_FCS(fcs_set_common))(handle,
+    params.near_field_flag,
+    params.box_a, params.box_b, params.box_c, params.box_origin,
+    params.periodicity, params.total_particles);
+  FCS_TIMING_STOP(libfcs_scdc_timing_remote[0]);
+
+  TRACE_F("%s: result: %p", __func__, result);
+
+  FCS_HANDLE(set_ptr)(&fh, handle);
 
   FCS_CALL(set_handle)(fc, &fh);
 
@@ -206,6 +264,7 @@ scdcint_t fcs_scdc_dataset_cmd(void *dataprov, void *dataset, const char *cmd, c
 
   if (strcmp(cmd, "fcs_init") == 0) do_fcs_init(fc); else
   if (strcmp(cmd, "fcs_destroy") == 0) do_fcs_destroy(fc); else
+  if (strcmp(cmd, "fcs_set_common") == 0) do_fcs_set_common(fc); else
   {
     TRACE_F("%s: command '%s' not supported!", __func__, cmd);
   }

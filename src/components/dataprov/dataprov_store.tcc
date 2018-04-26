@@ -46,6 +46,12 @@ scdc_dataset_store<STORE_HANDLER>::scdc_dataset_store(scdc_dataprov *dataprov_)
   :scdc_dataset(dataprov_), store(STORE_HANDLER::store_null), entry(STORE_HANDLER::entry_null), admin(false)
 {
   do_cmd_get_next_data.dp = static_cast<scdc_dataprov_store<STORE_HANDLER> *>(dataprov_);
+  do_cmd_get_next_data.store = STORE_HANDLER::store_null;
+  do_cmd_get_next_data.entry = STORE_HANDLER::entry_null;
+  do_cmd_get_next_data.pos = -1;
+  do_cmd_get_next_data.size = -1;
+  do_cmd_get_next_data.buf = 0;
+  do_cmd_get_next_data.buf_size = -1;
 }
 
 

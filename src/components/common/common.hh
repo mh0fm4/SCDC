@@ -22,9 +22,20 @@
 #define __COMMON_HH__
 
 
+#include <cstdarg>
 #include <cstring>
 #include <string>
 #include <list>
+
+
+// va_copy was defined in the C99, but not in C++ standards before C++11.
+#if !defined(va_copy)
+# if defined(__va_copy)
+#  define va_copy(_d_, _s_)  __va_copy(_d_, _s_)
+# else
+#  define va_copy(_d_, _s_)  ((_d_) = (_s_))
+# endif
+#endif
 
 
 inline static const char *memchr(const char *s, int c, size_t n)  { return static_cast<const char *>(memchr(static_cast<const void *>(s), c, n)); }

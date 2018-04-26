@@ -30,6 +30,6 @@ mkdir -p ${SCAFACOS_BUILD}
 
 cd ${SCAFACOS_BUILD}
 
-${SCAFACOS}/configure -C --enable-fcs-solvers=direct --disable-doc --prefix="${SCAFACOS_INSTALL}"
+${SCAFACOS}/configure -C --enable-fcs-solvers=direct --disable-doc --disable-fcs-fortran --prefix="${SCAFACOS_INSTALL}" CFLAGS='-Wall -ggdb' CXXFLAGS='-Wall -ggdb' FCFLAGS='-Wall -ggdb'
 
 make -j 4 && make install
