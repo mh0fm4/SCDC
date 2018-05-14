@@ -21,6 +21,8 @@
 #include <pthread.h>
 #include <cerrno>
 
+#define SCDC_TRACE_NOT  !SCDC_TRACE_NODE_TIMER
+
 #include "config.hh"
 #include "common.hh"
 #include "log.hh"

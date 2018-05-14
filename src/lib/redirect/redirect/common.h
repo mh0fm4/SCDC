@@ -26,7 +26,7 @@
 # include "config.h"
 #endif
 
-#define Z_IGNORE_CONFIG_H    1
+#define Z_IGNORE_CONFIG_H  1
 #include "z_pack.h"
 
 

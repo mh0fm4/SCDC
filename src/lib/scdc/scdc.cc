@@ -808,13 +808,13 @@ scdcint_t scdc_dataset_inout_next_hash(scdc_dataset_inout_t *inout)
 
   if (!inout) return 0;
 
-  SCDC_TRACE(__func__ << ": next: " << static_cast<void *>(inout->next));
+  SCDC_TRACE(__func__ << ": next: " << reinterpret_cast<void *>(inout->next));
   SCDC_TRACE(__func__ << ": data: " << static_cast<void *>(inout->data));
   SCDC_TRACE(__func__ << ": intern_data: " << static_cast<void *>(inout->intern_data));
 
   scdcint_t next_hash = pointer2scdcint(reinterpret_cast<void *>(inout->next)) ^ pointer2scdcint(inout->data) ^ pointer2scdcint(inout->intern_data);
 
-  SCDC_TRACE(__func__ << ": next_hash: " << next_hash << " (" << pointer2scdcint(reinterpret_cast<scdcint_t>(inout->next)) << " + " << pointer2scdcint(inout->data) << " + " << pointer2scdcint(inout->intern_data) << ")");
+  SCDC_TRACE(__func__ << ": next_hash: " << next_hash << " (" << pointer2scdcint(reinterpret_cast<void *>(inout->next)) << " + " << pointer2scdcint(inout->data) << " + " << pointer2scdcint(inout->intern_data) << ")");
 
   return next_hash;
 }

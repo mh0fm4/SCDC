@@ -20,6 +20,10 @@
 
 #include <stdio.h>
 
+#if USE_MPI
+# include <mpi.h>
+#endif
+
 #include "scdc.h"
 
 #include "fcs_scdc.h"
@@ -32,6 +36,10 @@
 
 int main(int argc, char *argv[])
 {
+#if USE_MPI
+  MPI_Init(&argc, &argv);
+#endif
+
   scdc_init(SCDC_INIT_DEFAULT);
 
   printf(PREFIX "dataprov close\n");
@@ -57,6 +65,10 @@ int main(int argc, char *argv[])
   scdc_dataprov_close(dp);
 
   scdc_release();
+
+#if USE_MPI
+  MPI_Finalize();
+#endif
 
   return 0;
 }

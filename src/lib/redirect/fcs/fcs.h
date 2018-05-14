@@ -49,12 +49,23 @@ typedef redirect_MPI_Comm MPI_Comm;
   MANGLE_FCS(_f_ ## _f) MANGLE_FCS(_f_), MANGLE_FCS(_f_ ## _)
 
 
-typedef void *FCSResult;
+typedef void *FCS;
 #define FCS_NULL  NULL
 
-typedef void *FCS;
+#define FCS_RESULT_MAX_FUNCTION_LENGTH   64
+#define FCS_RESULT_MAX_MESSAGE_LENGTH   512
+
+struct FCSResult_t;
+
+typedef struct FCSResult_t *FCSResult;
+
+extern struct FCSResult_t libfcs_scdc_result_failure;
+
 #define FCS_RESULT_SUCCESS  NULL
-#define FCS_RESULT_FAILURE  (void *)1
+#define FCS_RESULT_FAILURE  (FCSResult)&libfcs_scdc_result_failure
+
+#define FCS_ERROR    -1
+#define FCS_SUCCESS  0
 
 
 DECLARE_PROTOTYPE(FCSResult, fcs_init, FCS *new_handle, const char* method_name, MPI_Comm communicator);
@@ -67,9 +78,17 @@ DECLARE_PROTOTYPE(FCSResult, fcs_set_common, FCS handle,
   const fcs_float *box_origin,
   const fcs_int *periodicity, fcs_int total_particles);
 
+DECLARE_PROTOTYPE(FCSResult, fcs_set_parameters, FCS handle, const char *parameters, fcs_int continue_on_errors);
+
 DECLARE_PROTOTYPE(FCSResult, fcs_tune, FCS handle, fcs_int local_particles, fcs_float *positions, fcs_float *charges);
 
 DECLARE_PROTOTYPE(FCSResult, fcs_run, FCS handle, fcs_int local_particles, fcs_float *positions, fcs_float *charges, fcs_float *field, fcs_float *potentials);
+
+DECLARE_PROTOTYPE(void, fcs_result_destroy, FCSResult result);
+DECLARE_PROTOTYPE(fcs_int, fcs_result_get_return_code, FCSResult result);
+DECLARE_PROTOTYPE(const char *, fcs_result_get_function, FCSResult result);
+DECLARE_PROTOTYPE(const char *, fcs_result_get_message, FCSResult result);
+DECLARE_PROTOTYPE(void, fcs_result_print_result, FCSResult result);
 
 
 #endif /* __FCS_H__ */

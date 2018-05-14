@@ -27,6 +27,8 @@
 
 #define LIBBLAS_SCDC_REMOTE  1
 
+#include "z_pack.h"
+#include "blas_scdc_config.h"
 #include "common.h"
 #include "blas.h"
 #include "blas_call.h"
@@ -78,7 +80,7 @@ static void do_dvin(blas_call_t *bc)
 
   double *DX = 0;
   int INCX = 0;
-  BLAS_CALL(get_input_param_vector_double)(bc, "DX", N, &DX, &INCX);
+  BLAS_CALL(get_input_param_vector_double)(bc, "DX", &DX, &N, &INCX);
 
   TRACE_F("%s: N: %d, DX: %p, INCX: %d", __func__, N, DX, INCX);
 
@@ -101,7 +103,7 @@ static void do_dvout(blas_call_t *bc)
 
   double *DX = 0;
   int INCX = 0;
-  BLAS_CALL(get_output_param_vector_double)(bc, "DX", N, &DX, &INCX);
+  BLAS_CALL(get_output_param_vector_double)(bc, "DX", &DX, &N, &INCX);
 
 #if HAVE_SCDC_DEBUG
   if (N > 0) memset(DX, 0, ((N - 1) * INCX + 1) * sizeof(double));
@@ -109,7 +111,7 @@ static void do_dvout(blas_call_t *bc)
 
   TRACE_F("%s: N: %d, DX: %p, INCX: %d", __func__, N, DX, INCX);
 
-  BLAS_CALL(put_output_param_vector_double)(bc, "DX", N, DX, INCX);
+  BLAS_CALL(put_output_param_vector_double)(bc, "DX", DX, N, INCX);
 
 /*  BLAS_TIMING_REMOTE_PUT(bc, libblas_scdc_timing_remote[0]);*/
 
@@ -130,7 +132,7 @@ static void do_dvinout(blas_call_t *bc)
 
   double *DX = 0;
   int INCX = 0;
-  BLAS_CALL(get_inout_param_vector_double)(bc, "DX", N, &DX, &INCX);
+  BLAS_CALL(get_inout_param_vector_double)(bc, "DX", &DX, &N, &INCX);
 
 #if HAVE_SCDC_DEBUG
   if (N > 0) memset(DX, 0, ((N - 1) * INCX + 1) * sizeof(double));
@@ -138,7 +140,7 @@ static void do_dvinout(blas_call_t *bc)
 
   TRACE_F("%s: N: %d, DX: %p, INCX: %d", __func__, N, DX, INCX);
 
-  BLAS_CALL(put_output_param_vector_double)(bc, "DX", N, DX, INCX);
+  BLAS_CALL(put_output_param_vector_double)(bc, "DX", DX, N, INCX);
 
 /*  BLAS_TIMING_REMOTE_PUT(bc, libblas_scdc_timing_remote[0]);*/
 
@@ -160,7 +162,7 @@ static void do_dgein(blas_call_t *bc)
 
   double *A = 0;
   int LDA = 0, rcma;
-  BLAS_CALL(get_input_param_matrix_double)(bc, "A", M, N, &A, &LDA, &rcma);
+  BLAS_CALL(get_input_param_matrix_double)(bc, "A", &A, &M, &N, &LDA, &rcma);
 
   ASSERT(rcma == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
 
@@ -186,7 +188,7 @@ static void do_dgeout(blas_call_t *bc)
 
   double *A = 0;
   int LDA = 0, rcma;
-  BLAS_CALL(get_output_param_matrix_double)(bc, "A", M, N, &A, &LDA, &rcma);
+  BLAS_CALL(get_output_param_matrix_double)(bc, "A", &A, &M, &N, &LDA, &rcma);
 
   ASSERT(rcma == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
 
@@ -196,7 +198,7 @@ static void do_dgeout(blas_call_t *bc)
 
   TRACE_F("%s: M: %d, N: %d, A: %p, LDA: %d", __func__, M, N, A, LDA);
 
-  BLAS_CALL(put_output_param_matrix_double)(bc, "A", M, N, A, LDA, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
+  BLAS_CALL(put_output_param_matrix_double)(bc, "A", A, M, N, LDA, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
 
 /*  BLAS_TIMING_REMOTE_PUT(bc, libblas_scdc_timing_remote[0]);*/
 
@@ -218,7 +220,7 @@ static void do_dgeinout(blas_call_t *bc)
 
   double *A = 0;
   int LDA = 0, rcma;
-  BLAS_CALL(get_inout_param_matrix_double)(bc, "A", M, N, &A, &LDA, &rcma);
+  BLAS_CALL(get_inout_param_matrix_double)(bc, "A", &A, &M, &N, &LDA, &rcma);
 
   ASSERT(rcma == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
 
@@ -228,7 +230,7 @@ static void do_dgeinout(blas_call_t *bc)
 
   TRACE_F("%s: M: %d, N: %d, A: %p, LDA: %d", __func__, M, N, A, LDA);
 
-  BLAS_CALL(put_output_param_matrix_double)(bc, "A", M, N, A, LDA, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
+  BLAS_CALL(put_output_param_matrix_double)(bc, "A", A, M, N, LDA, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
 
 /*  BLAS_TIMING_REMOTE_PUT(bc, libblas_scdc_timing_remote[0]);*/
 
@@ -256,7 +258,7 @@ static void do_idamax(blas_call_t *bc)
 
   double *DX = 0;
   int INCX = 0;
-  BLAS_CALL(get_input_param_vector_double)(bc, "DX", N, &DX, &INCX);
+  BLAS_CALL(get_input_param_vector_double)(bc, "DX", &DX, &N, &INCX);
 
   TRACE_F("%s: N: %d, DX: %p, INCX: %d", __func__, N, DX, INCX);
 
@@ -292,8 +294,8 @@ static void do_dcopy(blas_call_t *bc)
 
   double *DX = 0, *DY = 0;
   int INCX = 0, INCY = 0;
-  BLAS_CALL(get_input_param_vector_double)(bc, "DX", N, &DX, &INCX);
-  BLAS_CALL(get_output_param_vector_double)(bc, "DY", N, &DY, &INCY);
+  BLAS_CALL(get_input_param_vector_double)(bc, "DX", &DX, &N, &INCX);
+  BLAS_CALL(get_output_param_vector_double)(bc, "DY", &DY, &N, &INCY);
 
   TRACE_F("%s: N: %d, DX: %p, INCX: %d, DY: %p, INCY: %d", __func__, N, DX, INCX, DY, INCY);
 
@@ -304,7 +306,7 @@ static void do_dcopy(blas_call_t *bc)
 
   TRACE_F("%s: N: %d, DX: %p, INCX: %d, DY: %p, INCY: %d", __func__, N, DX, INCX, DY, INCY);
 
-  BLAS_CALL(put_output_param_vector_double)(bc, "DY", N, DY, INCY);
+  BLAS_CALL(put_output_param_vector_double)(bc, "DY", DY, N, INCY);
 
   BLAS_TIMING_REMOTE_PUT(bc, libblas_scdc_timing_remote[0]);
 
@@ -332,7 +334,7 @@ static void do_dscal(blas_call_t *bc)
 
   double *DX = 0;
   int INCX = 0;
-  BLAS_CALL(get_inout_param_vector_double)(bc, "DX", N, &DX, &INCX);
+  BLAS_CALL(get_inout_param_vector_double)(bc, "DX", &DX, &N, &INCX);
 
   TRACE_F("%s: N: %d, DA: %e, DX: %p, INCX: %d", __func__, N, DA, DX, INCX);
 
@@ -343,7 +345,7 @@ static void do_dscal(blas_call_t *bc)
 
   TRACE_F("%s: N: %d, DA: %e, DX: %p, INCX: %d", __func__, N, DA, DX, INCX);
 
-  BLAS_CALL(put_output_param_vector_double)(bc, "DX", N, DX, INCX);
+  BLAS_CALL(put_output_param_vector_double)(bc, "DX", DX, N, INCX);
 
   BLAS_TIMING_REMOTE_PUT(bc, libblas_scdc_timing_remote[0]);
 
@@ -371,8 +373,8 @@ static void do_daxpy(blas_call_t *bc)
 
   double *DX = 0, *DY = 0;
   int INCX = 0, INCY = 0;
-  BLAS_CALL(get_input_param_vector_double)(bc, "DX", N, &DX, &INCX);
-  BLAS_CALL(get_inout_param_vector_double)(bc, "DY", N, &DY, &INCY);
+  BLAS_CALL(get_input_param_vector_double)(bc, "DX", &DX, &N, &INCX);
+  BLAS_CALL(get_inout_param_vector_double)(bc, "DY", &DY, &N, &INCY);
 
   TRACE_F("%s: N: %d, DA: %e, DX: %p, INCX: %d, DY: %p, INCY: %d", __func__, N, DA, DX, INCX, DY, INCY);
 
@@ -383,7 +385,7 @@ static void do_daxpy(blas_call_t *bc)
 
   TRACE_F("%s: N: %d, DA: %e, DX: %p, INCX: %d, DY: %p, INCY: %d", __func__, N, DA, DX, INCX, DY, INCY);
 
-  BLAS_CALL(put_output_param_vector_double)(bc, "DY", N, DY, INCY);
+  BLAS_CALL(put_output_param_vector_double)(bc, "DY", DY, N, INCY);
 
   BLAS_TIMING_REMOTE_PUT(bc, libblas_scdc_timing_remote[0]);
 
@@ -417,12 +419,12 @@ static void do_dger(blas_call_t *bc)
 
   double *X = 0, *Y = 0;
   int INCX = 0, INCY = 0;
-  BLAS_CALL(get_input_param_vector_double)(bc, "X", M, &X, &INCX);
-  BLAS_CALL(get_input_param_vector_double)(bc, "Y", N, &Y, &INCY);
+  BLAS_CALL(get_input_param_vector_double)(bc, "X", &X, &M, &INCX);
+  BLAS_CALL(get_input_param_vector_double)(bc, "Y", &Y, &N, &INCY);
 
   double *A = 0;
   int LDA = 0, rcma;
-  BLAS_CALL(get_inout_param_matrix_double)(bc, "A", M, N, &A, &LDA, &rcma);
+  BLAS_CALL(get_inout_param_matrix_double)(bc, "A", &A, &M, &N, &LDA, &rcma);
 
   ASSERT(rcma == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
 
@@ -435,7 +437,7 @@ static void do_dger(blas_call_t *bc)
 
   TRACE_F("%s: M: %d, N: %d, ALPHA: %e, X: %p, INCX: %d, Y: %p, INCY: %d, A: %p, LDA: %d", __func__, M, N, ALPHA, X, INCX, Y, INCY, A, LDA);
 
-  BLAS_CALL(put_output_param_matrix_double)(bc, "A", M, N, A, LDA, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
+  BLAS_CALL(put_output_param_matrix_double)(bc, "A", A, M, N, LDA, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
 
   BLAS_TIMING_REMOTE_PUT(bc, libblas_scdc_timing_remote[0]);
 
@@ -467,20 +469,22 @@ static void do_dgemv(blas_call_t *bc)
 
   double *A = 0;
   int LDA = 0, rcma;
-  BLAS_CALL(get_input_param_matrix_double)(bc, "A", M, N, &A, &LDA, &rcma);
+  BLAS_CALL(get_input_param_matrix_double)(bc, "A", &A, &M, &N, &LDA, &rcma);
 
   ASSERT(rcma == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
 
   double *X = 0;
+  rdint_t NX = NETLIB_TRANS_GET_NCOLS(TRANS, M, N);
   int INCX = 0;
-  BLAS_CALL(get_input_param_vector_double)(bc, "X", NETLIB_TRANS_GET_NCOLS(TRANS, M, N), &X, &INCX);
+  BLAS_CALL(get_input_param_vector_double)(bc, "X", &X, &NX, &INCX);
 
   double BETA;
   BLAS_CALL(get_input_conf_double)(bc, "BETA", &BETA);
 
   double *Y = 0;
+  rdint_t NY = NETLIB_TRANS_GET_NROWS(TRANS, M, N);
   int INCY = 0;
-  BLAS_CALL(get_inout_param_vector_double)(bc, "Y", NETLIB_TRANS_GET_NROWS(TRANS, M, N), &Y, &INCY);
+  BLAS_CALL(get_inout_param_vector_double)(bc, "Y", &Y, &NY, &INCY);
 
   TRACE_F("%s: TRANS: %c, M: %d, N: %d, ALPHA: %e, A: %p, LDA: %d, X: %p, INCX: %d, BETA: %e, Y: %p, INCY: %d", __func__, TRANS, M, N, ALPHA, A, LDA, X, INCX, BETA, Y, INCY);
 
@@ -491,7 +495,7 @@ static void do_dgemv(blas_call_t *bc)
 
   TRACE_F("%s: TRANS: %c, M: %d, N: %d, ALPHA: %e, A: %p, LDA: %d, X: %p, INCX: %d, BETA: %e, Y: %p, INCY: %d", __func__, TRANS, M, N, ALPHA, A, LDA, X, INCX, BETA, Y, INCY);
 
-  BLAS_CALL(put_output_param_vector_double)(bc, "Y", NETLIB_TRANS_GET_NROWS(TRANS, M, N), Y, INCY);
+  BLAS_CALL(put_output_param_vector_double)(bc, "Y", Y, NETLIB_TRANS_GET_NROWS(TRANS, M, N), INCY);
 
   BLAS_TIMING_REMOTE_PUT(bc, libblas_scdc_timing_remote[0]);
 
@@ -521,13 +525,13 @@ static void do_dtrsv(blas_call_t *bc)
 
   double *A = 0;
   int LDA = 0, rcma;
-  BLAS_CALL(get_input_param_matrix_double)(bc, "A", N, N, &A, &LDA, &rcma);
+  BLAS_CALL(get_input_param_matrix_double)(bc, "A", &A, &N, &N, &LDA, &rcma);
 
   ASSERT(RCM_GET_ORDER(rcma) == RCM_ORDER_COL_MAJOR);
 
   double *X = 0;
   int INCX = 0;
-  BLAS_CALL(get_inout_param_vector_double)(bc, "X", N, &X, &INCX);
+  BLAS_CALL(get_inout_param_vector_double)(bc, "X", &X, &N, &INCX);
 
   TRACE_F("%s: UPLO: %c, TRANS: %c, DIAG: %c, N: %d, A: %p, LDA: %d, X: %p, INCX: %d", __func__, UPLO, TRANS, DIAG, N, A, LDA, X, INCX);
 
@@ -538,7 +542,7 @@ static void do_dtrsv(blas_call_t *bc)
 
   TRACE_F("%s: UPLO: %c, TRANS: %c, DIAG: %c, N: %d, A: %p, LDA: %d, X: %p, INCX: %d", __func__, UPLO, TRANS, DIAG, N, A, LDA, X, INCX);
 
-  BLAS_CALL(put_output_param_vector_double)(bc, "X", N, X, INCX);
+  BLAS_CALL(put_output_param_vector_double)(bc, "X", X, N, INCX);
 
   BLAS_TIMING_REMOTE_PUT(bc, libblas_scdc_timing_remote[0]);
 
@@ -576,9 +580,13 @@ static void do_dgemm(blas_call_t *bc)
   BLAS_CALL(get_input_conf_double)(bc, "ALPHA", &ALPHA);
 
   double *A = 0, *B = 0;
+  rdint_t NRA = NETLIB_TRANS_GET_NROWS(TRANSA, M, K);
+  rdint_t NCA = NETLIB_TRANS_GET_NCOLS(TRANSA, M, K);
+  rdint_t NRB = NETLIB_TRANS_GET_NROWS(TRANSB, K, N);
+  rdint_t NCB = NETLIB_TRANS_GET_NCOLS(TRANSB, K, N);
   int LDA = 0, rcma, LDB = 0, rcmb;
-  BLAS_CALL(get_input_param_matrix_double)(bc, "A", NETLIB_TRANS_GET_NROWS(TRANSA, M, K), NETLIB_TRANS_GET_NCOLS(TRANSA, M, K), &A, &LDA, &rcma);
-  BLAS_CALL(get_input_param_matrix_double)(bc, "B", NETLIB_TRANS_GET_NROWS(TRANSB, K, N), NETLIB_TRANS_GET_NCOLS(TRANSB, K, N), &B, &LDB, &rcmb);
+  BLAS_CALL(get_input_param_matrix_double)(bc, "A", &A, &NRA, &NCA, &LDA, &rcma);
+  BLAS_CALL(get_input_param_matrix_double)(bc, "B", &B, &NRB, &NCB, &LDB, &rcmb);
 
   ASSERT(rcma == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
   ASSERT(rcmb == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
@@ -588,7 +596,7 @@ static void do_dgemm(blas_call_t *bc)
 
   double *C = 0;
   int LDC = 0, rcmc;
-  BLAS_CALL(get_inout_param_matrix_double)(bc, "C", M, N, &C, &LDC, &rcmc);
+  BLAS_CALL(get_inout_param_matrix_double)(bc, "C", &C, &M, &N, &LDC, &rcmc);
 
   ASSERT(rcmc == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
 
@@ -601,7 +609,7 @@ static void do_dgemm(blas_call_t *bc)
 
   TRACE_F("%s: TRANSA: %c, TRANSB: %c, M: %d, N: %d, K: %d, ALPHA: %e, A: %p, LDA: %d, B: %p, LDB: %d, BETA: %e, C: %p, LDC: %d", __func__, TRANSA, TRANSB, M, N, K, ALPHA, A, LDA, B, LDB, BETA, C, LDC);
 
-  BLAS_CALL(put_output_param_matrix_double)(bc, "C", M, N, C, LDC, rcmc);
+  BLAS_CALL(put_output_param_matrix_double)(bc, "C", C, M, N, LDC, rcmc);
 
   BLAS_TIMING_REMOTE_PUT(bc, libblas_scdc_timing_remote[0]);
 
@@ -631,15 +639,14 @@ static void do_dtrsm(blas_call_t *bc)
   BLAS_CALL(get_input_conf_int)(bc, "M", &M);
   BLAS_CALL(get_input_conf_int)(bc, "N", &N);
 
-  const int k = NETLIB_SIDE_IS_LEFT(SIDE)?M:N;
-
   double ALPHA;
   BLAS_CALL(get_input_conf_double)(bc, "ALPHA", &ALPHA);
 
   double *A = 0, *B = 0;
+  rdint_t K = NETLIB_SIDE_IS_LEFT(SIDE)?M:N;
   int LDA = 0, rcma, LDB = 0, rcmb;
-  BLAS_CALL(get_input_param_matrix_double)(bc, "A", k, k, &A, &LDA, &rcma);
-  BLAS_CALL(get_inout_param_matrix_double)(bc, "B", M, N, &B, &LDB, &rcmb);
+  BLAS_CALL(get_input_param_matrix_double)(bc, "A", &A, &K, &K, &LDA, &rcma);
+  BLAS_CALL(get_inout_param_matrix_double)(bc, "B", &B, &M, &N, &LDB, &rcmb);
 
   ASSERT(RCM_GET_ORDER(rcma) == RCM_ORDER_COL_MAJOR);
   ASSERT(rcmb == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
@@ -653,7 +660,7 @@ static void do_dtrsm(blas_call_t *bc)
 
   TRACE_F("%s: SIDE: %c, UPLO: %c, TRANSA: %c, DIAG: %c, M: %d, N: %d, ALPHA: %e, A: %p, LDA: %d, B: %p, LDB: %d", __func__, SIDE, UPLO, TRANSA, DIAG, M, N, ALPHA, A, LDA, B, LDB);
 
-  BLAS_CALL(put_output_param_matrix_double)(bc, "B", M, N, B, LDB, rcmb);
+  BLAS_CALL(put_output_param_matrix_double)(bc, "B", B, M, N, LDB, rcmb);
 
   BLAS_TIMING_REMOTE_PUT(bc, libblas_scdc_timing_remote[0]);
 

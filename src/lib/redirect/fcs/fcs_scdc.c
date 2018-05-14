@@ -29,6 +29,7 @@
 
 #define LIBFCS_SCDC_REMOTE  1
 
+#include "fcs_scdc_config.h"
 #include "common.h"
 #include "fcs.h"
 #include "fcs_redirect.h"
@@ -76,10 +77,10 @@ static void do_fcs_init(fcs_call_t *fc)
 
   FCS_CALL(get_handle)(fc, &fh);
 
-  char method_name[256], *method_name_ptr = method_name; /* need separate pointer to get pointer to pointer */
-  FCS_CALL(get_input_conf_char_p)(fc, "method_name", &method_name_ptr);
+  char method_name[256];
+  FCS_CALL(get_input_conf_str)(fc, "method_name", method_name, NULL);
 
-  TRACE_F("%s: method_name: %s", __func__, method_name);
+  TRACE_F("%s: method_name: '%s'", __func__, method_name);
 
   FCS fcs;
 
@@ -93,6 +94,16 @@ static void do_fcs_init(fcs_call_t *fc)
   FCS_HANDLE(set_ptr)(&fh, fcs);
 
   FCS_CALL(set_handle)(fc, &fh);
+
+  fcs_int return_code = fcs_result_get_return_code(result);
+  FCS_CALL_INT(put_output_conf)(fc, "return_code", return_code);
+  if (return_code != FCS_SUCCESS)
+  {
+    const char *message = fcs_result_get_message(result);
+    FCS_CALL(set_result)(fc, message);
+
+    TRACE_F("%s: return_code: %" FCS_LMOD_INT "d, message: '%s'", __func__, return_code, message);
+  }
 
   FCS_TIMING_REMOTE_PUT(fc, libfcs_scdc_timing_remote[0]);
 
@@ -127,6 +138,16 @@ static void do_fcs_destroy(fcs_call_t *fc)
 
   FCS_CALL(set_handle)(fc, &fh);
 
+  fcs_int return_code = fcs_result_get_return_code(result);
+  FCS_CALL_INT(put_output_conf)(fc, "return_code", return_code);
+  if (return_code != FCS_SUCCESS)
+  {
+    const char *message = fcs_result_get_message(result);
+    FCS_CALL(set_result)(fc, message);
+
+    TRACE_F("%s: return_code: %" FCS_LMOD_INT "d, message: '%s'", __func__, return_code, message);
+  }
+
   FCS_TIMING_REMOTE_PUT(fc, libfcs_scdc_timing_remote[0]);
 
   FCS_TIMING_PRINT_F("%s: %f", __func__, libfcs_scdc_timing_remote[0]);
@@ -153,9 +174,12 @@ static void do_fcs_set_common(fcs_call_t *fc)
     fcs_float box_a[3], box_b[3], box_c[3], box_origin[3];
     fcs_int periodicity[3], total_particles;
 
-  } params, *params_ptr = &params;
+  } *params = NULL;
+  rdint_t n_params = 0;
 
-  FCS_CALL(get_input_param_vector_char)(fc, "params", sizeof(params), (char **) &params_ptr);
+  FCS_CALL(get_input_param_bytes)(fc, "params", (void **) &params, &n_params);
+
+  ASSERT(n_params == sizeof(*params));
 
   TRACE_F("%s: handle: %p, near_field_flag: %" FCS_LMOD_INT "d, "
     "box_a: %" FCS_LMOD_FLOAT "f|%" FCS_LMOD_FLOAT "f|%" FCS_LMOD_FLOAT "f, "
@@ -163,20 +187,20 @@ static void do_fcs_set_common(fcs_call_t *fc)
     "box_c: %" FCS_LMOD_FLOAT "f|%" FCS_LMOD_FLOAT "f|%" FCS_LMOD_FLOAT "f, "
     "box_origin: %" FCS_LMOD_FLOAT "f|%" FCS_LMOD_FLOAT "f|%" FCS_LMOD_FLOAT "f, "
     "periodicity: %" FCS_LMOD_INT "d|%" FCS_LMOD_INT "d|%" FCS_LMOD_INT "d, total_particles: %" FCS_LMOD_INT "d",
-    __func__, handle, params.near_field_flag,
-    params.box_a[0], params.box_a[1], params.box_a[2],
-    params.box_b[0], params.box_b[1], params.box_b[2],
-    params.box_c[0], params.box_c[1], params.box_c[2],
-    params.box_origin[0], params.box_origin[1], params.box_origin[2],
-    params.periodicity[0], params.periodicity[1], params.periodicity[2], params.total_particles
+    __func__, handle, params->near_field_flag,
+    params->box_a[0], params->box_a[1], params->box_a[2],
+    params->box_b[0], params->box_b[1], params->box_b[2],
+    params->box_c[0], params->box_c[1], params->box_c[2],
+    params->box_origin[0], params->box_origin[1], params->box_origin[2],
+    params->periodicity[0], params->periodicity[1], params->periodicity[2], params->total_particles
   );
 
   FCS_ORIG_F_INIT(fcs_set_common);
   FCS_TIMING_START(libfcs_scdc_timing_remote[0]);
   FCSResult result = FCS_ORIG_F(MANGLE_FCS(fcs_set_common))(handle,
-    params.near_field_flag,
-    params.box_a, params.box_b, params.box_c, params.box_origin,
-    params.periodicity, params.total_particles);
+    params->near_field_flag,
+    params->box_a, params->box_b, params->box_c, params->box_origin,
+    params->periodicity, params->total_particles);
   FCS_TIMING_STOP(libfcs_scdc_timing_remote[0]);
 
   TRACE_F("%s: result: %p", __func__, result);
@@ -184,6 +208,184 @@ static void do_fcs_set_common(fcs_call_t *fc)
   FCS_HANDLE(set_ptr)(&fh, handle);
 
   FCS_CALL(set_handle)(fc, &fh);
+
+  fcs_int return_code = fcs_result_get_return_code(result);
+  FCS_CALL_INT(put_output_conf)(fc, "return_code", return_code);
+  if (return_code != FCS_SUCCESS)
+  {
+    const char *message = fcs_result_get_message(result);
+    FCS_CALL(set_result)(fc, message);
+
+    TRACE_F("%s: return_code: %" FCS_LMOD_INT "d, message: '%s'", __func__, return_code, message);
+  }
+
+  FCS_TIMING_REMOTE_PUT(fc, libfcs_scdc_timing_remote[0]);
+
+  FCS_TIMING_PRINT_F("%s: %f", __func__, libfcs_scdc_timing_remote[0]);
+
+  TRACE_F("%s: return", __func__);
+}
+
+
+static void do_fcs_set_parameters(fcs_call_t *fc)
+{
+  TRACE_F("%s: %p", __func__, fc);
+
+  FCS_TIMING_INIT_();
+
+  fcs_handle_t fh;
+
+  FCS_CALL(get_handle)(fc, &fh);
+
+  FCS handle;
+  FCS_HANDLE(get_ptr)(&fh, &handle);
+
+  char parameters[256] = { '\0' };
+  FCS_CALL(get_input_conf_str)(fc, "parameters", parameters, NULL);
+
+  int continue_on_errors;
+  FCS_CALL_INT(get_input_conf)(fc, "continue_on_errors", &continue_on_errors);
+
+  TRACE_F("%s: handle: %p, parameters: '%s', continue_on_errors: %" FCS_LMOD_INT "d", __func__, handle, parameters, continue_on_errors);
+
+  FCS_ORIG_F_INIT(fcs_set_common);
+  FCS_TIMING_START(libfcs_scdc_timing_remote[0]);
+  FCSResult result = FCS_ORIG_F(MANGLE_FCS(fcs_set_parameters))(handle, parameters, continue_on_errors);
+  FCS_TIMING_STOP(libfcs_scdc_timing_remote[0]);
+
+  TRACE_F("%s: result: %p", __func__, result);
+
+  FCS_HANDLE(set_ptr)(&fh, handle);
+
+  FCS_CALL(set_handle)(fc, &fh);
+
+  fcs_int return_code = fcs_result_get_return_code(result);
+  FCS_CALL_INT(put_output_conf)(fc, "return_code", return_code);
+  if (return_code != FCS_SUCCESS)
+  {
+    const char *message = fcs_result_get_message(result);
+    FCS_CALL(set_result)(fc, message);
+
+    TRACE_F("%s: return_code: %" FCS_LMOD_INT "d, message: '%s'", __func__, return_code, message);
+  }
+
+  FCS_TIMING_REMOTE_PUT(fc, libfcs_scdc_timing_remote[0]);
+
+  FCS_TIMING_PRINT_F("%s: %f", __func__, libfcs_scdc_timing_remote[0]);
+
+  TRACE_F("%s: return", __func__);
+}
+
+
+static void do_fcs_tune(fcs_call_t *fc)
+{
+  TRACE_F("%s: %p", __func__, fc);
+
+  FCS_TIMING_INIT_();
+
+  fcs_handle_t fh;
+
+  FCS_CALL(get_handle)(fc, &fh);
+
+  FCS handle;
+  FCS_HANDLE(get_ptr)(&fh, &handle);
+
+  fcs_int local_particles;
+  FCS_CALL(get_input_conf_int)(fc, "local_particles", &local_particles);
+
+  fcs_float *positions = 0, *charges = 0;
+  rdint_t n_positions = 0, n_charges = 0;
+  FCS_CALL_FLOAT(get_input_param_array)(fc, "positions", &positions, &n_positions);
+  FCS_CALL_FLOAT(get_input_param_array)(fc, "charges", &charges, &n_charges);
+
+  ASSERT(n_positions == 3 * local_particles && n_charges == local_particles);
+
+  TRACE_F("%s: handle: %p, local_particles: %" FCS_LMOD_INT "d, positions: %p, charges: %p", __func__, handle, local_particles, positions, charges);
+
+  FCS_ORIG_F_INIT(fcs_set_common);
+  FCS_TIMING_START(libfcs_scdc_timing_remote[0]);
+  FCSResult result = FCS_ORIG_F(MANGLE_FCS(fcs_tune))(handle, local_particles, positions, charges);
+  FCS_TIMING_STOP(libfcs_scdc_timing_remote[0]);
+
+  TRACE_F("%s: result: %p", __func__, result);
+
+  FCS_HANDLE(set_ptr)(&fh, handle);
+
+  FCS_CALL(set_handle)(fc, &fh);
+
+  fcs_int return_code = fcs_result_get_return_code(result);
+  FCS_CALL_INT(put_output_conf)(fc, "return_code", return_code);
+  if (return_code != FCS_SUCCESS)
+  {
+    const char *message = fcs_result_get_message(result);
+    FCS_CALL(set_result)(fc, message);
+
+    TRACE_F("%s: return_code: %" FCS_LMOD_INT "d, message: '%s'", __func__, return_code, message);
+  }
+
+  FCS_TIMING_REMOTE_PUT(fc, libfcs_scdc_timing_remote[0]);
+
+  FCS_TIMING_PRINT_F("%s: %f", __func__, libfcs_scdc_timing_remote[0]);
+
+  TRACE_F("%s: return", __func__);
+}
+
+
+static void do_fcs_run(fcs_call_t *fc)
+{
+  TRACE_F("%s: %p", __func__, fc);
+
+  FCS_TIMING_INIT_();
+
+  fcs_handle_t fh;
+
+  FCS_CALL(get_handle)(fc, &fh);
+
+  FCS handle;
+  FCS_HANDLE(get_ptr)(&fh, &handle);
+
+  fcs_int local_particles;
+  FCS_CALL(get_input_conf_int)(fc, "local_particles", &local_particles);
+
+  fcs_float *positions = 0, *charges = 0;
+  rdint_t n_positions = 0, n_charges = 0;
+  FCS_CALL_FLOAT(get_input_param_array)(fc, "positions", &positions, &n_positions);
+  FCS_CALL_FLOAT(get_input_param_array)(fc, "charges", &charges, &n_charges);
+
+  ASSERT(n_positions == 3 * local_particles && n_charges == local_particles);
+
+  fcs_float *field = 0, *potentials = 0;
+  rdint_t n_field = 0, n_potentials = 0;
+  FCS_CALL_FLOAT(get_output_param_array)(fc, "field", &field, &n_field);
+  FCS_CALL_FLOAT(get_output_param_array)(fc, "potentials", &potentials, &n_potentials);
+
+  ASSERT(n_field == 3 * local_particles && n_potentials == local_particles);
+
+  TRACE_F("%s: handle: %p, local_particles: %" FCS_LMOD_INT "d, positions: %p, charges: %p, field: %p, potentials: %p", __func__, handle, local_particles, positions, charges, field, potentials);
+
+  FCS_ORIG_F_INIT(fcs_set_common);
+  FCS_TIMING_START(libfcs_scdc_timing_remote[0]);
+  FCSResult result = FCS_ORIG_F(MANGLE_FCS(fcs_run))(handle, local_particles, positions, charges, field, potentials);
+  FCS_TIMING_STOP(libfcs_scdc_timing_remote[0]);
+
+  TRACE_F("%s: result: %p", __func__, result);
+
+  FCS_CALL_FLOAT(put_output_param_array)(fc, "field", field, 3 * local_particles);
+  FCS_CALL_FLOAT(put_output_param_array)(fc, "potentials", potentials, local_particles);
+
+  FCS_HANDLE(set_ptr)(&fh, handle);
+
+  FCS_CALL(set_handle)(fc, &fh);
+
+  fcs_int return_code = fcs_result_get_return_code(result);
+  FCS_CALL_INT(put_output_conf)(fc, "return_code", return_code);
+  if (return_code != FCS_SUCCESS)
+  {
+    const char *message = fcs_result_get_message(result);
+    FCS_CALL(set_result)(fc, message);
+
+    TRACE_F("%s: return_code: %" FCS_LMOD_INT "d, message: '%s'", __func__, return_code, message);
+  }
 
   FCS_TIMING_REMOTE_PUT(fc, libfcs_scdc_timing_remote[0]);
 
@@ -265,6 +467,9 @@ scdcint_t fcs_scdc_dataset_cmd(void *dataprov, void *dataset, const char *cmd, c
   if (strcmp(cmd, "fcs_init") == 0) do_fcs_init(fc); else
   if (strcmp(cmd, "fcs_destroy") == 0) do_fcs_destroy(fc); else
   if (strcmp(cmd, "fcs_set_common") == 0) do_fcs_set_common(fc); else
+  if (strcmp(cmd, "fcs_set_parameters") == 0) do_fcs_set_parameters(fc); else
+  if (strcmp(cmd, "fcs_tune") == 0) do_fcs_tune(fc); else
+  if (strcmp(cmd, "fcs_run") == 0) do_fcs_run(fc); else
   {
     TRACE_F("%s: command '%s' not supported!", __func__, cmd);
   }

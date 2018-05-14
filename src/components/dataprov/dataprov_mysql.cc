@@ -24,6 +24,8 @@
 
 #include <mysql/mysql.h>
 
+#define SCDC_TRACE_NOT  !SCDC_TRACE_DATAPROV_MYSQL
+
 #include "config.hh"
 #include "common.hh"
 #include "log.hh"

@@ -36,5 +36,27 @@ typedef redirect_call_t fcs_call_t;
 
 #define FCS_CALL(_x_)  Z_CONCAT(redirect_call_, _x_)
 
+#if FCS_INT_IS_SHORT
+# define FCS_CALL_INT(_x_)  Z_CONCONCAT(redirect_call_, _x_, _short)
+#elif FCS_INT_IS_INT
+# define FCS_CALL_INT(_x_)  Z_CONCONCAT(redirect_call_, _x_, _int)
+#elif FCS_INT_IS_LONG
+# define FCS_CALL_INT(_x_)  Z_CONCONCAT(redirect_call_, _x_, _long)
+#elif FCS_INT_IS_LONG_LONG
+# define FCS_CALL_INT(_x_)  Z_CONCONCAT(redirect_call_, _x_, _long_long)
+#else
+# error unknown type of fcs_int
+#endif
+
+#if FCS_FLOAT_IS_FLOAT
+# define FCS_CALL_FLOAT(_x_)  Z_CONCONCAT(redirect_call_, _x_, _float)
+#elif FCS_FLOAT_IS_DOUBLE
+# define FCS_CALL_FLOAT(_x_)  Z_CONCONCAT(redirect_call_, _x_, _double)
+#elif FCS_FLOAT_IS_LONG_DOUBLE
+# define FCS_CALL_FLOAT(_x_)  Z_CONCONCAT(redirect_call_, _x_, _long_double)
+#else
+# error unknown type of fcs_float
+#endif
+
 
 #endif /* __FCS_CALL_H__ */

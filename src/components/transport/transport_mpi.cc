@@ -22,6 +22,8 @@
 #include <exception>
 #include <unistd.h>
 
+#define SCDC_TRACE_NOT  !SCDC_TRACE_TRANSPORT_MPI
+
 #include "config.hh"
 #include "log.hh"
 #include "transport_mpi.hh"

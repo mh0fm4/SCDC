@@ -47,77 +47,139 @@ OFILES_LIB:=$(addsuffix .o,$(basename $(CFILES_LIB) $(CXXFILES_LIB)))
 OFILES_EXEC:=$(addsuffix .o,$(basename $(CFILES_EXEC) $(CXXFILES_EXEC)))
 OFILES_EXEC_COMMON:=$(foreach f,$(basename $(CFILES_EXEC) $(CXXFILES_EXEC)),$(filter $(f)_%.o,$(OFILES_EXEC)))
 
+$(NAME)_DEPENDS:=
+$(NAME)_CPPFLAGS:=
+$(NAME)_CFLAGS:=
+$(NAME)_CXXFLAGS:=
 $(NAME)_LDFLAGS:=
 $(NAME)_LIBS:=
 
-REDIRECT_DEPENDS:=../redirect/redirect_call.h ../redirect/libredirect_scdc.a
-REDIRECT_CPPFLAGS:=-I../redirect
-REDIRECT_LDFLAGS:=-L../redirect
-REDIRECT_LIBS:=-lredirect_scdc
+MAKEFILE_IN:=Makefile.in
+DEPS:=Makefile $(MAKEFILE_IN)
+#$(info MAKEFILE_IN: $(MAKEFILE_IN))
+#$(info DEPS: $(DEPS))
 
--include Makefile.in
+-include $(MAKEFILE_IN)
 
-DEPS+=Makefile Makefile.in $(REDIRECT_DEPENDS)
+#DEPS+=
 #CPPFLAGS+=-DLIB$(NAME)_SCDC_PREFIX=1
-CPPFLAGS+=$(REDIRECT_CPPFLAGS)
-CFLAGS+=-fPIC #-std=c99
+CFLAGS+=-fPIC
 #CFLAGS+=-Wpedantic
-LDFLAGS+=
+#LDFLAGS+=
 
-$(NAME)_SCDC_DEPENDS:=$(LIB) $(LIBSO)
-$(NAME)_SCDC_CPPFLAGS:=
-$(NAME)_SCDC_LDFLAGS:=$(REDIRECT_LDFLAGS) $($(NAME)_LDFLAGS)
-$(NAME)_SCDC_LIBS:=-ldl $(REDIRECT_LIBS) $($(NAME)_LIBS)
-$(NAME)_SCDC_A_LIBS:=lib$(name)_scdc.a $($(NAME)_SCDC_LIBS)
-$(NAME)_SCDC_SO_LIBS:=./lib$(name)_scdc.so -ldl
+$(NAME)_SCDC_DEPENDS:=$($(NAME)_DEPENDS)
+$(NAME)_SCDC_CPPFLAGS:=$($(NAME)_CPPFLAGS)
+$(NAME)_SCDC_CFLAGS:=$($(NAME)_CFLAGS)
+$(NAME)_SCDC_CXXFLAGS:=$($(NAME)_CXXFLAGS)
+$(NAME)_SCDC_LDFLAGS:=$($(NAME)_LDFLAGS)
+$(NAME)_SCDC_LIBS:=$($(NAME)_LIBS)
+$(NAME)_SCDC_A_LIBS:=
+$(NAME)_SCDC_SO_LIBS:=
 
-LIBS+=-lm
+ifneq ($(USE_REDIRECT),)
+ $(NAME)_SCDC_DEPENDS+=$(REDIRECT_DEPENDS)
+ $(NAME)_SCDC_CPPFLAGS+=$(REDIRECT_CPPFLAGS)
+ $(NAME)_SCDC_LDFLAGS+=$(REDIRECT_LDFLAGS)
+ $(NAME)_SCDC_LIBS+=$(REDIRECT_LIBS)
+endif
+
+$(NAME)_SCDC_DEPENDS+=$(LIBSCDC_DEPENDS)
+$(NAME)_SCDC_CPPFLAGS+=$(LIBSCDC_CPPFLAGS)
+$(NAME)_SCDC_LDFLAGS+=$(LIBSCDC_LDFLAGS)
+$(NAME)_SCDC_LIBS+=-ldl $(LIBSCDC_LIBS)
+$(NAME)_SCDC_A_DEPENDS+=$(LIB) $($(NAME)_SCDC_DEPENDS)
+$(NAME)_SCDC_A_LIBS+=$(LIB) $($(NAME)_SCDC_LIBS)
+$(NAME)_SCDC_SO_DEPENDS+=$(LIBSO) $($(NAME)_SCDC_DEPENDS)
+$(NAME)_SCDC_SO_LIBS+=./$(LIBSO)
 
 CC_:=$(CC)
 CXX_:=$(CXX)
 LD_:=$(LD)
 LDCXX_:=$(LDCXX)
+CPPFLAGS_:=$(CPPFLAGS)
 CFLAGS_:=$(CFLAGS)
 CXXFLAGS_:=$(CXXFLAGS)
 LDFLAGS_:=$(LDFLAGS)
 LDCXXFLAGS_:=$(LDCXXFLAGS)
+LIBS_:=$(LIBS)
+MPI_CC_:=$(MPICC)
+MPI_CXX_:=$(MPICXX)
+MPI_LD_:=$(MPILD)
+MPI_LDCXX_:=$(MPILDCXX)
+MPI_CPPFLAGS_:=$(CPPFLAGS) $(MPICPPFLAGS)
+MPI_CFLAGS_:=$(CFLAGS) $(MPICFLAGS)
+MPI_CXXFLAGS_:=$(CXXFLAGS) $(MPICXXFLAGS)
+MPI_LDFLAGS_:=$(LDFLAGS) $(MPILDFLAGS)
+MPI_LDCXXFLAGS_:=$(LDCXXFLAGS) $(MPILDCXXFLAGS)
+MPI_LIBS_:=$(LIBS) $(MPILIBS)
 ifneq ($(USE_MPI),)
- CC_:=$(MPICC)
- CXX_:=$(MPICXX)
- LD_:=$(MPILD)
- LDCXX_:=$(MPILDCXX)
- CFLAGS_+=$(MPICFLAGS)
- CXXFLAGS_+=$(MPICXXFLAGS)
- LDFLAGS_+=$(MPILDFLAGS)
- LDCXXFLAGS_+=$(MPILDCXXFLAGS)
+ CC_:=$(MPI_CC_)
+ CXX_:=$(MPI_CXX_)
+ LD_:=$(MPI_LD_)
+ LDCXX_:=$(MPI_LDCXX_)
+ CPPFLAGS_:=$(MPI_CPPFLAGS_)
+ CFLAGS_:=$(MPI_CFLAGS_)
+ CXXFLAGS_:=$(MPI_CXXFLAGS_)
+ LDFLAGS_:=$(MPI_LDFLAGS_)
+ LDCXXFLAGS_:=$(MPI_LDCXXFLAGS_)
+ LIBS_:=$(MPI_LIBS_)
 endif
+
+file_USE_MPI = $(if $($(1)_USE_MPI)$(USE_MPI),yes,)
+
+file_CC         = $(or $($@_CC)   ,$(if $(call file_USE_MPI,$(1)),$(MPI_CC_),$(CC_)))
+file_CXX        = $(or $($@_CXX)  ,$(if $(call file_USE_MPI,$(1)),$(MPI_CXX_),$(CXX_)))
+file_LD         = $(or $($@_LD)   ,$(if $(call file_USE_MPI,$(1)),$(MPI_LD_),$(LD_)))
+file_LDCXX      = $(or $($@_LDCXX),$(if $(call file_USE_MPI,$(1)),$(MPI_LDCXX_),$(LDCXX_)))
+file_CPPFLAGS   = $(if $(call file_USE_MPI,$(1)),$(MPI_CPPFLAGS_),$(CPPFLAGS_)) $($@_CPPFLAGS)
+file_CFLAGS     = $(if $(call file_USE_MPI,$(1)),$(MPI_CFLAGS_),$(CFLAGS_)) $($@_CFLAGS)
+file_CXXFLAGS   = $(if $(call file_USE_MPI,$(1)),$(MPI_CXXFLAGS_),$(CXXFLAGS_)) $($@_CXXFLAGS)
+file_LDFLAGS    = $(if $(call file_USE_MPI,$(1)),$(MPI_LDFLAGS_),$(LDFLAGS_)) $($@_LDFLAGS)
+file_LDCXXFLAGS = $(if $(call file_USE_MPI,$(1)),$(MPI_LDCXXFLAGS_),$(LDCXXFLAGS_)) $($@_LDCXXFLAGS)
+file_LIBS       = $($@_LIBS) $(if $(call file_USE_MPI,$(1)),$(MPI_LIBS_),$(LIBS_))
+
+# define compile
+# @echo "compiling '$<' to '$@'"
+# endef
+# 
+# define compile_link
+# @echo "compiling '$<' to '$@'"
+# endef
+# 
+# test.o_USE_MPI:=yes
+# 
+# test.o: test.c $(DEPS)
+# 	$(compile)
+# 
+# test.x: test.c $(DEPS)
+# 	$(compile_link)
 
 
 all: $(LIB) $(LIBSO) $(EXEC)
 
-%.o: %.c $(HFILES) $(DEPS)
-	$(CC_) $(CPPFLAGS) $($@_CPPFLAGS) $(CFLAGS_) -c -o $@ $<
+%.o: %.c $(HFILES) $($(NAME)_SCDC_DEPENDS) $(DEPS)
+	$(call file_CC,$@) $(strip $(call file_CPPFLAGS,$@) $($(NAME)_SCDC_CPPFLAGS) $(call file_CFLAGS,$@) $($(NAME)_SCDC_CFLAGS) -c -o $@ $<)
 
-%.o: %.cc $(HFILES) $(HXXFILES) $(DEPS)
-	$(CXX_) $(CPPFLAGS) $($@_CPPFLAGS) $(CXXFLAGS_) -c -o $@ $<
+%.o: %.cc $(HFILES) $(HXXFILES) $($(NAME)_SCDC_DEPENDS) $(DEPS)
+	$(call file_CXX,$@) $(strip $(call file_CPPFLAGS,$@) $($(NAME)_SCDC_CPPFLAGS) $(call file_CXXFLAGS,$@) $($(NAME)_SCDC_CXXFLAGS) -c -o $@ $<)
 
 $(LIB): $(OFILES_LIB)
 	$(AR) r $@ $(OFILES_LIB)
 
-$(LIBSO): $(OFILES_LIB)
-	$(LD_) $(LDFLAGS_) $($(NAME)_SCDC_LDFLAGS) -shared -o $@ $(OFILES_LIB) $($(NAME)_SCDC_LIBS) $(LIBS)
+$(LIBSO): $(OFILES_LIB) $($(NAME)_SCDC_DEPENDS) $(DEPS)
+	$(call file_LD,$@) $(strip $(call file_LDFLAGS,$@) $($(NAME)_SCDC_LDFLAGS) -shared -o $@ $(OFILES_LIB) $($(NAME)_SCDC_LIBS) $(call file_LIBS,$@))
 
-lib$(name)_scdc_srv: lib$(name)_scdc_srv.c $(CFILES_EXEC) $(DEPS) $($(NAME)_SCDC_DEPENDS)
-	$(CC_) $(CPPFLAGS) $(CFLAGS_) $(LDFLAGS_) $($(NAME)_SCDC_LDFLAGS) -o $@ $< $($(NAME)_SCDC_A_LIBS) $(LIBS)
+lib$(name)_scdc_srv: lib$(name)_scdc_srv.c $(CFILES_EXEC) $($(NAME)_SCDC_A_DEPENDS) $(DEPS)
+	$(call file_CC,$@) $(strip $(call file_CPPFLAGS,$@) $($(NAME)_SCDC_CPPFLAGS) $(call file_CFLAGS,$@) $($(NAME)_SCDC_CFLAGS) $(call file_LDFLAGS,$@) $($(NAME)_SCDC_LDFLAGS) -o $@ $< $($(NAME)_SCDC_A_LIBS) $(call file_LIBS,$@))
 
 %_native: %.c $(OFILES_EXEC_COMMON) $(DEPS)
-	$(CC_) $(CPPFLAGS) -DLIB$(NAME)_SCDC=0 $($@_CPPFLAGS) $(CFLAGS_) $(LDFLAGS_) $($(NAME)_LDFLAGS) -o $@ $< $(OFILES_EXEC_COMMON) $($(NAME)_LIBS) $(LIBS)
+	$(call file_CC,$@) $(strip $(call file_CPPFLAGS,$@) -DLIB$(NAME)_SCDC=0 $($(NAME)_CPPFLAGS) $(LIBSCDC_CPPFLAGS) $(call file_CFLAGS,$@) $($(NAME)_CFLAGS) $(call file_LDFLAGS,$@) $($(NAME)_LDFLAGS) -o $@ $< $(OFILES_EXEC_COMMON) $($(NAME)_LIBS) $(call file_LIBS,$@))
 
-%_scdc: %.c $(OFILES_EXEC_COMMON) $($(NAME)_SCDC_DEPENDS) $(DEPS)
-	$(CC_) $(CPPFLAGS) -DLIB$(NAME)_SCDC=1 $($@_CPPFLAGS) $(CFLAGS_) $(LDFLAGS_) $($(NAME)_SCDC_LDFLAGS) -o $@ $< $(OFILES_EXEC_COMMON) $($(NAME)_SCDC_A_LIBS) $(LIBS)
+%_scdc: %.c $(OFILES_EXEC_COMMON) $($(NAME)_SCDC_A_DEPENDS) $(DEPS)
+	$(call file_CC,$@) $(strip $(call file_CPPFLAGS,$@) -DLIB$(NAME)_SCDC=1 $($(NAME)_SCDC_CPPFLAGS) $(call file_CFLAGS,$@) $($(NAME)_SCDC_CFLAGS) $(call file_LDFLAGS,$@) $($(NAME)_SCDC_LDFLAGS) -o $@ $< $(OFILES_EXEC_COMMON) $($(NAME)_SCDC_A_LIBS) $(call file_LIBS,$@))
 
-%_scdc_linked: %.c $(OFILES_EXEC_COMMON) $($(NAME)_SCDC_DEPENDS) $(DEPS)
-	$(CC_) $(CPPFLAGS) -DLIB$(NAME)_SCDC=1 $($@_CPPFLAGS) $(CFLAGS_) $(LDFLAGS_) $($(NAME)_SCDC_LDFLAGS) -o $@ $< $(OFILES_EXEC_COMMON) $($(NAME)_SCDC_SO_LIBS) $(LIBS)
+%_scdc_linked: %.c $(OFILES_EXEC_COMMON) $($(NAME)_SCDC_SO_DEPENDS) $(DEPS)
+	$(call file_CC,$@) $(strip $(call file_CPPFLAGS,$@) -DLIB$(NAME)_SCDC=1 $($(NAME)_SCDC_CPPFLAGS) $(call file_CFLAGS,$@) $($(NAME)_SCDC_CFLAGS) $(call file_LDFLAGS,$@) $($(NAME)_SCDC_LDFLAGS) -o $@ $< $(OFILES_EXEC_COMMON) $($(NAME)_SCDC_SO_LIBS) $(call file_LIBS,$@))
 
 clean: Makefile
 	rm -rf $(OFILES) $(LIB) $(LIBSO) $(EXEC)
@@ -139,6 +201,14 @@ info:
 	@echo "CXXFILES_EXEC: $(CXXFILES_EXEC)"
 	@echo "OFILES_EXEC: $(OFILES_EXEC)"
 	@echo "OFILES_EXEC_COMMON: $(OFILES_EXEC_COMMON)"
+	@echo "$(NAME)_SCDC_DEPENDS: $($(NAME)_SCDC_DEPENDS)"
+	@echo "$(NAME)_SCDC_CPPFLAGS: $($(NAME)_SCDC_CPPFLAGS)"
+	@echo "$(NAME)_SCDC_LDFLAGS: $($(NAME)_SCDC_LDFLAGS)"
+	@echo "$(NAME)_SCDC_LIBS: $($(NAME)_SCDC_LIBS)"
+	@echo "$(NAME)_SCDC_A_DEPENDS: $($(NAME)_SCDC_A_DEPENDS)"
+	@echo "$(NAME)_SCDC_A_LIBS: $($(NAME)_SCDC_A_LIBS)"
+	@echo "$(NAME)_SCDC_SO_DEPENDS: $($(NAME)_SCDC_SO_DEPENDS)"
+	@echo "$(NAME)_SCDC_SO_LIBS: $($(NAME)_SCDC_SO_LIBS)"
 	@echo "DEPS: $(DEPS)"
 	@echo "CPPFLAGS: $(CPPFLAGS)"
 	@echo "CFLAGS: $(CFLAGS)"

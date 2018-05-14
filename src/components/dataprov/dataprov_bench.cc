@@ -23,6 +23,8 @@
 #include <string>
 #include <algorithm>
 
+#define SCDC_TRACE_NOT  !SCDC_TRACE_DATAPROV_BENCH
+
 #include "config.hh"
 #include "log.hh"
 #include "common.hh"

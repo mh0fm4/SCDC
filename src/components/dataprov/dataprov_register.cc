@@ -21,6 +21,8 @@
 #include <cstdio>
 #include <sstream>
 
+#define SCDC_TRACE_NOT  !SCDC_TRACE_DATAPROV_REGISTER
+
 #include "z_pack.h"
 
 #include "config.hh"

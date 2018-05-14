@@ -20,8 +20,6 @@
 #  
 
 
-LFIO_LINK:=yes #static
-
 SCDC_SRC:=../../src/
 
 include ../../Makefile.in
@@ -29,7 +27,7 @@ include ../../Makefile.in
 DEPS+=../../Makefile.in
 
 CPPFLAGS+=$(LIBSCDC_CPPFLAGS)
-DEPS+=$(LIBSCDC_DEPS)
+DEPS+=$(LIBSCDC_DEPENDS)
 LDFLAGS+=$(LIBSCDC_LDFLAGS)
 LIBS+=$(LIBSCDC_LIBS)
 

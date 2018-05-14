@@ -22,6 +22,7 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "redirect_config.h"
 #include "common.h"
 #include "redirect_handle.h"
 

@@ -26,6 +26,8 @@
 
 #include <sys/stat.h>
 
+#define SCDC_TRACE_NOT  !SCDC_TRACE_DATAPROV_WEBDAV
+
 #include "config.hh"
 #include "common.hh"
 #include "log.hh"

@@ -27,6 +27,7 @@
 
 #define LIBLAPACK_SCDC_REMOTE  1
 
+#include "lapack_scdc_config.h"
 #include "common.h"
 #include "lapack.h"
 #include "lapack_call.h"
@@ -76,16 +77,20 @@ static void do_sgesv(lapack_call_t *lc)
   LAPACK_CALL(get_input_conf_int)(lc, "N", &N);
   LAPACK_CALL(get_input_conf_int)(lc, "NRHS", &NRHS);
 
-  float *A = 0, *B = 0;
-  int LDA = 0, rcma, LDB = 0, rcmb;
-  LAPACK_CALL(get_inout_param_matrix_float)(lc, "A", N, N, &A, &LDA, &rcma);
-  LAPACK_CALL(get_inout_param_matrix_float)(lc, "B", N, NRHS, &B, &LDB, &rcmb);
+  float *A = NULL, *B = NULL;
+  rdint_t NRA_ = N, NCA_ = N, NRB_ = N, NCB_ = NRHS;
+  rdint_t LDA = 0, rcma, LDB = 0, rcmb;
+  LAPACK_CALL(get_inout_param_matrix_float)(lc, "A", &A, &NRA_, &NCA_, &LDA, &rcma);
+  LAPACK_CALL(get_inout_param_matrix_float)(lc, "B", &B, &NRB_, &NCB_, &LDB, &rcmb);
 
-  ASSERT(rcma == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
-  ASSERT(rcmb == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
+  ASSERT(NRA_ == N && NCA_ == N && rcma == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
+  ASSERT(NRB_ == N && NCB_ == NRHS && rcmb == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
 
-  int *IPIV = 0;
-  LAPACK_CALL(get_output_param_vector_int)(lc, "IPIV", N, &IPIV); /* output buffer 'IPIV' anfordern */
+  rdint_t NIPIV_ = N;
+  int *IPIV = NULL;
+  LAPACK_CALL(get_output_param_array_int)(lc, "IPIV", &IPIV, &NIPIV_); /* output buffer 'IPIV' anfordern */
+
+  ASSERT(NIPIV_ == N);
 
   int INFO = 0;
 
@@ -98,10 +103,10 @@ static void do_sgesv(lapack_call_t *lc)
 
   TRACE_F("%s: N: %d, NRHS: %d, A: %p, LDA: %d, IPIV: %p, B: %p, LDB: %d, INFO: %d", __func__, N, NRHS, A, LDA, IPIV, B, LDB, INFO);
 
-  LAPACK_CALL(put_output_param_matrix_float)(lc, "A", N, N, A, LDA, rcma);
-  LAPACK_CALL(put_output_param_matrix_float)(lc, "B", N, NRHS, B, LDB, rcmb);
+  LAPACK_CALL(put_output_param_matrix_float)(lc, "A", A, N, N, LDA, rcma);
+  LAPACK_CALL(put_output_param_matrix_float)(lc, "B", B, N, NRHS, LDB, rcmb);
 
-  LAPACK_CALL(put_output_param_vector_int)(lc, "IPIV", N, IPIV);
+  LAPACK_CALL(put_output_param_array_int)(lc, "IPIV", IPIV, N);
 
   LAPACK_CALL(put_output_conf_int)(lc, "INFO", INFO);
 
@@ -132,14 +137,16 @@ static void do_strsv(lapack_call_t *lc)
   LAPACK_CALL(get_input_conf_int)(lc, "N", &N);
   
   float *A = 0;
-  int LDA = 0, rcma;
-  LAPACK_CALL(get_input_param_matrix_float)(lc, "A", N, N, &A, &LDA, &rcma);
+  rdint_t NRA_ = N, NCA_ = N;
+  rdint_t LDA = 0, rcma;
+  LAPACK_CALL(get_input_param_matrix_float)(lc, "A", &A, %NRA_, &NCA_, &LDA, &rcma);
 
-  ASSERT(rcma == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
+  ASSERT(NRA_ == N && NCA_ == N && rcma == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
 
   float *X = 0;
-  int INCX = 0;
-  LAPACK_CALL(get_input_param_vector_float)(lc, "X", N, &X, &INCX);
+  rdint_t N_ = N;
+  rdint_t INCX = 0;
+  LAPACK_CALL(get_input_param_vector_float)(lc, "X", &X, &N_, &INCX);
 
   TRACE_F("%s: UPLO: %c, TRANS: %c, DIAG: %c, N: %d, A: %p, LDA: %d, X: %p, INCX: %d", __func__, UPLO, TRANS, DIAG, N, A, LDA, X, INCX);
 
@@ -150,7 +157,7 @@ static void do_strsv(lapack_call_t *lc)
 
   TRACE_F("%s: UPLO: %c, TRANS: %c, DIAG: %c, N: %d, A: %p, LDA: %d, X: %p, INCX: %d", __func__, UPLO, TRANS, DIAG, N, A, LDA, X, INCX);
 
-  LAPACK_CALL(put_output_param_vector_float)(lc, "X", N, X, INCX);
+  LAPACK_CALL(put_output_param_vector_float)(lc, "X", X, N, INCX);
 
   LAPACK_TIMING_REMOTE_PUT(lc, liblapack_scdc_timing_remote[0]);
 
