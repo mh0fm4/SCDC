@@ -738,7 +738,9 @@ z_int_t z_fs_mkdir(const char *pathname) /* z_proto, z_func z_fs_mkdir */
   const mode_t mode = 0777;
 
 
+#if 0
   if (z_fs_is_directory(pathname)) return 1;
+#endif
 
   return (mkdir(pathname, mode) == 0);
 }

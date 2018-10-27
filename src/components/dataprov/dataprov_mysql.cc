@@ -24,6 +24,8 @@
 
 #include <mysql/mysql.h>
 
+#define SCDC_TRACE_NOT  !SCDC_TRACE_DATAPROV_MYSQL
+
 #include "config.hh"
 #include "common.hh"
 #include "log.hh"
@@ -109,7 +111,7 @@ typedef struct _dataset_output_next_data_t
 } dataset_output_next_data_t;
 
 
-static scdcint_t dataset_output_next(scdc_dataset_output_t *output)
+static scdcint_t dataset_output_next(scdc_dataset_output_t *output, scdc_result_t *result)
 {
   dataset_output_next_data_t *data = static_cast<dataset_output_next_data_t *>(output->data);
 
@@ -135,17 +137,17 @@ static scdcint_t dataset_output_next(scdc_dataset_output_t *output)
       return SCDC_FAILURE;
     }
 
-    MYSQL_RES *result = mysql_store_result(mysql_data->mysql);
+    MYSQL_RES *qres = mysql_store_result(mysql_data->mysql);
 
-    if (!result)
+    if (!qres)
     {
       SCDC_FAIL("dataset_output_next: store result failed: '" << mysql_error(mysql_data->mysql) << "'");
       data->dataprov_mysql->release_access(mysql_data);
       return SCDC_FAILURE;
     }
 
-    MYSQL_ROW row = mysql_fetch_row(result);
-    unsigned long *lengths = mysql_fetch_lengths(result);
+    MYSQL_ROW row = mysql_fetch_row(qres);
+    unsigned long *lengths = mysql_fetch_lengths(qres);
 
     size = lengths[0];
 
@@ -153,7 +155,7 @@ static scdcint_t dataset_output_next(scdc_dataset_output_t *output)
 
     memcpy(buf, row[0], size);
 
-    mysql_free_result(result);
+    mysql_free_result(qres);
 
     buf += size;
     buf_size -= size;
@@ -187,11 +189,9 @@ class scdc_dataset_mysql_store: public scdc_dataset
       :scdc_dataset(dataprov_), admin(false) { };
 
 
-    bool do_cmd_info(const string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+    bool do_cmd_info(const string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
     {
       SCDC_TRACE("do_cmd_info: '" << params << "'");
-
-      SCDC_DATASET_OUTPUT_CLEAR(output);
 
       scdc_dataprov_mysql_store *dataprov_mysql = static_cast<scdc_dataprov_mysql_store *>(dataprov);
 
@@ -199,15 +199,15 @@ class scdc_dataset_mysql_store: public scdc_dataset
 
       if (my_mysql_query(mysql_data->mysql, "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'if_pimerge'"))
       {
-        SCDC_FAIL("do_cmd_info: query failed: counting tables failed");
-        SCDC_DATASET_OUTPUT_PRINTF(output, "counting tables failed");
+        result = "counting tables failed";
+        SCDC_FAIL("do_cmd_info: query failed: " << result);
         dataprov_mysql->release_access(mysql_data);
         return false;
       }
 
-      MYSQL_RES *result = mysql_store_result(mysql_data->mysql);
+      MYSQL_RES *qres = mysql_store_result(mysql_data->mysql);
 
-      if (!result)
+      if (!qres)
       {
         SCDC_FAIL("do_cmd_info: store result failed: '" << mysql_error(mysql_data->mysql) << "'");
         dataprov_mysql->release_access(mysql_data);
@@ -216,28 +216,28 @@ class scdc_dataset_mysql_store: public scdc_dataset
 
       dataprov_mysql->release_access(mysql_data);
 
-      MYSQL_ROW row = mysql_fetch_row(result);
+      MYSQL_ROW row = mysql_fetch_row(qres);
 
       SCDC_TRACE("do_cmd_info: tables: " << row[0]);
 
-      SCDC_DATASET_OUTPUT_PRINTF(output, "admin: %s, tables: %s", (admin?"yes":"no"), row[0]);
+      char res[SCDC_RESULT_STR_MAX_SIZE];
+      snprintf(res, SCDC_RESULT_STR_MAX_SIZE, "admin: %s, tables: %s", (admin?"yes":"no"), row[0]);
+      result = res;
 
-      mysql_free_result(result);
+      mysql_free_result(qres);
 
       return true;
     }
 
 
-    bool do_cmd_cd(const string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+    bool do_cmd_cd(const string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
     {
       SCDC_TRACE("do_cmd_cd: '" << params << "'");
-
-      SCDC_DATASET_OUTPUT_CLEAR(output);
 
       if (params == "ADMIN")
       {
         admin = true;
-        return scdc_dataset::do_cmd_cd(params, input, output);
+        return scdc_dataset::do_cmd_cd(params, input, output, result);
       }
 
       scdc_dataprov_mysql_store *dataprov_mysql = static_cast<scdc_dataprov_mysql_store *>(dataprov);
@@ -248,15 +248,15 @@ class scdc_dataset_mysql_store: public scdc_dataset
 
         if (my_mysql_query_printf(mysql_data->mysql, "SHOW TABLES LIKE '" TABLE_STORE_PREFIX "%s'", params.c_str()))
         {
-          SCDC_FAIL("do_cmd_cd: query failed: listing tables failed");
-          SCDC_DATASET_OUTPUT_PRINTF(output, "listing tables failed");
+          result = "listing tables failed";
+          SCDC_FAIL("do_cmd_cd: query failed: " << result);
           dataprov_mysql->release_access(mysql_data);
           return false;
         }
 
-        MYSQL_RES *result = mysql_store_result(mysql_data->mysql);
+        MYSQL_RES *qres = mysql_store_result(mysql_data->mysql);
 
-        if (!result)
+        if (!qres)
         {
           SCDC_FAIL("do_cmd_cd: store result failed: '" << mysql_error(mysql_data->mysql) << "'");
           dataprov_mysql->release_access(mysql_data);
@@ -265,28 +265,26 @@ class scdc_dataset_mysql_store: public scdc_dataset
 
         dataprov_mysql->release_access(mysql_data);
 
-        if (mysql_num_rows(result) < 1)
+        if (mysql_num_rows(qres) < 1)
         {
-          mysql_free_result(result);
+          mysql_free_result(qres);
 
+          result = "table does not exist";
           SCDC_FAIL("do_cmd_cd: table '" << params << "' does not exist");
-          SCDC_DATASET_OUTPUT_PRINTF(output, "table does not exist");
           return false;
         }
 
-        mysql_free_result(result);
+        mysql_free_result(qres);
       }
 
       admin = false;
-      return scdc_dataset::do_cmd_cd(params, input, output);
+      return scdc_dataset::do_cmd_cd(params, input, output, result);
     }
 
 
-    bool do_cmd_ls(const string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+    bool do_cmd_ls(const string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
     {
       SCDC_TRACE("do_cmd_ls: '" << params << "'");
-
-      SCDC_DATASET_OUTPUT_CLEAR(output);
 
       scdc_dataprov_mysql_store *dataprov_mysql = static_cast<scdc_dataprov_mysql_store *>(dataprov);
 
@@ -298,15 +296,15 @@ class scdc_dataset_mysql_store: public scdc_dataset
 
         if (my_mysql_query_printf(mysql_data->mysql, "SHOW TABLES LIKE '" TABLE_STORE_PREFIX "%%'"))
         {
-          SCDC_FAIL("do_cmd_ls: query failed: listing tables failed");
-          SCDC_DATASET_OUTPUT_PRINTF(output, "listing tables failed");
+          result = "listing tables failed";
+          SCDC_FAIL("do_cmd_ls: query failed: " << result);
           dataprov_mysql->release_access(mysql_data);
           return false;
         }
 
-        MYSQL_RES *result = mysql_store_result(mysql_data->mysql);
+        MYSQL_RES *qres = mysql_store_result(mysql_data->mysql);
 
-        if (!result)
+        if (!qres)
         {
           SCDC_FAIL("do_cmd_ls: store result failed: '" << mysql_error(mysql_data->mysql) << "'");
           dataprov_mysql->release_access(mysql_data);
@@ -315,69 +313,67 @@ class scdc_dataset_mysql_store: public scdc_dataset
 
         dataprov_mysql->release_access(mysql_data);
 
-        SCDC_DATASET_OUTPUT_PRINTF(output, "%llu|", mysql_num_rows(result));
+        SCDC_DATASET_OUTPUT_PRINTF_(output, "%llu|", mysql_num_rows(qres));
 
         MYSQL_ROW row;
-        while ((row = mysql_fetch_row(result)))
+        while ((row = mysql_fetch_row(qres)))
         {
           SCDC_TRACE("table: '" << row[0] << "'");
-          SCDC_DATASET_OUTPUT_PRINTF_APPEND(output, "%s|", row[0] + strlen(TABLE_STORE_PREFIX));
+          SCDC_DATASET_OUTPUT_PRINTF_APPEND_(output, "%s|", row[0] + strlen(TABLE_STORE_PREFIX));
         }
 
-        mysql_free_result(result);
+        mysql_free_result(qres);
 
       } else
       {
-        SCDC_TRACE("do_cmd_put: listing entries of table '" << pwd << "'");
+        SCDC_TRACE("do_cmd_ls: listing entries of table '" << pwd << "'");
 
         scdc_dataprov_mysql_data_t *mysql_data = dataprov_mysql->aquire_access();
 
         if (my_mysql_query_printf(mysql_data->mysql, "SELECT name, format, size FROM " TABLE_STORE_PREFIX "%s", pwd.c_str()))
         {
-          SCDC_FAIL("do_cmd_ls: query failed: listing entries failed");
-          SCDC_DATASET_OUTPUT_PRINTF(output, "listing entries failed");
+          result = "listing entries failed";
+          SCDC_FAIL("do_cmd_ls: query failed: " << result);
           dataprov_mysql->release_access(mysql_data);
           return false;
         }
 
-        MYSQL_RES *result = mysql_store_result(mysql_data->mysql);
+        MYSQL_RES *qres = mysql_store_result(mysql_data->mysql);
 
-        if (!result)
+        if (!qres)
         {
-          SCDC_FAIL("do_cmd_put: store result failed: '" << mysql_error(mysql_data->mysql) << "'");
+          SCDC_FAIL("do_cmd_ls: store result failed: '" << mysql_error(mysql_data->mysql) << "'");
           dataprov_mysql->release_access(mysql_data);
           return false;
         }
 
         dataprov_mysql->release_access(mysql_data);
 
-        SCDC_DATASET_OUTPUT_PRINTF(output, "%llu|", mysql_num_rows(result));
+        SCDC_DATASET_OUTPUT_PRINTF_(output, "%llu|", mysql_num_rows(qres));
 
         MYSQL_ROW row;
-        while ((row = mysql_fetch_row(result)))
+        while ((row = mysql_fetch_row(qres)))
         {
+          SCDC_DATASET_OUTPUT_PRINTF_APPEND_(output, "%s:%s:%s|", row[0], row[1], row[2]);
           SCDC_TRACE("entry: name: '" << row[0] << "', format: '" << row[1] << "', size: " << row[2]);
-          SCDC_DATASET_OUTPUT_PRINTF_APPEND(output, "%s:%s:%s|", row[0], row[1], row[2]);
         }
 
-        mysql_free_result(result);
+        mysql_free_result(qres);
       }
 
       return true;
     }
 
 
-    bool do_cmd_put(const string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+    bool do_cmd_put(const string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
     {
       SCDC_TRACE("do_cmd_put: '" << params << "'");
-
-      SCDC_DATASET_OUTPUT_CLEAR(output);
 
       scdc_dataprov_mysql_store *dataprov_mysql = static_cast<scdc_dataprov_mysql_store *>(dataprov);
 
       if (params.empty())
       {
-        SCDC_DATASET_OUTPUT_PRINTF(output, "empty path");
+        result = "empty path";
         return false;
 
       } else if (admin)
@@ -393,8 +389,8 @@ class scdc_dataset_mysql_store: public scdc_dataset
           "data LONGBLOB, "
           "PRIMARY KEY (name))", params.c_str(), static_cast<int>(SCDC_FORMAT_MAX_SIZE)))
         {
-          SCDC_FAIL("do_cmd_put: query failed: creating table failed");
-          SCDC_DATASET_OUTPUT_PRINTF(output, "creating table failed");
+          result = "creating table failed";
+          SCDC_FAIL("do_cmd_put: query failed: result");
           dataprov_mysql->release_access(mysql_data);
           return false;
         }
@@ -403,7 +399,7 @@ class scdc_dataset_mysql_store: public scdc_dataset
 
       } else if (pwd.size() == 0)
       {
-        SCDC_DATASET_OUTPUT_PRINTF(output, "no table selected");
+        result = "no table selected";
         return false;
 
       } else
@@ -419,8 +415,8 @@ class scdc_dataset_mysql_store: public scdc_dataset
           "''"
           ")", pwd.c_str(), params.c_str(), input->format))
         {
-          SCDC_FAIL("do_cmd_put: query failed: creating entry failed");
-          SCDC_DATASET_OUTPUT_PRINTF(output, "creating entry failed");
+          result = "creating entry failed";
+          SCDC_FAIL("do_cmd_put: query failed: " << result);
           dataprov_mysql->release_access(mysql_data);
           return false;
         }
@@ -448,8 +444,8 @@ class scdc_dataset_mysql_store: public scdc_dataset
 
             if (my_mysql_real_query(mysql_data->mysql, query, p - query))
             {
-              SCDC_FAIL("do_cmd_put: query failed: adding data failed");
-              SCDC_DATASET_OUTPUT_PRINTF(output, "adding data failed");
+              result = "adding data failed";
+              SCDC_FAIL("do_cmd_put: query failed: " << result);
               dataprov_mysql->release_access(mysql_data);
               return false;
             }
@@ -462,7 +458,7 @@ class scdc_dataset_mysql_store: public scdc_dataset
 
           SCDC_TRACE("do_cmd_put: next input");
 
-          input->next(input);
+          input->next(input, 0); // FIXME
         }
 
         dataprov_mysql->release_access(mysql_data);
@@ -472,22 +468,20 @@ class scdc_dataset_mysql_store: public scdc_dataset
     }
 
 
-    bool do_cmd_get(const string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+    bool do_cmd_get(const string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
     {
       SCDC_TRACE("do_cmd_get: '" << params << "'");
-
-      SCDC_DATASET_OUTPUT_CLEAR(output);
 
       scdc_dataprov_mysql_store *dataprov_mysql = static_cast<scdc_dataprov_mysql_store *>(dataprov);
 
       if (params.empty())
       {
-        SCDC_DATASET_OUTPUT_PRINTF(output, "empty path");
+        result = "empty path";
         return false;
 
       } else if (pwd.size() == 0)
       {
-        SCDC_DATASET_OUTPUT_PRINTF(output, "no table selected");
+        result = "no table selected";
         return false;
 
       } else
@@ -498,15 +492,15 @@ class scdc_dataset_mysql_store: public scdc_dataset
 
         if (my_mysql_query_printf(mysql_data->mysql, "SELECT format, size, OCTET_LENGTH(data) FROM " TABLE_STORE_PREFIX "%s WHERE name='%s'", pwd.c_str(), params.c_str()))
         {
-          SCDC_FAIL("query failed: getting entry failed");
-          SCDC_DATASET_OUTPUT_PRINTF(output, "getting entry failed");
+          result = "getting entry failed";
+          SCDC_FAIL("query failed: " << result);
           dataprov_mysql->release_access(mysql_data);
           return false;
         }
 
-        MYSQL_RES *result = mysql_store_result(mysql_data->mysql);
+        MYSQL_RES *qres = mysql_store_result(mysql_data->mysql);
 
-        if (!result)
+        if (!qres)
         {
           SCDC_FAIL("do_cmd_get: store result failed: '" << mysql_error(mysql_data->mysql) << "'");
           dataprov_mysql->release_access(mysql_data);
@@ -515,16 +509,15 @@ class scdc_dataset_mysql_store: public scdc_dataset
 
         dataprov_mysql->release_access(mysql_data);
 
-        if (mysql_num_rows(result) != 1)
+        if (mysql_num_rows(qres) != 1)
         {
-          mysql_free_result(result);
-
-          SCDC_FAIL("do_cmd_get: found " << mysql_num_rows(result) << " entries");
-          SCDC_DATASET_OUTPUT_PRINTF(output, "found %llu entries", mysql_num_rows(result));
+          mysql_free_result(qres);
+          result = "found not exactly one entry";
+          SCDC_FAIL("do_cmd_get: found " << mysql_num_rows(qres) << " entries");
           return false;
         }
 
-        MYSQL_ROW row = mysql_fetch_row(result);
+        MYSQL_ROW row = mysql_fetch_row(qres);
 
         strncpy(output->format, row[0], SCDC_FORMAT_MAX_SIZE);
 
@@ -532,7 +525,7 @@ class scdc_dataset_mysql_store: public scdc_dataset
 
         output->total_size_given = SCDC_DATASET_INOUT_TOTAL_SIZE_GIVEN_EXACT;
 
-        mysql_free_result(result);
+        mysql_free_result(qres);
 
         dataset_output_next_data_t *data = new dataset_output_next_data_t();
 
@@ -546,24 +539,22 @@ class scdc_dataset_mysql_store: public scdc_dataset
         output->data = data;
 
         /* get first chunk of data */
-        output->next(output);
+        output->next(output, 0); // FIXME
       }
 
       return true;
     }
 
 
-    bool do_cmd_rm(const string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+    bool do_cmd_rm(const string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
     {
       SCDC_TRACE("do_cmd_rm: '" << params << "'");
-
-      SCDC_DATASET_OUTPUT_CLEAR(output);
 
       scdc_dataprov_mysql_store *dataprov_mysql = static_cast<scdc_dataprov_mysql_store *>(dataprov);
 
       if (params.empty())
       {
-        SCDC_DATASET_OUTPUT_PRINTF(output, "empty path");
+        result = "empty path";
         return false;
 
       } else if (admin)
@@ -574,8 +565,8 @@ class scdc_dataset_mysql_store: public scdc_dataset
 
         if (my_mysql_query_printf(mysql_data->mysql, "DROP TABLE " TABLE_STORE_PREFIX "%s", params.c_str()))
         {
-          SCDC_FAIL("do_cmd_rm: query failed: deleting table failed");
-          SCDC_DATASET_OUTPUT_PRINTF(output, "deleting table failed");
+          result = "deleting table failed";
+          SCDC_FAIL("do_cmd_rm: query failed: " << result);
           dataprov_mysql->release_access(mysql_data);
           return false;
         }
@@ -584,7 +575,7 @@ class scdc_dataset_mysql_store: public scdc_dataset
 
       } else if (pwd.size() == 0)
       {
-        SCDC_DATASET_OUTPUT_PRINTF(output, "no table selected");
+        result = "no table selected";
         return false;
 
       } else
@@ -595,8 +586,8 @@ class scdc_dataset_mysql_store: public scdc_dataset
 
         if (my_mysql_query_printf(mysql_data->mysql, "DELETE FROM " TABLE_STORE_PREFIX "%s WHERE name='%s'", pwd.c_str(), params.c_str()))
         {
-          SCDC_FAIL("do_cmd_rm: query failed: deleting entry failed");
-          SCDC_DATASET_OUTPUT_PRINTF(output, "deleting entry failed");
+          result = "deleting entry failed";
+          SCDC_FAIL("do_cmd_rm: query failed: " << result);
           dataprov_mysql->release_access(mysql_data);
           return false;
         }
@@ -624,7 +615,7 @@ scdc_dataprov_mysql_store::scdc_dataprov_mysql_store()
 }
 
 
-bool scdc_dataprov_mysql_store::open(const char *conf, scdc_args *args)
+bool scdc_dataprov_mysql_store::open(const char *conf, scdc_args *args, scdc_result &result)
 {
   SCDC_TRACE("open: conf: '" << conf << "'");
 
@@ -640,7 +631,7 @@ bool scdc_dataprov_mysql_store::open(const char *conf, scdc_args *args)
 
   SCDC_TRACE("open: mysql_conf: '" << mysql_conf << "'");
 
-  if (!scdc_dataprov::open(conf, args))
+  if (!scdc_dataprov::open(conf, args, result))
   {
     SCDC_FAIL("open: opening base");
     ret = false;
@@ -688,7 +679,7 @@ bool scdc_dataprov_mysql_store::open(const char *conf, scdc_args *args)
 do_close:
     if (!ret && mysql == NULL) mysql_close(mysql);
 
-    if (!ret) scdc_dataprov::close();
+    if (!ret) scdc_dataprov::close(result);
   }
 
 do_quit:
@@ -696,7 +687,7 @@ do_quit:
 }
 
 
-void scdc_dataprov_mysql_store::close()
+bool scdc_dataprov_mysql_store::close(scdc_result &result)
 {
   SCDC_TRACE("close:");
 
@@ -710,42 +701,37 @@ void scdc_dataprov_mysql_store::close()
 
   delete mysql_data; mysql_data = 0;
 
-  scdc_dataprov::close();
+  bool ret = scdc_dataprov::close(result);
+
+  SCDC_TRACE("close: return: " << ret);
+
+  return ret;
 }
 
 
-scdc_dataset *scdc_dataprov_mysql_store::dataset_open(const char *path, scdcint_t path_size, scdc_dataset_output_t *output)
+scdc_dataset *scdc_dataprov_mysql_store::dataset_open(std::string &path, scdc_result &result)
 {
-  SCDC_TRACE("dataset_open: '" << string(path, path_size) << "'");
-
-  scdc_dataset *dataset = 0;
-  
-  if (config_open(path, path_size, output, &dataset)) return dataset;
+  SCDC_TRACE("dataset_open: path: '" << path << "'");
 
   scdc_dataset_mysql_store *dataset_mysql = new scdc_dataset_mysql_store(this);
 
-  if (path && !dataset_mysql->do_cmd_cd(string(path, path_size).c_str(), NULL, output))
-  {
-    SCDC_FAIL("dataset_open: do_cmd_cd: failed: '" << SCDC_DATASET_OUTPUT_STR(output) << "'");
-    delete dataset_mysql;
-    return 0;
-  }
-
-  SCDC_TRACE("dataset_open: return: '" << dataset_mysql << "'");
+  SCDC_TRACE("dataset_open: return: " << dataset_mysql);
 
   return dataset_mysql;
 }
 
 
-void scdc_dataprov_mysql_store::dataset_close(scdc_dataset *dataset, scdc_dataset_output_t *output)
+bool scdc_dataprov_mysql_store::dataset_close(scdc_dataset *dataset, scdc_result &result)
 {
-  SCDC_TRACE("dataset_close: '" << dataset << "'");
-
-  if (config_close(dataset, output)) return;
+  SCDC_TRACE("dataset_close: " << dataset);
+  
+  bool ret = true;
 
   delete dataset;
 
-  SCDC_TRACE("dataset_close: return");
+  SCDC_TRACE("dataset_close: return: " << ret);
+
+  return ret;
 }
 
 

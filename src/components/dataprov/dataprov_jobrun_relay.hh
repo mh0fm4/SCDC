@@ -45,22 +45,22 @@ class scdc_dataprov_jobrun_relay: public scdc_dataprov_relay
   public:
     scdc_dataprov_jobrun_relay();
 
-    virtual bool open(const char *conf, scdc_args *args);
-    virtual void close();
+    virtual bool open(const char *conf, scdc_args *args, scdc_result &result);
+    virtual bool close(scdc_result &result);
 
-    virtual scdc_dataset *dataset_open(const char *path, scdcint_t path_size, scdc_dataset_output_t *output);
-    virtual void dataset_close(scdc_dataset *dataset, scdc_dataset_output_t *output);
+    virtual scdc_dataset *dataset_open(std::string &path, scdc_result &result);
+    virtual bool dataset_close(scdc_dataset *dataset, scdc_result &result);
 
     virtual bool config_do_cmd_param(const std::string &cmd, const std::string &param, std::string val, scdc_config_result &result, bool &done);
 
-    bool do_cmd_ls(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output);
-    bool do_cmd_info(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output);
-    bool do_cmd_put(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output);
-    bool do_cmd_get(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output);
-    bool do_cmd_rm(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output);
+    bool do_cmd_ls(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result);
+    bool do_cmd_info(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result);
+    bool do_cmd_put(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result);
+    bool do_cmd_get(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result);
+    bool do_cmd_rm(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result);
 
-    bool sched_job_add(const std::string &jobid);
-    bool sched_job_del(const std::string &jobid);
+    bool sched_job_add(const std::string &jobid, scdc_result &result);
+    bool sched_job_del(const std::string &jobid, scdc_result &result);
     bool sched_job_exists(const std::string &jobid);
     bool sched_job_get_relay(const std::string &jobid, std::string &relay);
 
@@ -75,7 +75,7 @@ class scdc_dataprov_jobrun_relay: public scdc_dataprov_relay
     sched_t::iterator sched_last;
     scdcint_t sched_last_jobs;
 
-    virtual bool relay_put(const std::string &path, const std::string &url, std::string &r);
+    virtual bool relay_put(const std::string &path, const std::string &url, std::string &result);
     virtual bool relay_rm(const std::string &path);
 };
 

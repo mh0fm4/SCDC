@@ -1,0 +1,74 @@
+\section{Functions}
+
+Before using (almost) any library function (\eg, at the beginning of a program), the SCDC library has to be initialized using the function \fnct{scdc_init}.
+After the last usage of library functions (\eg, before the ending of a program), the SCDC library has to be released using the function \fnct{scdc_release}.
+The library should not be initialized or released multiple times in a row.
+(However, initializing the library again after it has been released should be possible.)
+
+\reffnc{scdcint_t scdc_init(const char *conf, ...);}{%
+\reffncparam{conf}{String of colon-separated configuration parameters. The constant \cnst{SCDC_INIT_DEFAULT} or NULL can be used as default.}
+\reffncparam{...}{Varying number of additional parameters (see description of supported configuration parameters below).}
+\reffncret{Whether the function was successful (\cnst{SCDC_SUCCESS}) or not (\cnst{SCDC_FAILURE}).}
+\reffncdesc{Function for initializing the SCDC library.
+Must be called before (almost) all other library function call.
+Currently, the following configuration parameters are supported:
+\begin{description}
+  \item[\code{no_direct}] Disable the default direct access.
+\end{description}
+}
+}
+
+\reffnc{void scdc_release(void);}{%
+\reffncdesc{Function for releasing the SCDC library.
+Must be called after (almost) all other library function calls.}
+}
+
+Library functions usually return a value signaling their success or failure.
+Further (textual) information about the result of a function (\eg, a requested information or an error message) are stored internally in a static string variable.
+The variable can be accessed with the function \fnct{scdc_last_result} and contains the result of the last library function that was executed.
+
+\reffnc{const char *scdc_last_result();}{%
+\reffncret{Pointer to a static C string containing the last results message.}
+\reffncdesc{Function for returning the result string of the last SCDC library function call.}
+}
+
+The library can produce various logging information during its execution (if enabled at compile time, see configuration file \texttt{Makefile.in} of the build system described in Sect.~\ref{sect:intro_usage}).
+The default output is \code{stdout} for tracing information and \code{stderr} for error information.
+The output can be changed with the function \fnct{scdc_log_init} and reverted back to the default with the function \fnct{scdc_log_release}.
+These changes also can be made before the initialization and after the release of the library (\ie, with \fnct{scdc_init} and \fnct{scdc_release}).
+
+\reffnc{scdcint_t scdc_log_init(const char *conf, ...);}{%
+\reffncparam{conf}{String of colon-separated configuration parameters.}
+\reffncparam{...}{Varying number of additional parameters (see description of supported configuration parameters below).}
+\reffncret{Whether the function was successful (\cnst{SCDC_SUCCESS}) or not (\cnst{SCDC_FAILURE}).}
+\reffncdesc{Function for initializing the logging.
+Can be called before \fnct{scdc_init}.
+Currently, the following configuration parameters are supported:
+\begin{description}
+  \item[\code{log_handler}]
+Two user-defined functions are used to output tracing and error information.
+For each user-defined function, a pointer to the function and a user-defined pointer (\eg, to some user data or NULL) have to be specified as additional parameters.
+The logging functions have to comply to the format defined by type \dtyp{scdc_log_handler_f} and the corresponding pointer to the user data is provided to each function call (see description below).
+  \item[\code{log_FILE}]
+Two \code{FILE} streams are used to output tracing and error information.
+Pointers to these \code{FILE} streams have to be specified as additional parameters.
+  \item[\code{log_filepath}]
+Two files are used to store tracing and error information.
+A string \code{<logfilepath>} containing the path and basic file name as to be specified as additional parameter.
+Tracing information are stored in file \code{<logfilepath>.out} and error information in file \code{<logfilepath>.err}.
+\end{description}
+}
+}
+
+\reffnc{void scdc_log_release(void);}{%
+\reffncdesc{Function for releasing the logging.
+Can be called after \fnct{scdc_release}.}
+}
+
+User-defined functions for the output of tracing and error information have to comply to the following format:\\
+\textit{Format:} \reffnc{scdcint_t scdc_log_handler_f(void *data, const char *buf, scdcint_t buf_size);}{%
+\reffncparam{data}{User-defined pointer previously specified together with the corresponding user-defined logging function.}
+\reffncparam{buf}{C string containing the logging information.}
+\reffncparam{buf_size}{Length of the logging information given in \prmt{buf} (without terminating null character).}
+\reffncret{Number of characters written to the output.}
+}

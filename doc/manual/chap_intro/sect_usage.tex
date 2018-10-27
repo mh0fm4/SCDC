@@ -1,0 +1,53 @@
+\section{Compilation and usage}
+\label{sect:intro_usage}
+
+
+\subsection*{Build system}
+
+The build system of the SCDC software package uses plain Makefiles.
+Configuration switches, paths, compilers, and flags are defined in file(s) \texttt{Makefile.in} and included in the regular Makefiles building the single parts.
+Makefiles are invoked recursively in the sub-directories defined in the file(s) \texttt{Makefile.local}.
+Building the whole library (including documentation, tests, and tools) is achieved by execution \texttt{make} in the main directory of the library.
+\begin{alltt}
+  $ make
+\end{alltt}
+
+
+\subsection*{Compiling and linking in C}
+
+All necessary files for compiling and linking against the C interface of the library are contained in the sub-directory \texttt{lib/scdc}.
+The sub-directory has to be added the include directories of the compiler, such that all header files within the sub-directory are available.
+Only header file \texttt{scdc.h} has to be included in the source files using the SCDC library, \eg:
+\begin{alltt}
+  #include "scdc.h"  
+
+  ...
+
+  scdc_init(SCDC_INIT_DEFAULT);
+  ...
+  scdc_release();
+\end{alltt}
+
+Compilation:
+\begin{alltt}
+  $ gcc -I<SCDC_DIR>/src/lib/scdc ...
+\end{alltt}
+
+The library file \texttt{libscdc.a} and the C++ linker (or the corresponding C++ library files) have to be used, \eg:
+\begin{alltt}
+  $ g++ -L<SCDC_DIR>/src/lib/scdc ... -lscdc
+\end{alltt}
+
+
+\subsection{Usage in Python}
+
+All necessary files for using the Python interface of the library are contained in the directory \texttt{<SCDC\_DIR>/src/lib/scdc.py}.
+Either the directory is added to the module search path of the Python interpreter or the two files \texttt{scdc.py} and \texttt{scdcmod.so} have to be available to the Python interpreter.
+Importing the module \texttt{scdc} is sufficient for using all library functions, \eg:
+\begin{alltt}
+  import scdc
+
+  scdc.init()
+  ...
+  scdc.release()
+\end{alltt}

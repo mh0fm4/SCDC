@@ -1,0 +1,91 @@
+# This is a Makefile!
+
+#  
+#  Copyright (C) 2014, 2015, 2016, 2017, 2018 Michael Hofmann
+#  
+#  This file is part of the Simulation Component and Data Coupling (SCDC) library.
+#  
+#  The SCDC library is free software: you can redistribute it and/or
+#  modify it under the terms of the GNU Lesser Public License as published
+#  by the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+#  
+#  The SCDC library is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU Lesser Public License for more details.
+#  
+#  You should have received a copy of the GNU Lesser Public License
+#  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#  
+
+
+LIBBLAS_SCDC:=yes
+LIBLAPACK_SCDC:=yes
+
+SCDC_DIR:=../../../
+SCDC_SRC:=$(SCDC_DIR)src/
+
+LIBBLAS_SCDC_SRC:=$(SCDC_SRC)lib/redirect/blas
+LIBLAPACK_SCDC_SRC:=$(SCDC_SRC)lib/redirect/lapack
+
+include $(SCDC_DIR)Makefile.in
+
+DEPS+=$(SCDC_DIR)Makefile.in $(LIBSCDC_DEPENDS)
+
+CEXEC:=parnum2017
+
+CPPFLAGS+=$(LIBSCDC_CPPFLAGS)
+
+CPPFLAGS+=-I$(LIBBLAS_SCDC_SRC)
+
+LIBBLAS_SCDC_A_DEPENDS:=$(LIBBLAS_SCDC_SRC)/libblas_scdc.a
+LIBBLAS_SCDC_A_LDFLAGS:=
+LIBBLAS_SCDC_A_LIBS:=$(LIBBLAS_SCDC_SRC)/libblas_scdc.a
+
+LIBBLAS_SCDC_SO_DEPENDS:=$(LIBBLAS_SCDC_SRC)/libblas_scdc.so
+LIBBLAS_SCDC_SO_LDFLAGS:=
+LIBBLAS_SCDC_SO_LIBS:=$(LIBBLAS_SCDC_SRC)/libblas_scdc.so
+
+CPPFLAGS+=-I$(LIBLAPACK_SCDC_SRC)
+
+LIBLAPACK_SCDC_A_DEPENDS:=$(LIBLAPACK_SCDC_SRC)/liblapack_scdc.a
+LIBLAPACK_SCDC_A_LDFLAGS:=
+LIBLAPACK_SCDC_A_LIBS:=$(LIBLAPACK_SCDC_SRC)/liblapack_scdc.a
+
+LIBLAPACK_SCDC_SO_DEPENDS:=$(LIBLAPACK_SCDC_SRC)/liblapack_scdc.so
+LIBLAPACK_SCDC_SO_LDFLAGS:=
+LIBLAPACK_SCDC_SO_LIBS:=$(LIBLAPACK_SCDC_SRC)/liblapack_scdc.so
+
+LIBS+=-lm
+
+ifneq ($(LIBBLAS_SCDC),)
+ CPPFLAGS+=-DLIBBLAS_SCDC=1
+ ifeq ($(LIBBLAS_SCDC),static)
+  DEPS+=$(LIBBLAS_SCDC_A_DEPENDS)
+  parnum2017_LDFLAGS+=$(LIBBLAS_SCDC_A_LDFLAGS)
+  parnum2017_LIBS+=$(LIBBLAS_SCDC_A_LIBS)
+ else
+  DEPS+=$(LIBBLAS_SCDC_SO_DEPENDS)
+  parnum2017_LDFLAGS+=$(LIBBLAS_SCDC_SO_LDFLAGS)
+  parnum2017_LIBS+=$(LIBBLAS_SCDC_SO_LIBS)
+ endif
+else
+endif
+
+ifneq ($(LIBLAPACK_SCDC),)
+ CPPFLAGS+=-DLIBLAPACK_SCDC=1
+ ifeq ($(LIBLAPACK_SCDC),static)
+  DEPS+=$(LIBLAPACK_SCDC_A_DEPENDS)
+  parnum2017_LDFLAGS+=$(LIBLAPACK_SCDC_A_LDFLAGS)
+  parnum2017_LIBS+=$(LIBLAPACK_SCDC_A_LIBS)
+ else
+  DEPS+=$(LIBLAPACK_SCDC_SO_DEPENDS)
+  parnum2017_LDFLAGS+=$(LIBLAPACK_SCDC_SO_LDFLAGS)
+  parnum2017_LIBS+=$(LIBLAPACK_SCDC_SO_LIBS)
+ endif
+else
+endif
+
+parnum2017_LDFLAGS+=
+parnum2017_LIBS+=-lblas -llapack

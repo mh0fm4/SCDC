@@ -44,54 +44,54 @@ int scdc_log_cerr_printf_nl(const char *format, ...);
 
 #if HAVE_SCDC_INFO
 # define SCDC_INFO_PREFIX   "SCDC-INFO: "
-# define SCDC_INFO(_x_...)  scdc_cout_printf(SCDC_INFO_PREFIX SCDC_LOG_PREFIX _x_)
+# define SCDC_INFO(...)  scdc_cout_printf(SCDC_INFO_PREFIX SCDC_LOG_PREFIX __VA_ARGS__)
 #else
-# define SCDC_INFO(_x_...)  Z_NOP()
+# define SCDC_INFO(...)  Z_NOP()
 #endif
 
 #if HAVE_SCDC_TRACE && !(SCDC_TRACE_NOT)
 # define SCDC_TRACE_PREFIX                       "SCDC-TRACE: "
-# define SCDC_TRACE(_x_...)                      scdc_cout_printf_nl(SCDC_TRACE_PREFIX SCDC_LOG_PREFIX _x_)
-# define SCDC_TRACE_N(_x_...)                    scdc_cout_printf(SCDC_TRACE_PREFIX SCDC_LOG_PREFIX _x_)
-# define SCDC_TRACE_C(_x_...)                    scdc_cout_printf_nl(_x_)
-# define SCDC_TRACE_C_N(_x_...)                  scdc_cout_printf(_x_)
-# define SCDC_TRACE_DATASET_INPUT(_d_, _x_...)   Z_MOP(SCDC_TRACE_N(_x_); scdc_dataset_input_log_cout_print(_d_); scdc_log_cout_printf("\n");)
-# define SCDC_TRACE_DATASET_OUTPUT(_d_, _x_...)  Z_MOP(SCDC_TRACE_N(_x_); scdc_dataset_output_log_cout_print(_d_); scdc_log_cout_printf("\n");)
+# define SCDC_TRACE(...)                      scdc_log_cout_printf_nl(SCDC_TRACE_PREFIX SCDC_LOG_PREFIX __VA_ARGS__)
+# define SCDC_TRACE_N(...)                    scdc_log_cout_printf(SCDC_TRACE_PREFIX SCDC_LOG_PREFIX __VA_ARGS__)
+# define SCDC_TRACE_C(...)                    scdc_log_cout_printf_nl(__VA_ARGS__)
+# define SCDC_TRACE_C_N(...)                  scdc_log_cout_printf(__VA_ARGS__)
+# define SCDC_TRACE_DATASET_INPUT(_d_, ...)   Z_MOP(SCDC_TRACE_N(__VA_ARGS__); scdc_dataset_input_log_cout_print(_d_); scdc_log_cout_printf("\n");)
+# define SCDC_TRACE_DATASET_OUTPUT(_d_, ...)  Z_MOP(SCDC_TRACE_N(__VA_ARGS__); scdc_dataset_output_log_cout_print(_d_); scdc_log_cout_printf("\n");)
 #else
-# define SCDC_TRACE(_x_...)                      Z_NOP()
-# define SCDC_TRACE_N(_x_...)                    Z_NOP()
-# define SCDC_TRACE_C(_x_...)                    Z_NOP()
-# define SCDC_TRACE_C_N(_x_...)                  Z_NOP()
-# define SCDC_TRACE_DATASET_INPUT(_d_, _x_...)   Z_NOP()
-# define SCDC_TRACE_DATASET_OUTPUT(_d_, _x_...)  Z_NOP()
+# define SCDC_TRACE(...)                      Z_NOP()
+# define SCDC_TRACE_N(...)                    Z_NOP()
+# define SCDC_TRACE_C(...)                    Z_NOP()
+# define SCDC_TRACE_C_N(...)                  Z_NOP()
+# define SCDC_TRACE_DATASET_INPUT(_d_, ...)   Z_NOP()
+# define SCDC_TRACE_DATASET_OUTPUT(_d_, ...)  Z_NOP()
 #endif
 
 #if HAVE_SCDC_FAIL
 # define SCDC_FAIL_PREFIX   "SCDC-FAIL: "
-# define SCDC_FAIL(_x_...)  scdc_cout_printf_nl(SCDC_FAIL_PREFIX SCDC_LOG_PREFIX _x_)
+# define SCDC_FAIL(...)  scdc_log_cout_printf_nl(SCDC_FAIL_PREFIX SCDC_LOG_PREFIX __VA_ARGS__)
 #else
-# define SCDC_FAIL(_x_...)  Z_NOP()
+# define SCDC_FAIL(...)  Z_NOP()
 #endif
 
 #if HAVE_SCDC_ERROR
 # define SCDC_ERROR_PREFIX   "SCDC-ERROR: "
-# define SCDC_ERROR(_x_...)  scdc_cerr_printf_nl(SCDC_ERROR_PREFIX SCDC_LOG_PREFIX _x_)
+# define SCDC_ERROR(...)  scdc_log_cerr_printf_nl(SCDC_ERROR_PREFIX SCDC_LOG_PREFIX __VA_ARGS__)
 #else
-# define SCDC_ERROR(_x_...)  Z_NOP()
+# define SCDC_ERROR(...)  Z_NOP()
 #endif
 
 #if HAVE_SCDC_ASSERT
 # define SCDC_ASSERT_PREFIX  "SCDC-ASSERT: "
-# define SCDC_ASSERT(_t_)  Z_MOP(if (!(_t_)) scdc_cerr_printf(SCDC_ASSERT_PREFIX __FILE__ ":%d: '" #_t_ "' failed\n", __LINE__);)
+# define SCDC_ASSERT(_t_)  Z_MOP(if (!(_t_)) scdc_log_cerr_printf(SCDC_ASSERT_PREFIX __FILE__ ":%d: '" #_t_ "' failed\n", __LINE__);)
 #else
-# define SCDC_ASSERT(_x_)  Z_NOP()
+# define SCDC_ASSERT(_t_)  Z_NOP()
 #endif
 
 #if HAVE_SCDC_FATAL
 # define SCDC_FATAL_PREFIX   "SCDC-FATAL: "
-# define SCDC_FATAL(_x_...)  scdc_cerr_printf_nl(SCDC_FATAL_PREFIX SCDC_LOG_PREFIX _x_)
+# define SCDC_FATAL(...)  scdc_log_cerr_printf_nl(SCDC_FATAL_PREFIX SCDC_LOG_PREFIX __VA_ARGS__)
 #else
-# define SCDC_FATAL(_x_...)  Z_NOP()
+# define SCDC_FATAL(...)  Z_NOP()
 #endif
 
 #endif /* __LOG_HH__ */

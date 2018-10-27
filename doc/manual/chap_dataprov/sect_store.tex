@@ -1,0 +1,124 @@
+\section{Store: Non-hierarchical folder-oriented storage}
+\label{sect:dataprov_store}
+
+\begin{itemize}
+  \item non-hierarchical folder-oriented storage
+  \item backends: memory, local file system, MySQL, NFS, WebDAV
+\end{itemize}
+
+
+\subsection{Server-side setup}
+
+\begin{description}
+  \item[\texttt{store:mem}] Parameter: none
+  \item[\texttt{store:fs}] Parameter: root directory
+  \item[\texttt{store:nfs}] Parameter: NFS export URL \texttt{nfs://<host>/<path>}
+  \item[\texttt{store:webdav[:username:password]}] Parameter: WebDAV server URL \texttt{http://<host>[:port]/<path>}\\
+if the optional config switches \text{username} and \text{password} are given, then the user name and the password have to given as separate string parameters
+\end{description}
+
+
+\subsection{Client-side usage}
+
+\begin{dscmdref}
+% command: cd
+\refcmd{cd [|ADMIN|<store>]}{
+\refcmduse{
+Change to administration mode using no parameter or parameter \dscmd{ADMIN}.
+Select a single store given by \dscmd{<store>}.
+}
+% \refcmdparam{[|ADMIN|<store>]}
+\refcmdfail{Store \dscmd{<store>} does not exist.}
+}
+\end{dscmdref}
+
+
+\subsubsection*{Administration mode}
+
+\begin{dscmdref}
+
+% command: info
+\refcmd{info}{
+\refcmduse{General information about the stores.}
+\refcmdres{Store information.}
+}
+
+% command: ls
+\refcmd{ls}{
+\refcmduse{List all available stores.}
+\refcmdres{Number of stores and list of store names separated by \enquote{|} character.}
+}
+
+% command: put
+\refcmd{put <store>}{
+\refcmduse{Create a store \dscmd{<store>}.}
+% \refcmdparam{<store>}
+\refcmdfail{Store \dscmd{<store>} could not be created.}
+}
+
+% command: rm
+\refcmd{rm <store>}{
+\refcmduse{Remove the store \dscmd{<store>}.}
+% \refcmdparam{<store>}
+\refcmdfail{Store \dscmd{<store>} does not exist or could not be removed.}
+}
+
+\end{dscmdref}
+
+\subsubsection*{Single store selected}
+
+\begin{dscmdref}
+
+\refcmd{info}{
+\refcmduse{General information about the selected store.}
+\refcmdres{Store information.}
+}
+
+\refcmd{ls}{
+\refcmduse{List all available entries of the selected store.}
+\refcmdres{Number of entries and list of entry names separated by \enquote{|} character.}
+}
+
+% command: put
+\refcmd{put <entry> [<pos>][:<size>]}{
+\refcmduse{
+Write data from the command input to the entry \dscmd{<entry>} of the selected store.
+Data is written at the beginning of the entry or (optionally) at position \dscmd{<pos>}.
+Either all input or (optionally) at most \dscmd{<size>} bytes are written.
+If the entry already exists, its data is overwritten.
+If the entry does not exists, it is created.
+}
+% \refcmdparam{<entry> [<pos>][:<size>]}
+\refcmdin{Data to be written to the entry.}
+\refcmdfail{Entry \dscmd{<entry>} could not be created or data write failed.}
+}
+
+% command: get
+\refcmd{get <entry> [<pos>][:<size>]}{
+\refcmduse{
+Read data from the entry \dscmd{<entry>} of the selected store into the command output.
+Data is read at the beginning of the entry or (optionally) at position \dscmd{<pos>}.
+Either all data or (optionally) at most \dscmd{<size>} bytes are read.
+If the entry does not exists, then the command fails.
+}
+% \refcmdparam{<entry> [<pos>][:<size>]}
+\refcmdout{Data read from the entry.}
+\refcmdfail{Entry \dscmd{<entry>} does not exist or data read failed.}
+}
+
+% command: rm
+\refcmd{rm <store>}{
+\refcmduse{Remove the entry \dscmd{<entry>} of the selected store.}
+% \refcmdparam{<store>}
+\refcmdfail{Entry \dscmd{<entry>} does not exist or could not be removed.}
+}
+
+\end{dscmdref}
+
+
+\subsection{Configuration}
+
+\begin{description}
+  \item[\texttt{store:mem}] none
+  \item[\texttt{store:fs}] none
+\end{description}

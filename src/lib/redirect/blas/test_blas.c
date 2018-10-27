@@ -18,6 +18,10 @@
  */
 
 
+#if HAVE_CONFIG_H
+# include "config.h"
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -28,12 +32,28 @@
 #include "test_blas_common.h"
 
 
-#if LIBBLAS_SCDC && LIBBLAS_SCDC_PREFIX
-# undef __BLAS_H__
-# undef MANGLE_BLAS
-# define MANGLE_BLAS(_f_)  Z_CONCAT(libblas_scdc_, _f_)
-# include "blas.h"
+#if LIBBLAS_SCDC
+# include "blas_scdc_config.h"
+# if LIBBLAS_SCDC_PREFIX
+#  undef __BLAS_H__
+#  undef MANGLE_BLAS
+#  define MANGLE_BLAS(_f_)  Z_CONCAT(libblas_scdc_, _f_)
+#  include "blas.h"
+# endif
 #endif
+
+
+#define TEST_BENCH   0
+#define TEST_IDAMAX  0
+#define TEST_DCOPY   0
+#define TEST_DSCAL   0
+#define TEST_DAXPY   0
+#define TEST_DGER    0
+#define TEST_DGEMV   0
+#define TEST_DTRSV   0
+#define TEST_DTRSM   0
+
+#define TEST_JACOBI  1
 
 
 #define PRINT_DATA  1
@@ -56,9 +76,7 @@ void test_bench()
 #if LIBBLAS_SCDC
 
   MANGLE_BLAS(dvin_)(&N, DX, &INCX);
-
   MANGLE_BLAS(dvout_)(&N, DX, &INCX);
-
   MANGLE_BLAS(dvinout_)(&N, DX, &INCX);
 
 #endif
@@ -75,9 +93,7 @@ void test_bench()
 #if LIBBLAS_SCDC
 
   MANGLE_BLAS(dgein_)(&M, &N, A, &LDA);
-
   MANGLE_BLAS(dgeout_)(&M, &N, A, &LDA);
-
   MANGLE_BLAS(dgeinout_)(&M, &N, A, &LDA);
 
 #endif
@@ -422,46 +438,151 @@ void test_dtrsm()
 }
 
 
+void test_jacobi()
+{
+  printf("%s:\n", __func__);
+
+  char UPLO = 'X'; /* U, L */
+  char TRANS = 'N'; /* N, T */
+  char DIAG = 'N'; /* U, N */
+
+  // const int N = 4 * 1000;
+  const int N = 10;
+  const int LD = N;
+  const int INC = 1;
+
+  double *A = malloc(N * N * sizeof(double));
+  double *B = malloc(N * sizeof(double));
+
+  double *LR = malloc(N * N * sizeof(double));
+  double *D = malloc(N * sizeof(double));
+  double *b = malloc(N * sizeof(double));
+  double *x0 = malloc(2 * N * sizeof(double));
+  double *x1 = x0 + N;
+
+  double *x_old, *x_new, *x_tmp;
+
+  dmatvec_lgs_init_one(UPLO, TRANS, DIAG, N, A, LD, B, INC);
+
+  int i, j;
+  for (i = 0; i < N; ++i)
+  {
+    D[i] = 0;
+    for (j = 0; j < N; ++j)
+    {
+      if (i == j) continue;
+
+      A[i * LD + i] += A[j * LD + i];
+      B[i] += A[j * LD + i];
+    }
+    D[i] = A[i * LD + i];
+  }
+
+  // dmatvec_lgs_print(UPLO, TRANS, DIAG, N, A, LD, B, INC);
+
+  for (i = 0; i < N; ++i)
+  {
+    for (j = 0; j < N; ++j)
+    {
+      LR[j * LD + i] = A[j * LD + i] / D[i];
+    }
+    LR[i * LD + i] = 0;
+    b[i] = B[i] / D[i];
+  }
+
+  dvector_init_rand(N, x0, INC);
+
+  x_old = x0;
+  x_new = x1;
+
+  const int rounds = 10;
+
+  int r;
+  for (r = 0; r < rounds; ++r)
+  {
+    const double ALPHA = -1.0;
+    const double BETA = 1.0;
+
+    // x' = D^-1 * (B - LR * x) = (D^1 * B) - (D^1 * LR) * x
+
+    for (i = 0; i < N; ++i) x_new[i] = b[i];
+
+    double t = z_time_wtime();
+    MANGLE_BLAS(dgemv_)(&TRANS, &N, &N, &ALPHA, LR, &LD, x_old, &INC, &BETA, x_new, &INC);
+    t = z_time_wtime() - t;
+
+    double e = 0.0;
+    for (i = 0; i < N; ++i)
+    {
+      double v = B[i];
+      for (j = 0; j < N; ++j)
+      {
+        v -= A[j * LD + i] * x_new[i];
+      }
+      e += fabs(v);
+    }
+
+    x_tmp = x_old;
+    x_old = x_new;
+    x_new = x_tmp;
+
+    printf("round %d: error: %e, time: %f\n", r, e, t);
+    // dvector_print(N, x_old, INC);
+  }
+
+  free(A);
+  free(B);
+  free(LR);
+  free(D);
+  free(b);
+  free(x0);
+}
+
+
 int main(int argc, char *argv[])
 {
 #if RANDOM
   srandom(RANDOM);
 #endif
 
-#if 0
+#if TEST_BENCH
   test_bench();
 #endif
 
-#if 1
+#if TEST_IDAMAX
   test_idamax();
 #endif
 
-#if 1
+#if TEST_DCOPY
   test_dcopy();
 #endif
 
-#if 1
+#if TEST_DSCAL
   test_dscal();
 #endif
 
-#if 1
+#if TEST_DAXPY
   test_daxpy();
 #endif
 
-#if 1
+#if TEST_DGER
   test_dger();
 #endif
 
-#if 1
+#if TEST_DGEMV
   test_dgemv();
 #endif
 
-#if 1
+#if TEST_DTRSV
   test_dtrsv();
 #endif
 
-#if 1
+#if TEST_DTRSM
   test_dtrsm();
+#endif
+
+#if TEST_JACOBI
+  test_jacobi();
 #endif
 
   return 0;

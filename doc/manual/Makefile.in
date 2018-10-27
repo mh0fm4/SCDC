@@ -1,0 +1,15 @@
+# This is a Makefile!
+
+TEX_MAIN:=manual
+
+SUB_DIRS:=
+SUB_DIRS+=chap_intro
+SUB_DIRS+=chap_general
+SUB_DIRS+=chap_server
+SUB_DIRS+=chap_client
+SUB_DIRS+=chap_dataprov
+SUB_DIRS+=chap_nodeport
+SUB_DIRS+=chap_redirect
+
+TEX_MAIN_TMP_EXTS+=$(addprefix -bibolay,$(TEX_BIB_TMP_EXTS))
+TEX_EXTRA_RERUN=1

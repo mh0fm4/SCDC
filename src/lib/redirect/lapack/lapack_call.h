@@ -27,8 +27,12 @@
 
 
 typedef redirect_call_t lapack_call_t;
-
 #define LAPACK_CALL(_x_)  Z_CONCAT(redirect_call_, _x_)
+
+#if REDIRECT_CALL_PARAMS_CACHE
+typedef redirect_cache_t lapack_cache_t;
+#define LAPACK_CACHE(_x_)  Z_CONCAT(redirect_cache_, _x_)
+#endif /* REDIRECT_CALL_PARAMS_CACHE */
 
 
 #endif /* __LAPACK_CALL_H__ */

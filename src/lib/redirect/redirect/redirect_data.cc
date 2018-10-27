@@ -22,6 +22,7 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "redirect_config.h"
 #include "common.h"
 #include "redirect_data.h"
 
@@ -270,16 +271,16 @@ void redirect_data_blocks_free_val(T *b)
 
 #define DEFINE_BLOCKS(_t_, _tn_) \
   rdint_t redirect_data_blocks_pack_ ## _tn_(rdint_t count, rdint_t size, rdint_t stride, _t_ *b, _t_ **bout) { \
-    return redirect_data_blocks_pack_val(count, size, stride, b, bout); \
+    return redirect_data_blocks_pack_val<_t_>(count, size, stride, b, bout); \
   } \
   rdint_t redirect_data_blocks_unpack_ ## _tn_(rdint_t count, rdint_t size, rdint_t stride, _t_ *b, _t_ **bout) { \
-    return redirect_data_blocks_unpack_val(count, size, stride, b, bout); \
+    return redirect_data_blocks_unpack_val<_t_>(count, size, stride, b, bout); \
   } \
   rdint_t redirect_data_blocks_transform_ ## _tn_(rdint_t count, rdint_t size, rdint_t stride_in, _t_ *b_in, rdint_t stride_out, _t_ *b_out) { \
-    return redirect_data_blocks_transform_val(count, size, stride_in, b_in, stride_out, b_out); \
+    return redirect_data_blocks_transform_val<_t_>(count, size, stride_in, b_in, stride_out, b_out); \
   } \
   void redirect_data_blocks_free_ ## _tn_(_t_ *b) { \
-    return redirect_data_blocks_free_val(b); \
+    return redirect_data_blocks_free_val<_t_>(b); \
   }
 
 

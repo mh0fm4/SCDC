@@ -30,11 +30,11 @@ class scdc_dataprov_bench: public scdc_dataprov
   public:
     scdc_dataprov_bench();
 
-    virtual bool open(const char *conf, scdc_args *args);
-    virtual void close();
+    virtual bool open(const char *conf, scdc_args *args, scdc_result &result);
+    virtual bool close(scdc_result &result);
 
-    virtual scdc_dataset *dataset_open(const char *path, scdcint_t path_size, scdc_dataset_output_t *output);
-    virtual void dataset_close(scdc_dataset *dataset, scdc_dataset_output_t *output);
+    virtual scdc_dataset *dataset_open(std::string &path, scdc_result &result);
+    virtual bool dataset_close(scdc_dataset *dataset, scdc_result &result);
 
   private:
 };

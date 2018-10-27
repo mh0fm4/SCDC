@@ -31,6 +31,16 @@ REDIRECT_ORIG_DECLARE_INTRO();
 
 REDIRECT_ORIG_DECLARE(fcs_init);
 REDIRECT_ORIG_DECLARE(fcs_destroy);
+REDIRECT_ORIG_DECLARE(fcs_set_common);
+REDIRECT_ORIG_DECLARE(fcs_set_parameters);
+REDIRECT_ORIG_DECLARE(fcs_tune);
+REDIRECT_ORIG_DECLARE(fcs_run);
+REDIRECT_ORIG_DECLARE(fcs_result_destroy);
+REDIRECT_ORIG_DECLARE(fcs_result_get_return_code);
+REDIRECT_ORIG_DECLARE(fcs_result_get_function);
+REDIRECT_ORIG_DECLARE(fcs_result_get_message);
+REDIRECT_ORIG_DECLARE(fcs_result_print_result);
+
 
 REDIRECT_ORIG_DECLARE_OUTRO();
 

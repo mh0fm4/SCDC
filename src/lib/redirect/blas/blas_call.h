@@ -27,8 +27,12 @@
 
 
 typedef redirect_call_t blas_call_t;
-
 #define BLAS_CALL(_x_)  Z_CONCAT(redirect_call_, _x_)
+
+#if REDIRECT_CALL_PARAMS_CACHE
+typedef redirect_cache_t blas_cache_t;
+#define BLAS_CACHE(_x_)  Z_CONCAT(redirect_cache_, _x_)
+#endif /* REDIRECT_CALL_PARAMS_CACHE */
 
 
 #endif /* __BLAS_CALL_H__ */

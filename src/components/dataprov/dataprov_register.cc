@@ -21,6 +21,8 @@
 #include <cstdio>
 #include <sstream>
 
+#define SCDC_TRACE_NOT  !SCDC_TRACE_DATAPROV_REGISTER
+
 #include "z_pack.h"
 
 #include "config.hh"
@@ -63,54 +65,33 @@ scdc_dataprov_register::scdc_dataprov_register(const std::string &type_)
 }
 
 
-/*bool scdc_dataprov_register::open(const char *conf, scdc_args *args)
+scdc_dataset *scdc_dataprov_register::dataset_open(std::string &path, scdc_result &result)
 {
-  SCDC_TRACE("open: '" << conf << "'");
-
-  return scdc_dataprov::open(conf, args);
-}
-
-
-void scdc_dataprov_register::close()
-{
-  SCDC_TRACE("close:");
-
-  scdc_dataprov::close();
-}*/
-
-
-scdc_dataset *scdc_dataprov_register::dataset_open(const char *path, scdcint_t path_size, scdc_dataset_output_t *output)
-{
-  SCDC_TRACE("dataset_open: '" << string(path, path_size) << "'");
-
-  scdc_dataset *dataset = 0;
-  
-  if (config_open(path, path_size, output, &dataset)) return dataset;
+  SCDC_TRACE("dataset_open: path: '" << path << "'");
 
   scdc_dataset_register *dataset_register = new scdc_dataset_register(this);
 
-  string s(path, path_size);
-  dataset_register->do_cmd_cd(ltrim(s, "/").c_str(), 0, output);
-
-  SCDC_TRACE("dataset_open: return: '" << dataset_register << "'");
+  SCDC_TRACE("dataset_open: return: " << dataset_register);
 
   return dataset_register;
 }
 
 
-void scdc_dataprov_register::dataset_close(scdc_dataset *dataset, scdc_dataset_output_t *output)
+bool scdc_dataprov_register::dataset_close(scdc_dataset *dataset, scdc_result &result)
 {
-  SCDC_TRACE("dataset_close: '" << dataset << "'");
+  SCDC_TRACE("dataset_close: dataset: " << dataset);
 
-  if (config_close(dataset, output)) return;
+  bool ret = true;
 
   delete dataset;
 
-  SCDC_TRACE("dataset_close: return");
+  SCDC_TRACE("dataset_close: return: " << ret);
+
+  return ret;
 }
 
 
-bool scdc_dataprov_register::dataset_cmds_do_cmd(scdc_dataset *dataset, const char *cmd, const char *params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+bool scdc_dataprov_register::dataset_cmds_do_cmd(scdc_dataset *dataset, const char *cmd, const char *params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
 {
   SCDC_TRACE("dataset_cmds_do_cmd: cmd: '" << cmd << "', params: '" << params << "'");
 
@@ -141,10 +122,10 @@ bool scdc_dataprov_register::dataset_cmds_do_cmd(scdc_dataset *dataset, const ch
 
   } else 
   {
-    return scdc_dataprov::dataset_cmds_do_cmd(dataset, cmd, params, input, output);
+    return scdc_dataprov::dataset_cmds_do_cmd(dataset, cmd, params, input, output, result);
   }
 
-  SCDC_DATASET_OUTPUT_PRINTF(output, r.c_str());
+  result = r;
 
   return ret;
 }
@@ -241,25 +222,18 @@ bool scdc_dataprov_register::reg_update(const std::string &url)
   i->second.type = "";
   i->second.state = "";
 
-  scdc_dataset_input_t *input = NULL;
-  scdc_dataset_output_t output_, *output = &output_;
-
-  output = scdc_dataset_output_create(output, "alloc");
-
   string cmd = url + "/CONFIG info";
 
-  bool ret = scdc_dataset_cmd(SCDC_DATASET_NULL, cmd.c_str(), input, output);
+  bool ret = scdc_dataset_cmd(SCDC_DATASET_NULL, cmd.c_str(), 0, 0);
+  string result = scdc_last_result();
 
   if (ret)
   {
-    string s = SCDC_DATASET_OUTPUT_STR(output);
-    string::size_type p = s.find('|');
+    string::size_type p = result.find('|');
 
-    i->second.type = s.substr(0, p);
-    if (p != string::npos) i->second.state = s.substr(p + 1, string::npos);
+    i->second.type = result.substr(0, p);
+    if (p != string::npos) i->second.state = result.substr(p + 1, string::npos);
   }
-
-  scdc_dataset_output_destroy(output);
 
   SCDC_TRACE("reg_update: type: '" << i->second.type << "', state: '" << i->second.state << "'");
 

@@ -45,13 +45,15 @@ class scdc_dataset_hook: public scdc_dataset
       :scdc_dataset(dataprov_), dataset(dataset_) { }
 
 
-    bool do_cmd(const string &cmd, const string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+    bool do_cmd(const string &cmd, const string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
     {
       SCDC_TRACE("dataset_hook: do_cmd: cmd: '" << cmd << "'");
 
       scdc_dataprov_hook *dataprov_hook = static_cast<scdc_dataprov_hook *>(dataprov);
 
-      scdcint_t ret = dataprov_hook->hook_arg.hook.dataset_cmd(dataprov_hook->dataprov, dataset, cmd.c_str(), params.c_str(), input, output);
+      scdc_result_t res = SCDC_RESULT_INIT_EMPTY;
+      scdcint_t ret = dataprov_hook->hook_arg.hook.dataset_cmd(dataprov_hook->dataprov, dataset, cmd.c_str(), params.c_str(), input, output, &res);
+      result = SCDC_RESULT_STR(&res);
 
       SCDC_TRACE("dataset_hook: do_cmd: return: '" << ret << "'");
 
@@ -72,7 +74,7 @@ scdc_dataprov_hook::scdc_dataprov_hook()
 }
 
 
-bool scdc_dataprov_hook::open(const char *conf, scdc_args *args)
+bool scdc_dataprov_hook::open(const char *conf, scdc_args *args, scdc_result &result)
 {
   SCDC_TRACE("open: '" << conf << "'");
 
@@ -87,7 +89,7 @@ bool scdc_dataprov_hook::open(const char *conf, scdc_args *args)
     goto do_quit;
   }
 
-  if (!scdc_dataprov::open(0, args))
+  if (!scdc_dataprov::open(0, args, result))
   {
     SCDC_FAIL("open: opening base");
     ret = false;
@@ -109,7 +111,7 @@ bool scdc_dataprov_hook::open(const char *conf, scdc_args *args)
     }
 
 do_close:
-    if (!ret) scdc_dataprov::close();
+    if (!ret) scdc_dataprov::close(result);
   }
 
   SCDC_TRACE("open: dataprov: '" << dataprov << "'");
@@ -123,83 +125,102 @@ do_quit:
 }
 
 
-void scdc_dataprov_hook::close()
+bool scdc_dataprov_hook::close(scdc_result &result)
 {
   SCDC_TRACE("close:");
+
+  bool ret = true;
 
   if (hook_arg.hook.close)
   {
     if (hook_arg.hook.close(dataprov) != SCDC_SUCCESS)
     {
       SCDC_FAIL("close: closing data provider with hook");
+      ret = false;
     }
   }
 
   open_args_release();
+
+  ret = scdc_dataprov::close(result);
+
+  SCDC_TRACE("close: return: " << ret);
+
+  return ret;
 }
 
 
-scdc_dataset *scdc_dataprov_hook::dataset_open(const char *path, scdcint_t path_size, scdc_dataset_output_t *output)
+scdc_dataset *scdc_dataprov_hook::dataset_open(std::string &path, scdc_result &result)
 {
-  SCDC_TRACE("dataset_open: '" << string(path, path_size) << "'");
+  SCDC_TRACE("dataset_open: path: '" << path << "'");
 
-  scdc_dataset *dataset = 0;
-  
-  if (config_open(path, path_size, output, &dataset)) return dataset;
-
+  scdc_dataset_hook *dataset_hook = 0;
   void *dataset_hook_dataset = 0;
 
   if (hook_arg.hook.dataset_open)
   {
-    dataset_hook_dataset = hook_arg.hook.dataset_open(dataprov, string(path, path_size).c_str());
+    scdc_result_t res = SCDC_RESULT_INIT_EMPTY;
+    dataset_hook_dataset = hook_arg.hook.dataset_open(dataprov, path.c_str(), &res);
+    result = SCDC_RESULT_STR(&res);
 
     if (!dataset_hook_dataset)
     {
-      SCDC_FAIL("dataset_open: opening dataset with hook failed!");
-      SCDC_DATASET_OUTPUT_PRINTF(output, "opening dataset with hook failed");
-      return 0;
+      SCDC_FAIL(__func__ << ": opening dataset with hook failed: " << result);
+      goto do_return;
     }
   }
 
-  scdc_dataset_hook *dataset_hook = new scdc_dataset_hook(this, dataset_hook_dataset);
+  /* unset path to prevent a further cd command */
+  path.clear();
 
-  SCDC_TRACE("dataset_open: return: '" << dataset_hook << "'");
+  dataset_hook = new scdc_dataset_hook(this, dataset_hook_dataset);
+
+do_return:
+  SCDC_TRACE("dataset_open: return: " << dataset_hook);
 
   return dataset_hook;
 }
 
 
-void scdc_dataprov_hook::dataset_close(scdc_dataset *dataset, scdc_dataset_output_t *output)
+bool scdc_dataprov_hook::dataset_close(scdc_dataset *dataset, scdc_result &result)
 {
-  SCDC_TRACE("dataset_close: dataset: '" << dataset << "'");
+  SCDC_TRACE("dataset_close: dataset: " << dataset);
 
-  if (config_close(dataset, output)) return;
+  bool ret = false;
 
   scdc_dataset_hook *dataset_hook = static_cast<scdc_dataset_hook *>(dataset);
 
   if (hook_arg.hook.dataset_close)
   {
-    if (hook_arg.hook.dataset_close(dataprov, dataset_hook->dataset) != SCDC_SUCCESS)
+    scdc_result_t res = SCDC_RESULT_INIT_EMPTY;
+    scdcint_t r = hook_arg.hook.dataset_close(dataprov, dataset_hook->dataset, &res);
+    result = SCDC_RESULT_STR(&res);
+
+    if (r != SCDC_SUCCESS)
     {
-      SCDC_FAIL("dataset_close: closing dataset with hook failed!");
-      SCDC_DATASET_OUTPUT_PRINTF(output, "opening dataset with hook failed");
+      SCDC_FAIL(__func__ << ": closing dataset with hook failed: " << result);
+      goto do_return;
     }
   }
 
   delete dataset_hook;
+  ret = true;
 
-  SCDC_TRACE("dataset_close: return");
+do_return:
+  SCDC_TRACE("dataset_close: return: " << ret);
+
+  return ret;
 }
 
 
-scdc_dataset *scdc_dataprov_hook::dataset_open_read_state(scdc_data *incoming, scdc_dataset_output_t *output)
+scdc_dataset *scdc_dataprov_hook::dataset_open_read_state(scdc_data *incoming, scdc_result &result)
 {
   SCDC_TRACE("dataset_open_read_state:");
 
   if (!hook_arg.hook.dataset_open_read_state)
   {
     SCDC_TRACE("dataset_open_read_state: using fallback");
-    return scdc_dataprov::dataset_open_read_state(incoming, output);
+    return scdc_dataprov::dataset_open_read_state(incoming, result);
   }
 
   char *buf;
@@ -219,12 +240,13 @@ scdc_dataset *scdc_dataprov_hook::dataset_open_read_state(scdc_data *incoming, s
 
   buf_size = end - buf;
 
-  void *dataset = hook_arg.hook.dataset_open_read_state(dataprov, buf, buf_size);
+  scdc_result_t res = SCDC_RESULT_INIT_EMPTY;
+  void *dataset = hook_arg.hook.dataset_open_read_state(dataprov, buf, buf_size, &res);
+  result = SCDC_RESULT_STR(&res);
 
   if (!dataset)
   {
-    SCDC_FAIL("dataset_open_read_state: opening dataset by reading state with hook failed!");
-    SCDC_DATASET_OUTPUT_PRINTF(output, "opening dataset by reading with hook failed");
+    SCDC_FAIL(__func__ << ": opening dataset by reading state with hook failed: '" << result << "'");
     return 0;
   }
 
@@ -238,28 +260,31 @@ scdc_dataset *scdc_dataprov_hook::dataset_open_read_state(scdc_data *incoming, s
 }
 
 
-void scdc_dataprov_hook::dataset_close_write_state(scdc_dataset *dataset, scdc_data *outgoing, scdc_dataset_output_t *output)
+bool scdc_dataprov_hook::dataset_close_write_state(scdc_dataset *dataset, scdc_data *outgoing, scdc_result &result)
 {
   SCDC_TRACE("dataset_close_write_state: dataset: '" << dataset << "'");
 
   if (!hook_arg.hook.dataset_close_write_state)
   {
     SCDC_TRACE("dataset_close_write_state: using fallback");
-    scdc_dataprov::dataset_close_write_state(dataset, outgoing, output);
-    return;
+    return scdc_dataprov::dataset_close_write_state(dataset, outgoing, result);
   }
+
+  bool ret = true;
 
   scdc_dataset_hook *dataset_hook = static_cast<scdc_dataset_hook *>(dataset);
 
   char *buf = outgoing->get_write_pos_buf();
   scdcint_t buf_size = outgoing->get_write_pos_buf_size();
 
-  scdcint_t n = hook_arg.hook.dataset_close_write_state(dataprov, dataset_hook->dataset, buf, buf_size);
+  scdc_result_t res = SCDC_RESULT_INIT_EMPTY;
+  scdcint_t n = hook_arg.hook.dataset_close_write_state(dataprov, dataset_hook->dataset, buf, buf_size, &res);
+  result = SCDC_RESULT_STR(&res);
 
   if (n < 0)
   {
-    SCDC_FAIL("dataset_close_write_state: closing dataset by writing state with hook failed!");
-    SCDC_DATASET_OUTPUT_PRINTF(output, "closing dataset by writing state with hook failed");
+    SCDC_FAIL(__func__ << ": closing dataset by writing state with hook failed: '" << result << "'");
+    ret = false;
 
   } else
   {
@@ -277,7 +302,9 @@ void scdc_dataprov_hook::dataset_close_write_state(scdc_dataset *dataset, scdc_d
 
   delete dataset_hook;
 
-  SCDC_TRACE("dataset_close_write_state: return");
+  SCDC_TRACE("dataset_close_write_state: return: " << ret);
+
+  return ret;
 }
 
 
@@ -288,9 +315,6 @@ bool scdc_dataprov_hook::config_do_cmd_param(const std::string &cmd, const std::
   done = true;
   bool ret = true;
 
-  scdcint_t buf_size = 1024;
-  char buf_[buf_size], *buf = buf_;
-
   if (param == "")
   {
     ret = scdc_dataprov::config_do_cmd_param(cmd, param, val, result, done);
@@ -300,7 +324,9 @@ bool scdc_dataprov_hook::config_do_cmd_param(const std::string &cmd, const std::
 
     if (hook_arg.hook.config)
     {
-      ret = (hook_arg.hook.config(dataprov, cmd.c_str(), param.c_str(), val.c_str(), val.size(), &buf, &buf_size) == SCDC_SUCCESS);
+      scdc_result_t res = SCDC_RESULT_INIT_EMPTY;
+
+      ret = (hook_arg.hook.config(dataprov, cmd.c_str(), param.c_str(), val.c_str(), val.size(), &res) == SCDC_SUCCESS);
       if (!ret) goto do_quit;
 
       done = true;
@@ -308,16 +334,16 @@ bool scdc_dataprov_hook::config_do_cmd_param(const std::string &cmd, const std::
       /* base class AND hook, concat results */
       if (cmd == "info")
       {
-        ret = scdc_dataprov_config::info(result, string(buf, buf_size).c_str());
+        ret = scdc_dataprov_config::info(result, SCDC_RESULT_STR(&res));
 
       } else if (cmd == "ls")
       {
-        ret = scdc_dataprov_config::ls(result, string(buf, buf_size).c_str());
+        ret = scdc_dataprov_config::ls(result, SCDC_RESULT_STR(&res));
 
       } else
       {
         ret = true;
-        static_cast<string>(result) = string(buf, buf_size);
+        result = SCDC_RESULT_STR(&res);
       }
     }
 
@@ -329,12 +355,14 @@ bool scdc_dataprov_hook::config_do_cmd_param(const std::string &cmd, const std::
     if (done);
     else if (hook_arg.hook.config)
     {
-      ret = (hook_arg.hook.config(dataprov, cmd.c_str(), param.c_str(), val.c_str(), val.size(), &buf, &buf_size) == SCDC_SUCCESS);
+      scdc_result_t res = SCDC_RESULT_INIT_EMPTY;
+
+      ret = (hook_arg.hook.config(dataprov, cmd.c_str(), param.c_str(), val.c_str(), val.size(), &res) == SCDC_SUCCESS);
       if (!ret) goto do_quit;
 
       done = true;
 
-      result = string(buf, buf_size);
+      result = SCDC_RESULT_STR(&res);
 
     } else done = false;
   }
@@ -350,13 +378,13 @@ do_quit:
 }
 
 
-bool scdc_dataprov_hook::dataset_cmds_do_cmd(scdc_dataset *dataset, const std::string &cmd, const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+bool scdc_dataprov_hook::dataset_cmds_do_cmd(scdc_dataset *dataset, const std::string &cmd, const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
 {
   SCDC_TRACE("dataset_cmds_do_cmd: cmd: '" << cmd << "', params: '" << params << "'");
 
   scdc_dataset_hook *dataset_hook = static_cast<scdc_dataset_hook *>(dataset);
 
-  bool ret = dataset_hook->do_cmd(cmd, params, input, output);
+  bool ret = dataset_hook->do_cmd(cmd, params, input, output, result);
 
   SCDC_TRACE("dataset_cmds_do_cmd: return: '" << ret << "'");
 

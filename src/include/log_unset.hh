@@ -37,18 +37,23 @@
 #undef SCDC_TRACE_C_N
 #undef SCDC_TRACE_DATASET_INPUT
 #undef SCDC_TRACE_DATASET_OUTPUT
+#undef SCDC_TRACE_F
+#undef SCDC_TRACE_F_N
 
 #undef SCDC_FAIL_PREFIX
 #undef SCDC_FAIL
+#undef SCDC_FAIL_F
 
 #undef SCDC_ERROR_PREFIX
 #undef SCDC_ERROR
-
-#undef SCDC_ASSERT_PREFIX
-#undef SCDC_ASSERT
+#undef SCDC_ERROR_F
 
 #undef SCDC_FATAL_PREFIX
 #undef SCDC_FATAL
+#undef SCDC_FATAL_F
+
+#undef SCDC_ASSERT_PREFIX
+#undef SCDC_ASSERT
 
 
 #endif /* __LOG_UNSET_HH__ */

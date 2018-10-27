@@ -20,6 +20,8 @@
 
 #include <cstdio>
 
+#define SCDC_TRACE_NOT  !SCDC_TRACE_NODE_MPI
+
 #include "config.hh"
 #include "common.hh"
 #include "log.hh"

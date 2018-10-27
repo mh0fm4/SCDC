@@ -25,4 +25,4 @@ SUBDIRS+=scdc
 ifneq ($(USE_PYTHON),)
  SUBDIRS+=scdc.py
 endif
-#SUBDIRS+=redirect
+SUBDIRS+=redirect

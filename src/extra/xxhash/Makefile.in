@@ -1,0 +1,20 @@
+# This is a Makefile!
+
+# current directory from current file, push to stack
+CWD:=$(subst Makefile.in,,$(MAKEFILE_IN))
+CWD_STACK:=$(CWD) $(CWD_STACK)
+# $(info CWD: $(CWD))
+# $(info CWD_STACK: $(CWD_STACK))
+
+MAKEFILE_IN:=$(CWD)../Makefile.in
+DEPS+=$(MAKEFILE_IN)
+# $(info MAKEFILE_IN: $(MAKEFILE_IN))
+# $(info DEPS: $(DEPS))
+
+include $(MAKEFILE_IN)
+
+# current directory from stack, pop from stack
+CWD:=$(firstword $(CWD_STACK))
+CWD_STACK:=$(wordlist 2,$(words $(CWD_STACK)),$(CWD_STACK))
+# $(info CWD: $(CWD))
+# $(info CWD_STACK: $(CWD_STACK))

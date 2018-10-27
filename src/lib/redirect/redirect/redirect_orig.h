@@ -39,7 +39,7 @@
   _f_ ## _f *_f_, *_f_ ## _
 
 #define REDIRECT_ORIG_DECLARE_OUTRO() \
-  } REDIRECT_ORIG = { NULL };
+  } REDIRECT_ORIG = { NULL }
 
 
 #define REDIRECT_ORIG_INIT()        Z_MOP(int i; for (i = 0; i < sizeof(REDIRECT_ORIG) / sizeof(void *); ++i) ((void **) &REDIRECT_ORIG)[i] = NULL;)

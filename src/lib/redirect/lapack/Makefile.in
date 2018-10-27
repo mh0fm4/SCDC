@@ -20,17 +20,28 @@
 #  
 
 
-SCDC_SRC:=../../../
+# current directory from current file, push to stack
+CWD:=$(subst Makefile.in,,$(MAKEFILE_IN))
+CWD_STACK:=$(CWD) $(CWD_STACK)
+# $(info CWD: $(CWD))
+# $(info CWD_STACK: $(CWD_STACK))
 
-include ../Makefile.in
+MAKEFILE_IN:=$(CWD)../Makefile.in
+DEPS+=$(MAKEFILE_IN)
+# $(info MAKEFILE_IN: $(MAKEFILE_IN))
+# $(info DEPS: $(DEPS))
 
-DEPS+=../Makefile.in
+include $(MAKEFILE_IN)
 
-DEPS+=$(LIBSCDC_DEPENDS)
-CPPFLAGS+=$(LIBSCDC_CPPFLAGS) -DHAVE_CONFIG_H=1 -DHAVE_Z_CONFIG_H=1 -DZ_OVERRIDE_CONFIG_H=1
-LDFLAGS+=$(LIBSCDC_LDFLAGS)
-LIBS+=$(LIBSCDC_LIBS)
+# current directory from stack, pop from stack
+CWD:=$(firstword $(CWD_STACK))
+CWD_STACK:=$(wordlist 2,$(words $(CWD_STACK)),$(CWD_STACK))
+# $(info CWD: $(CWD))
+# $(info CWD_STACK: $(CWD_STACK))
 
+USE_REDIRECT:=1
+
+CPPFLAGS+=-DHAVE_Z_CONFIG_H=1 -DZ_OVERRIDE_CONFIG_H=1
 #CPPFLAGS+=-DLIBLAPACK_SCDC_PROGRESS=1
 
-LAPACK_LIBS:=-llapack
+LAPACK_LIBS:=-llapack -lopenblas

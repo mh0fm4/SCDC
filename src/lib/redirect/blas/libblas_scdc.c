@@ -24,8 +24,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "common.h"
 #include "z_pack.h"
+
+#include "blas_scdc_config.h"
+#include "common.h"
 #include "blas.h"
 #include "blas_call.h"
 #include "blas_scdc.h"
@@ -183,25 +185,31 @@ void LIB_F(dvin_)(const int *N, double *DX, const int *INCX)
 #if LIBBLAS_SCDC_TRACE_DATA
   TRACE_CMD(
     TRACE_F("%s: DX", __func__);
-    BLAS_CALL(print_param_vector_double)(*N, DX, *INCX);
+    BLAS_CALL(print_param_vector_double)(DX, *N, *INCX);
   );
 #endif
 
   BLAS_TIMING_INIT_();
-
   BLAS_TIMING_START(libblas_scdc_timing[0]);
 
 #if LIBBLAS_SCDC_ENABLED
 
   libblas_scdc_init();
 
-  blas_call_t bc;
+#if LIBBLAS_SCDC_CACHE
+  blas_cache_t bch;
+  BLAS_CACHE(create)(&bch);
+#endif
 
+  blas_call_t bc;
   BLAS_CALL(create_scdc)(&bc, "dvin", libblas_scdc_uri);
 
-  BLAS_CALL(put_input_conf_int)(&bc, "N", *N);
+#if LIBBLAS_SCDC_CACHE
+  BLAS_CALL(set_cache_ptr)(&bc, &bch);
+#endif
 
-  BLAS_CALL(put_input_param_vector_double)(&bc, "DX", *N, DX, *INCX);
+  BLAS_CALL(put_input_conf_int)(&bc, "N", *N);
+  BLAS_CALL(put_input_param_vector_double)(&bc, "DX", DX, *N, *INCX);
 
   if (!BLAS_CALL(execute)(&bc))
   {
@@ -214,12 +222,15 @@ void LIB_F(dvin_)(const int *N, double *DX, const int *INCX)
 do_quit:
   BLAS_CALL(destroy_scdc)(&bc);
 
+#if LIBBLAS_SCDC_CACHE
+  BLAS_CACHE(destroy)(&bch);
+#endif
+
   libblas_scdc_release();
 
 #endif /* LIBBLAS_SCDC_ENABLED */
 
   BLAS_TIMING_STOP(libblas_scdc_timing[0]);
-
   BLAS_TIMING_PRINT_F("%s: %f  %f", __func__, libblas_scdc_timing[0], libblas_scdc_timing[1]);
 
   TRACE_F("%s: return", __func__);
@@ -235,20 +246,26 @@ void LIB_F(dvout_)(const int *N, double *DX, const int *INCX)
 #endif
 
   BLAS_TIMING_INIT_();
-
   BLAS_TIMING_START(libblas_scdc_timing[0]);
 
 #if LIBBLAS_SCDC_ENABLED
 
   libblas_scdc_init();
 
-  blas_call_t bc;
+#if LIBBLAS_SCDC_CACHE
+  blas_cache_t bch;
+  BLAS_CACHE(create)(&bch);
+#endif
 
+  blas_call_t bc;
   BLAS_CALL(create_scdc)(&bc, "dvout", libblas_scdc_uri);
 
-  BLAS_CALL(put_input_conf_int)(&bc, "N", *N);
+#if LIBBLAS_SCDC_CACHE
+  BLAS_CALL(set_cache_ptr)(&bc, &bch);
+#endif
 
-  BLAS_CALL(put_output_param_vector_double)(&bc, "DX", *N, DX, *INCX);
+  BLAS_CALL(put_input_conf_int)(&bc, "N", *N);
+  BLAS_CALL(put_output_param_vector_double)(&bc, "DX", DX, *N, *INCX);
 
   if (!BLAS_CALL(execute)(&bc))
   {
@@ -257,28 +274,31 @@ void LIB_F(dvout_)(const int *N, double *DX, const int *INCX)
   }
 
   double *DX_ = DX;
-  int INCX_ = *INCX;
-  BLAS_CALL(get_output_param_vector_double)(&bc, "DX", *N, &DX_, &INCX_);
+  rdint_t NX_ = *N, INCX_ = *INCX;
+  BLAS_CALL(get_output_param_vector_double)(&bc, "DX", &DX_, &NX_, &INCX_);
 
-  ASSERT(DX_ == DX && INCX_ == *INCX);
+  ASSERT(DX_ == DX && NX_ == *N && INCX_ == *INCX);
 
 /*  BLAS_TIMING_REMOTE_GET(&bc, &libblas_scdc_timing[1]);*/
 
 do_quit:
   BLAS_CALL(destroy_scdc)(&bc);
 
+#if LIBBLAS_SCDC_CACHE
+  BLAS_CACHE(destroy)(&bch);
+#endif
+
   libblas_scdc_release();
 
 #endif /* LIBBLAS_SCDC_ENABLED */
 
   BLAS_TIMING_STOP(libblas_scdc_timing[0]);
-
   BLAS_TIMING_PRINT_F("%s: %f  %f", __func__, libblas_scdc_timing[0], libblas_scdc_timing[1]);
 
 #if LIBBLAS_SCDC_TRACE_DATA
   TRACE_CMD(
     TRACE_F("%s: DX", __func__);
-    BLAS_CALL(print_param_vector_double)(*N, DX, *INCX);
+    BLAS_CALL(print_param_vector_double)(DX, *N, *INCX);
   );
 #endif
 
@@ -297,25 +317,31 @@ void LIB_F(dvinout_)(const int *N, double *DX, const int *INCX)
 #if LIBBLAS_SCDC_TRACE_DATA
   TRACE_CMD(
     TRACE_F("%s: DX", __func__);
-    BLAS_CALL(print_param_vector_double)(*N, DX, *INCX);
+    BLAS_CALL(print_param_vector_double)(DX, *N, *INCX);
   );
 #endif
 
   BLAS_TIMING_INIT_();
-
   BLAS_TIMING_START(libblas_scdc_timing[0]);
 
 #if LIBBLAS_SCDC_ENABLED
 
   libblas_scdc_init();
 
-  blas_call_t bc;
+#if LIBBLAS_SCDC_CACHE
+  blas_cache_t bch;
+  BLAS_CACHE(create)(&bch);
+#endif
 
+  blas_call_t bc;
   BLAS_CALL(create_scdc)(&bc, "dvinout", libblas_scdc_uri);
 
-  BLAS_CALL(put_input_conf_int)(&bc, "N", *N);
+#if LIBBLAS_SCDC_CACHE
+  BLAS_CALL(set_cache_ptr)(&bc, &bch);
+#endif
 
-  BLAS_CALL(put_inout_param_vector_double)(&bc, "DX", *N, DX, *INCX);
+  BLAS_CALL(put_input_conf_int)(&bc, "N", *N);
+  BLAS_CALL(put_inout_param_vector_double)(&bc, "DX", DX, *N, *INCX);
 
   if (!BLAS_CALL(execute)(&bc))
   {
@@ -324,28 +350,31 @@ void LIB_F(dvinout_)(const int *N, double *DX, const int *INCX)
   }
 
   double *DX_ = DX;
-  int INCX_ = *INCX;
-  BLAS_CALL(get_output_param_vector_double)(&bc, "DX", *N, &DX_, &INCX_);
+  rdint_t NX_ = *N, INCX_ = *INCX;
+  BLAS_CALL(get_output_param_vector_double)(&bc, "DX", &DX_, &NX_, &INCX_);
 
-  ASSERT(DX_ == DX && INCX_ == *INCX);
+  ASSERT(DX_ == DX && NX_ == *N && INCX_ == *INCX);
 
 /*  BLAS_TIMING_REMOTE_GET(&bc, &libblas_scdc_timing[1]);*/
 
 do_quit:
   BLAS_CALL(destroy_scdc)(&bc);
 
+#if LIBBLAS_SCDC_CACHE
+  BLAS_CACHE(destroy)(&bch);
+#endif
+
   libblas_scdc_release();
 
 #endif /* LIBBLAS_SCDC_ENABLED */
 
   BLAS_TIMING_STOP(libblas_scdc_timing[0]);
-
   BLAS_TIMING_PRINT_F("%s: %f  %f", __func__, libblas_scdc_timing[0], libblas_scdc_timing[1]);
 
 #if LIBBLAS_SCDC_TRACE_DATA
   TRACE_CMD(
     TRACE_F("%s: DX", __func__);
-    BLAS_CALL(print_param_vector_double)(*N, DX, *INCX);
+    BLAS_CALL(print_param_vector_double)(DX, *N, *INCX);
   );
 #endif
 
@@ -364,26 +393,32 @@ void LIB_F(dgein_)(const int *M, const int *N, double *A, const int *LDA)
 #if LIBBLAS_SCDC_TRACE_DATA
   TRACE_CMD(
     TRACE_F("%s: A", __func__);
-    BLAS_CALL(print_param_matrix_double)(*M, *N, A, *LDA, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
+    BLAS_CALL(print_param_matrix_double)(A, *M, *N, *LDA, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
   );
 #endif
 
   BLAS_TIMING_INIT_();
-
   BLAS_TIMING_START(libblas_scdc_timing[0]);
 
 #if LIBBLAS_SCDC_ENABLED
 
   libblas_scdc_init();
 
-  blas_call_t bc;
+#if LIBBLAS_SCDC_CACHE
+  blas_cache_t bch;
+  BLAS_CACHE(create)(&bch);
+#endif
 
+  blas_call_t bc;
   BLAS_CALL(create_scdc)(&bc, "dgein", libblas_scdc_uri);
+
+#if LIBBLAS_SCDC_CACHE
+  BLAS_CALL(set_cache_ptr)(&bc, &bch);
+#endif
 
   BLAS_CALL(put_input_conf_int)(&bc, "M", *M);
   BLAS_CALL(put_input_conf_int)(&bc, "N", *N);
-
-  BLAS_CALL(put_input_param_matrix_double)(&bc, "A", *M, *N, A, *LDA, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
+  BLAS_CALL(put_input_param_matrix_double)(&bc, "A", A, *M, *N, *LDA, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
 
   if(!BLAS_CALL(execute)(&bc))
   {
@@ -396,12 +431,15 @@ void LIB_F(dgein_)(const int *M, const int *N, double *A, const int *LDA)
 do_quit:
   BLAS_CALL(destroy_scdc)(&bc);
 
+#if LIBBLAS_SCDC_CACHE
+  BLAS_CACHE(destroy)(&bch);
+#endif
+
   libblas_scdc_release();
 
 #endif /* LIBBLAS_SCDC_ENABLED */
 
   BLAS_TIMING_STOP(libblas_scdc_timing[0]);
-
   BLAS_TIMING_PRINT_F("%s: %f  %f", __func__, libblas_scdc_timing[0], libblas_scdc_timing[1]);
 
   TRACE_F("%s: return", __func__);
@@ -417,21 +455,27 @@ void LIB_F(dgeout_)(const int *M, const int *N, double *A, const int *LDA)
 #endif
 
   BLAS_TIMING_INIT_();
-
   BLAS_TIMING_START(libblas_scdc_timing[0]);
 
 #if LIBBLAS_SCDC_ENABLED
 
   libblas_scdc_init();
 
-  blas_call_t bc;
+#if LIBBLAS_SCDC_CACHE
+  blas_cache_t bch;
+  BLAS_CACHE(create)(&bch);
+#endif
 
+  blas_call_t bc;
   BLAS_CALL(create_scdc)(&bc, "dgeout", libblas_scdc_uri);
+
+#if LIBBLAS_SCDC_CACHE
+  BLAS_CALL(set_cache_ptr)(&bc, &bch);
+#endif
 
   BLAS_CALL(put_input_conf_int)(&bc, "M", *M);
   BLAS_CALL(put_input_conf_int)(&bc, "N", *N);
-
-  BLAS_CALL(put_output_param_matrix_double)(&bc, "A", *M, *N, A, *LDA, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
+  BLAS_CALL(put_output_param_matrix_double)(&bc, "A", A, *M, *N, *LDA, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
 
   if(!BLAS_CALL(execute)(&bc))
   {
@@ -440,29 +484,31 @@ void LIB_F(dgeout_)(const int *M, const int *N, double *A, const int *LDA)
   }
 
   double *A_ = A;
-  int LDA_ = *LDA;
-  int rcma_ = RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR;
-  BLAS_CALL(get_output_param_matrix_double)(&bc, "A", *M, *N, &A_, &LDA_, &rcma_);
+  rdint_t NRA_ = *M, NCA_ = *N, LDA_ = *LDA, rcma_ = RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR;
+  BLAS_CALL(get_output_param_matrix_double)(&bc, "A", &A_, &NRA_, &NCA_, &LDA_, &rcma_);
 
-  ASSERT(A_ == A && LDA_ == *LDA && rcma_ == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
+  ASSERT(A_ == A && NRA_ == *M && NCA_ == *N && LDA_ == *LDA && rcma_ == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
 
 /*  BLAS_TIMING_REMOTE_GET(&bc, &libblas_scdc_timing[1]);*/
 
 do_quit:
   BLAS_CALL(destroy_scdc)(&bc);
 
+#if LIBBLAS_SCDC_CACHE
+  BLAS_CACHE(destroy)(&bch);
+#endif
+
   libblas_scdc_release();
 
 #endif /* LIBBLAS_SCDC_ENABLED */
 
   BLAS_TIMING_STOP(libblas_scdc_timing[0]);
-
   BLAS_TIMING_PRINT_F("%s: %f  %f", __func__, libblas_scdc_timing[0], libblas_scdc_timing[1]);
 
 #if LIBBLAS_SCDC_TRACE_DATA
   TRACE_CMD(
     TRACE_F("%s: A", __func__);
-    BLAS_CALL(print_param_matrix_double)(*M, *N, A, *LDA, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
+    BLAS_CALL(print_param_matrix_double)(A, *M, *N, *LDA, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
   );
 #endif
 
@@ -481,26 +527,32 @@ void LIB_F(dgeinout_)(const int *M, const int *N, double *A, const int *LDA)
 #if LIBBLAS_SCDC_TRACE_DATA
   TRACE_CMD(
     TRACE_F("%s: A", __func__);
-    BLAS_CALL(print_param_matrix_double)(*M, *N, A, *LDA, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
+    BLAS_CALL(print_param_matrix_double)(A, *M, *N, *LDA, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
   );
 #endif
 
   BLAS_TIMING_INIT_();
-
   BLAS_TIMING_START(libblas_scdc_timing[0]);
 
 #if LIBBLAS_SCDC_ENABLED
 
   libblas_scdc_init();
 
-  blas_call_t bc;
+#if LIBBLAS_SCDC_CACHE
+  blas_cache_t bch;
+  BLAS_CACHE(create)(&bch);
+#endif
 
+  blas_call_t bc;
   BLAS_CALL(create_scdc)(&bc, "dgeinout", libblas_scdc_uri);
+
+#if LIBBLAS_SCDC_CACHE
+  BLAS_CALL(set_cache_ptr)(&bc, &bch);
+#endif
 
   BLAS_CALL(put_input_conf_int)(&bc, "M", *M);
   BLAS_CALL(put_input_conf_int)(&bc, "N", *N);
-
-  BLAS_CALL(put_inout_param_matrix_double)(&bc, "A", *M, *N, A, *LDA, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
+  BLAS_CALL(put_inout_param_matrix_double)(&bc, "A", A, *M, *N, *LDA, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
 
   if(!BLAS_CALL(execute)(&bc))
   {
@@ -509,29 +561,31 @@ void LIB_F(dgeinout_)(const int *M, const int *N, double *A, const int *LDA)
   }
 
   double *A_ = A;
-  int LDA_ = *LDA;
-  int rcma_ = RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR;
-  BLAS_CALL(get_output_param_matrix_double)(&bc, "A", *M, *N, &A_, &LDA_, &rcma_);
+  rdint_t NRA_ = *M, NCA_ = *N, LDA_ = *LDA, rcma_ = RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR;
+  BLAS_CALL(get_output_param_matrix_double)(&bc, "A", &A_, &NRA_, &NCA_, &LDA_, &rcma_);
 
-  ASSERT(A_ == A && LDA_ == *LDA && rcma_ == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
+  ASSERT(A_ == A && NRA_ == *M && NCA_ == *N && LDA_ == *LDA && rcma_ == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
 
 /*  BLAS_TIMING_REMOTE_GET(&bc, &libblas_scdc_timing[1]);*/
 
 do_quit:
   BLAS_CALL(destroy_scdc)(&bc);
 
+#if LIBBLAS_SCDC_CACHE
+  BLAS_CACHE(destroy)(&bch);
+#endif
+
   libblas_scdc_release();
 
 #endif /* LIBBLAS_SCDC_ENABLED */
 
   BLAS_TIMING_STOP(libblas_scdc_timing[0]);
-
   BLAS_TIMING_PRINT_F("%s: %f  %f", __func__, libblas_scdc_timing[0], libblas_scdc_timing[1]);
 
 #if LIBBLAS_SCDC_TRACE_DATA
   TRACE_CMD(
     TRACE_F("%s: A", __func__);
-    BLAS_CALL(print_param_matrix_double)(*M, *N, A, *LDA, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
+    BLAS_CALL(print_param_matrix_double)(A, *M, *N, *LDA, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
   );
 #endif
 
@@ -557,25 +611,31 @@ int LIB_F(idamax_)(const int *N, double *DX, const int *INCX)
 #if LIBBLAS_SCDC_TRACE_DATA
   TRACE_CMD(
     TRACE_F("%s: DX", __func__);
-    BLAS_CALL(print_param_vector_double)(*N, DX, *INCX);
+    BLAS_CALL(print_param_vector_double)(DX, *N, *INCX);
   );
 #endif
 
   BLAS_TIMING_INIT_();
-
   BLAS_TIMING_START(libblas_scdc_timing[0]);
 
 #if LIBBLAS_SCDC_ENABLED
 
   libblas_scdc_init();
 
-  blas_call_t bc;
+#if LIBBLAS_SCDC_CACHE
+  blas_cache_t bch;
+  BLAS_CACHE(create)(&bch);
+#endif
 
+  blas_call_t bc;
   BLAS_CALL(create_scdc)(&bc, "idamax", libblas_scdc_uri);
 
-  BLAS_CALL(put_input_conf_int)(&bc, "N", *N);
+#if LIBBLAS_SCDC_CACHE
+  BLAS_CALL(set_cache_ptr)(&bc, &bch);
+#endif
 
-  BLAS_CALL(put_input_param_vector_double)(&bc, "DX", *N, DX, *INCX);
+  BLAS_CALL(put_input_conf_int)(&bc, "N", *N);
+  BLAS_CALL(put_input_param_vector_double)(&bc, "DX", DX, *N, *INCX);
 
   if (!BLAS_CALL(execute)(&bc))
   {
@@ -591,6 +651,10 @@ int LIB_F(idamax_)(const int *N, double *DX, const int *INCX)
 do_quit:
   BLAS_CALL(destroy_scdc)(&bc);
 
+#if LIBBLAS_SCDC_CACHE
+  BLAS_CACHE(destroy)(&bch);
+#endif
+
   libblas_scdc_release();
 
 #else /* LIBBLAS_SCDC_ENABLED */
@@ -601,7 +665,6 @@ do_quit:
 #endif /* LIBBLAS_SCDC_ENABLED */
 
   BLAS_TIMING_STOP(libblas_scdc_timing[0]);
-
   BLAS_TIMING_PRINT_F("%s: %f  %f", __func__, libblas_scdc_timing[0], libblas_scdc_timing[1]);
 
   TRACE_F("%s: return: %d", __func__, r);
@@ -640,26 +703,32 @@ void LIB_F(dcopy_)(const int *N, double *DX, const int *INCX, double *DY, const 
 #if LIBBLAS_SCDC_TRACE_DATA
   TRACE_CMD(
     TRACE_F("%s: DX", __func__);
-    BLAS_CALL(print_param_vector_double)(*N, DX, *INCX);
+    BLAS_CALL(print_param_vector_double)(DX, *N, *INCX);
   );
 #endif
 
   BLAS_TIMING_INIT_();
-
   BLAS_TIMING_START(libblas_scdc_timing[0]);
 
 #if LIBBLAS_SCDC_ENABLED
 
   libblas_scdc_init();
 
-  blas_call_t bc;
+#if LIBBLAS_SCDC_CACHE
+  blas_cache_t bch;
+  BLAS_CACHE(create)(&bch);
+#endif
 
+  blas_call_t bc;
   BLAS_CALL(create_scdc)(&bc, "dcopy", libblas_scdc_uri);
 
-  BLAS_CALL(put_input_conf_int)(&bc, "N", *N);
+#if LIBBLAS_SCDC_CACHE
+  BLAS_CALL(set_cache_ptr)(&bc, &bch);
+#endif
 
-  BLAS_CALL(put_input_param_vector_double)(&bc, "DX", *N, DX, *INCX);
-  BLAS_CALL(put_output_param_vector_double)(&bc, "DY", *N, DY, *INCY);
+  BLAS_CALL(put_input_conf_int)(&bc, "N", *N);
+  BLAS_CALL(put_input_param_vector_double)(&bc, "DX", DX, *N, *INCX);
+  BLAS_CALL(put_output_param_vector_double)(&bc, "DY", DY, *N, *INCY);
 
   if (!BLAS_CALL(execute)(&bc))
   {
@@ -668,15 +737,19 @@ void LIB_F(dcopy_)(const int *N, double *DX, const int *INCX, double *DY, const 
   }
 
   double *DY_ = DY;
-  int INCY_ = *INCY;
-  BLAS_CALL(get_output_param_vector_double)(&bc, "DY", *N, &DY_, &INCY_);
+  rdint_t NY_ = *N, INCY_ = *INCY;
+  BLAS_CALL(get_output_param_vector_double)(&bc, "DY", &DY_, &NY_, &INCY_);
 
-  ASSERT(DY_ == DY && INCY_ == *INCY);
+  ASSERT(DY_ == DY && NY_ == *N && INCY_ == *INCY);
 
   BLAS_TIMING_REMOTE_GET(&bc, &libblas_scdc_timing[1]);
 
 do_quit:
   BLAS_CALL(destroy_scdc)(&bc);
+
+#if LIBBLAS_SCDC_CACHE
+  BLAS_CACHE(destroy)(&bch);
+#endif
 
   libblas_scdc_release();
 
@@ -688,13 +761,12 @@ do_quit:
 #endif /* LIBBLAS_SCDC_ENABLED */
 
   BLAS_TIMING_STOP(libblas_scdc_timing[0]);
-
   BLAS_TIMING_PRINT_F("%s: %f  %f", __func__, libblas_scdc_timing[0], libblas_scdc_timing[1]);
 
 #if LIBBLAS_SCDC_TRACE_DATA
   TRACE_CMD(
     TRACE_F("%s: DY", __func__);
-    BLAS_CALL(print_param_vector_double)(*N, DY, *INCY);
+    BLAS_CALL(print_param_vector_double)(DY, *N, *INCY);
   );
 #endif
 
@@ -732,27 +804,32 @@ void LIB_F(dscal_)(const int *N, const double *DA, double *DX, const int *INCX)
 #if LIBBLAS_SCDC_TRACE_DATA
   TRACE_CMD(
     TRACE_F("%s: DX", __func__);
-    BLAS_CALL(print_param_vector_double)(*N, DX, *INCX);
+    BLAS_CALL(print_param_vector_double)(DX, *N, *INCX);
   );
 #endif
 
   BLAS_TIMING_INIT_();
-
   BLAS_TIMING_START(libblas_scdc_timing[0]);
 
 #if LIBBLAS_SCDC_ENABLED
 
   libblas_scdc_init();
 
-  blas_call_t bc;
+#if LIBBLAS_SCDC_CACHE
+  blas_cache_t bch;
+  BLAS_CACHE(create)(&bch);
+#endif
 
+  blas_call_t bc;
   BLAS_CALL(create_scdc)(&bc, "dscal", libblas_scdc_uri);
 
+#if LIBBLAS_SCDC_CACHE
+  BLAS_CALL(set_cache_ptr)(&bc, &bch);
+#endif
+
   BLAS_CALL(put_input_conf_int)(&bc, "N", *N);
-
   BLAS_CALL(put_input_conf_double)(&bc, "DA", *DA);
-
-  BLAS_CALL(put_inout_param_vector_double)(&bc, "DX", *N, DX, *INCX);
+  BLAS_CALL(put_inout_param_vector_double)(&bc, "DX", DX, *N, *INCX);
 
   if (!BLAS_CALL(execute)(&bc))
   {
@@ -761,15 +838,19 @@ void LIB_F(dscal_)(const int *N, const double *DA, double *DX, const int *INCX)
   }
 
   double *DX_ = DX;
-  int INCX_ = *INCX;
-  BLAS_CALL(get_output_param_vector_double)(&bc, "DX", *N, &DX_, &INCX_);
+  rdint_t NY_ = *N, INCX_ = *INCX;
+  BLAS_CALL(get_output_param_vector_double)(&bc, "DX", &DX_, &NY_, &INCX_);
 
-  ASSERT(DX_ == DX && INCX_ == *INCX);
+  ASSERT(DX_ == DX && NY_ == *N && INCX_ == *INCX);
 
   BLAS_TIMING_REMOTE_GET(&bc, &libblas_scdc_timing[1]);
 
 do_quit:
   BLAS_CALL(destroy_scdc)(&bc);
+
+#if LIBBLAS_SCDC_CACHE
+  BLAS_CACHE(destroy)(&bch);
+#endif
 
   libblas_scdc_release();
 
@@ -781,13 +862,12 @@ do_quit:
 #endif /* LIBBLAS_SCDC_ENABLED */
 
   BLAS_TIMING_STOP(libblas_scdc_timing[0]);
-
   BLAS_TIMING_PRINT_F("%s: %f  %f", __func__, libblas_scdc_timing[0], libblas_scdc_timing[1]);
 
 #if LIBBLAS_SCDC_TRACE_DATA
   TRACE_CMD(
     TRACE_F("%s: DY", __func__);
-    BLAS_CALL(print_param_vector_double)(*N, DX, *INCX);
+    BLAS_CALL(print_param_vector_double)(DX, *N, *INCX);
   );
 #endif
 
@@ -825,9 +905,9 @@ void LIB_F(daxpy_)(const int *N, const double *DA, double *DX, const int *INCX, 
 #if LIBBLAS_SCDC_TRACE_DATA
   TRACE_CMD(
     TRACE_F("%s: DX", __func__);
-    BLAS_CALL(print_param_vector_double)(*N, DX, *INCX);
+    BLAS_CALL(print_param_vector_double)(DX, *N, *INCX);
     TRACE_F("%s: DY", __func__);
-    BLAS_CALL(print_param_vector_double)(*N, DY, *INCY);
+    BLAS_CALL(print_param_vector_double)(DY, *N, *INCY);
   );
 #endif
 
@@ -839,16 +919,22 @@ void LIB_F(daxpy_)(const int *N, const double *DA, double *DX, const int *INCX, 
 
   libblas_scdc_init();
 
-  blas_call_t bc;
+#if LIBBLAS_SCDC_CACHE
+  blas_cache_t bch;
+  BLAS_CACHE(create)(&bch);
+#endif
 
+  blas_call_t bc;
   BLAS_CALL(create_scdc)(&bc, "daxpy", libblas_scdc_uri);
 
+#if LIBBLAS_SCDC_CACHE
+  BLAS_CALL(set_cache_ptr)(&bc, &bch);
+#endif
+
   BLAS_CALL(put_input_conf_int)(&bc, "N", *N);
-
   BLAS_CALL(put_input_conf_double)(&bc, "DA", *DA);
-
-  BLAS_CALL(put_input_param_vector_double)(&bc, "DX", *N, DX, *INCX);
-  BLAS_CALL(put_inout_param_vector_double)(&bc, "DY", *N, DY, *INCY);
+  BLAS_CALL(put_input_param_vector_double)(&bc, "DX", DX, *N, *INCX);
+  BLAS_CALL(put_inout_param_vector_double)(&bc, "DY", DY, *N, *INCY);
 
   if (!BLAS_CALL(execute)(&bc))
   {
@@ -857,15 +943,19 @@ void LIB_F(daxpy_)(const int *N, const double *DA, double *DX, const int *INCX, 
   }
 
   double *DY_ = DY;
-  int INCY_ = *INCY;
-  BLAS_CALL(get_output_param_vector_double)(&bc, "DY", *N, &DY_, &INCY_);
+  rdint_t NY_ = *N, INCY_ = *INCY;
+  BLAS_CALL(get_output_param_vector_double)(&bc, "DY", &DY_, &NY_, &INCY_);
 
-  ASSERT(DY_ == DY && INCY_ == *INCY);
+  ASSERT(DY_ == DY && NY_ == *N && INCY_ == *INCY);
 
   BLAS_TIMING_REMOTE_GET(&bc, &libblas_scdc_timing[1]);
 
 do_quit:
   BLAS_CALL(destroy_scdc)(&bc);
+
+#if LIBBLAS_SCDC_CACHE
+  BLAS_CACHE(destroy)(&bch);
+#endif
 
   libblas_scdc_release();
 
@@ -877,13 +967,12 @@ do_quit:
 #endif /* LIBBLAS_SCDC_ENABLED */
 
   BLAS_TIMING_STOP(libblas_scdc_timing[0]);
-
   BLAS_TIMING_PRINT_F("%s: %f  %f", __func__, libblas_scdc_timing[0], libblas_scdc_timing[1]);
 
 #if LIBBLAS_SCDC_TRACE_DATA
   TRACE_CMD(
     TRACE_F("%s: DY", __func__);
-    BLAS_CALL(print_param_vector_double)(*N, DY, *INCY);
+    BLAS_CALL(print_param_vector_double)(DY, *N, *INCY);
   );
 #endif
 
@@ -926,35 +1015,39 @@ void LIB_F(dger_)(const int *M, const int *N, const double *ALPHA, double *X, co
 #if LIBBLAS_SCDC_TRACE_DATA
   TRACE_CMD(
     TRACE_F("%s: X", __func__);
-    BLAS_CALL(print_param_vector_double)(*M, X, *INCX);
+    BLAS_CALL(print_param_vector_double)(X, *M, *INCX);
     TRACE_F("%s: Y", __func__);
-    BLAS_CALL(print_param_vector_double)(*N, Y, *INCY);
+    BLAS_CALL(print_param_vector_double)(Y, *N, *INCY);
     TRACE_F("%s: A", __func__);
-    BLAS_CALL(print_param_matrix_double)(*M, *N, A, *LDA, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
+    BLAS_CALL(print_param_matrix_double)(A, *M, *N, *LDA, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
   );
 #endif
 
   BLAS_TIMING_INIT_();
-
   BLAS_TIMING_START(libblas_scdc_timing[0]);
 
 #if LIBBLAS_SCDC_ENABLED
 
   libblas_scdc_init();
 
-  blas_call_t bc;
+#if LIBBLAS_SCDC_CACHE
+  blas_cache_t bch;
+  BLAS_CACHE(create)(&bch);
+#endif
 
+  blas_call_t bc;
   BLAS_CALL(create_scdc)(&bc, "dger", libblas_scdc_uri);
+
+#if LIBBLAS_SCDC_CACHE
+  BLAS_CALL(set_cache_ptr)(&bc, &bch);
+#endif
 
   BLAS_CALL(put_input_conf_int)(&bc, "M", *M);
   BLAS_CALL(put_input_conf_int)(&bc, "N", *N);
-
   BLAS_CALL(put_input_conf_double)(&bc, "ALPHA", *ALPHA);
-
-  BLAS_CALL(put_input_param_vector_double)(&bc, "X", *M, X, *INCX);
-  BLAS_CALL(put_input_param_vector_double)(&bc, "Y", *N, Y, *INCY);
-
-  BLAS_CALL(put_inout_param_matrix_double)(&bc, "A", *M, *N, A, *LDA, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
+  BLAS_CALL(put_input_param_vector_double)(&bc, "X", X, *M, *INCX);
+  BLAS_CALL(put_input_param_vector_double)(&bc, "Y", Y, *N, *INCY);
+  BLAS_CALL(put_inout_param_matrix_double)(&bc, "A", A, *M, *N, *LDA, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
 
   if(!BLAS_CALL(execute)(&bc))
   {
@@ -963,16 +1056,19 @@ void LIB_F(dger_)(const int *M, const int *N, const double *ALPHA, double *X, co
   }
 
   double *A_ = A;
-  int LDA_ = *LDA;
-  int rcma_ = RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR;
-  BLAS_CALL(get_output_param_matrix_double)(&bc, "A", *M, *N, &A_, &LDA_, &rcma_);
+  rdint_t NRA_ = *M, NCA_ = *N, LDA_ = *LDA, rcma_ = RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR;
+  BLAS_CALL(get_output_param_matrix_double)(&bc, "A", &A_, &NRA_, &NCA_, &LDA_, &rcma_);
 
-  ASSERT(A_ == A && LDA_ == *LDA && rcma_ == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
+  ASSERT(A_ == A && NRA_ == *M && NCA_ == *N && LDA_ == *LDA && rcma_ == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
 
   BLAS_TIMING_REMOTE_GET(&bc, &libblas_scdc_timing[1]);
 
 do_quit:
   BLAS_CALL(destroy_scdc)(&bc);
+
+#if LIBBLAS_SCDC_CACHE
+  BLAS_CACHE(destroy)(&bch);
+#endif
 
   libblas_scdc_release();
 
@@ -984,13 +1080,12 @@ do_quit:
 #endif /* LIBBLAS_SCDC_ENABLED */
 
   BLAS_TIMING_STOP(libblas_scdc_timing[0]);
-
   BLAS_TIMING_PRINT_F("%s: %f  %f", __func__, libblas_scdc_timing[0], libblas_scdc_timing[1]);
 
 #if LIBBLAS_SCDC_TRACE_DATA
   TRACE_CMD(
     TRACE_F("%s: Y", __func__);
-    BLAS_CALL(print_param_matrix_double)(*M, *N, A, *LDA, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
+    BLAS_CALL(print_param_matrix_double)(A, *M, *N, *LDA, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
   );
 #endif
 
@@ -1028,57 +1123,62 @@ void LIB_F(dgemv_)(const char *TRANS, const int *M, const int *N, const double *
 #if LIBBLAS_SCDC_TRACE_DATA
   TRACE_CMD(
     TRACE_F("%s: A", __func__);
-    BLAS_CALL(print_param_matrix_double)(*M, *N, A, *LDA, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
+    BLAS_CALL(print_param_matrix_double)(A, *M, *N, *LDA, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
     TRACE_F("%s: X", __func__);
-    BLAS_CALL(print_param_vector_double)(NETLIB_TRANS_GET_NCOLS(*TRANS, *M, *N), X, *INCX);
+    BLAS_CALL(print_param_vector_double)(X, NETLIB_TRANS_GET_NCOLS(*TRANS, *M, *N), *INCX);
     TRACE_F("%s: Y", __func__);
-    BLAS_CALL(print_param_vector_double)(NETLIB_TRANS_GET_NROWS(*TRANS, *M, *N), Y, *INCY);
+    BLAS_CALL(print_param_vector_double)(Y, NETLIB_TRANS_GET_NROWS(*TRANS, *M, *N), *INCY);
   );
 #endif
 
   BLAS_TIMING_INIT_();
-
   BLAS_TIMING_START(libblas_scdc_timing[0]);
 
 #if LIBBLAS_SCDC_ENABLED
 
   libblas_scdc_init();
 
-  blas_call_t bc;
+#if LIBBLAS_SCDC_CACHE
+  blas_cache_t bch;
+  BLAS_CACHE(create)(&bch);
+#endif
 
+  blas_call_t bc;
   BLAS_CALL(create_scdc)(&bc, "dgemv", libblas_scdc_uri);
 
-  BLAS_CALL(put_input_conf_char)(&bc, "TRANS", *TRANS);
+#if LIBBLAS_SCDC_CACHE
+  BLAS_CALL(set_cache_ptr)(&bc, &bch);
+#endif
 
+  BLAS_CALL(put_input_conf_char)(&bc, "TRANS", *TRANS);
   BLAS_CALL(put_input_conf_int)(&bc, "M", *M);
   BLAS_CALL(put_input_conf_int)(&bc, "N", *N);
-
   BLAS_CALL(put_input_conf_double)(&bc, "ALPHA", *ALPHA);
-
-  BLAS_CALL(put_input_param_matrix_double)(&bc, "A", *M, *N, A, *LDA, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
-
-  BLAS_CALL(put_input_param_vector_double)(&bc, "X", NETLIB_TRANS_GET_NCOLS(*TRANS, *M, *N), X, *INCX);
-
+  BLAS_CALL(put_input_param_matrix_double)(&bc, "A", A, *M, *N, *LDA, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
+  BLAS_CALL(put_input_param_vector_double)(&bc, "X", X, NETLIB_TRANS_GET_NCOLS(*TRANS, *M, *N), *INCX);
   BLAS_CALL(put_input_conf_double)(&bc, "BETA", *BETA);
+  BLAS_CALL(put_inout_param_vector_double)(&bc, "Y", Y, NETLIB_TRANS_GET_NROWS(*TRANS, *M, *N), *INCY);
 
-  BLAS_CALL(put_inout_param_vector_double)(&bc, "Y", NETLIB_TRANS_GET_NROWS(*TRANS, *M, *N), Y, *INCY);
-
-  if(!BLAS_CALL(execute)(&bc))
+  if (!BLAS_CALL(execute)(&bc))
   {
     TRACE_F("%s: failed", __func__);
     goto do_quit;
   }
 
   double *Y_ = Y;
-  int INCY_ = *INCY;
-  BLAS_CALL(get_output_param_vector_double)(&bc, "Y", NETLIB_TRANS_GET_NROWS(*TRANS, *M, *N), &Y_, &INCY_);
+  rdint_t NY_ = NETLIB_TRANS_GET_NROWS(*TRANS, *M, *N), INCY_ = *INCY;
+  BLAS_CALL(get_output_param_vector_double)(&bc, "Y", &Y_, &NY_, &INCY_);
 
-  ASSERT(Y_ == Y && INCY_ == *INCY);
+  ASSERT(Y_ == Y && NY_ == NETLIB_TRANS_GET_NROWS(*TRANS, *M, *N) && INCY_ == *INCY);
 
   BLAS_TIMING_REMOTE_GET(&bc, &libblas_scdc_timing[1]);
 
 do_quit:
   BLAS_CALL(destroy_scdc)(&bc);
+
+#if LIBBLAS_SCDC_CACHE
+  BLAS_CACHE(destroy)(&bch);
+#endif
 
   libblas_scdc_release();
 
@@ -1090,13 +1190,12 @@ do_quit:
 #endif /* LIBBLAS_SCDC_ENABLED */
 
   BLAS_TIMING_STOP(libblas_scdc_timing[0]);
-
   BLAS_TIMING_PRINT_F("%s: %f  %f", __func__, libblas_scdc_timing[0], libblas_scdc_timing[1]);
 
 #if LIBBLAS_SCDC_TRACE_DATA
   TRACE_CMD(
     TRACE_F("%s: Y", __func__);
-    BLAS_CALL(print_param_vector_double)(NETLIB_TRANS_GET_NROWS(*TRANS, *M, *N), Y, *INCY);
+    BLAS_CALL(print_param_vector_double)(Y, NETLIB_TRANS_GET_NROWS(*TRANS, *M, *N), *INCY);
   );
 #endif
 
@@ -1138,9 +1237,9 @@ void LIB_F(dtrsv_)(const char *UPLO, const char *TRANS, const char *DIAG, const 
 #if LIBBLAS_SCDC_TRACE_DATA
   TRACE_CMD(
     TRACE_F("%s: A", __func__);
-    BLAS_CALL(print_param_matrix_double)(*N, *N, A, *LDA, rcma);
+    BLAS_CALL(print_param_matrix_double)(A, *N, *N, *LDA, rcma);
     TRACE_F("%s: X", __func__);
-    BLAS_CALL(print_param_vector_double)(*N, X, *INCX);
+    BLAS_CALL(print_param_vector_double)(X, *N, *INCX);
   );
 #endif
 
@@ -1152,19 +1251,24 @@ void LIB_F(dtrsv_)(const char *UPLO, const char *TRANS, const char *DIAG, const 
 
   libblas_scdc_init();
 
-  blas_call_t bc;
+#if LIBBLAS_SCDC_CACHE
+  blas_cache_t bch;
+  BLAS_CACHE(create)(&bch);
+#endif
 
+  blas_call_t bc;
   BLAS_CALL(create_scdc)(&bc, "dtrsv", libblas_scdc_uri);
+
+#if LIBBLAS_SCDC_CACHE
+  BLAS_CALL(set_cache_ptr)(&bc, &bch);
+#endif
 
   BLAS_CALL(put_input_conf_char)(&bc, "UPLO", *UPLO);
   BLAS_CALL(put_input_conf_char)(&bc, "TRANS", *TRANS);
   BLAS_CALL(put_input_conf_char)(&bc, "DIAG", *DIAG);
-
   BLAS_CALL(put_input_conf_int)(&bc, "N", *N);
-
-  BLAS_CALL(put_input_param_matrix_double)(&bc, "A", *N, *N, A, *LDA, rcma);
-
-  BLAS_CALL(put_inout_param_vector_double)(&bc, "X", *N, X, *INCX);
+  BLAS_CALL(put_input_param_matrix_double)(&bc, "A", A, *N, *N, *LDA, rcma);
+  BLAS_CALL(put_inout_param_vector_double)(&bc, "X", X, *N, *INCX);
 
   if(!BLAS_CALL(execute)(&bc))
   {
@@ -1173,15 +1277,19 @@ void LIB_F(dtrsv_)(const char *UPLO, const char *TRANS, const char *DIAG, const 
   }
 
   double *X_ = X;
-  int INCX_ = *INCX;
-  BLAS_CALL(get_output_param_vector_double)(&bc, "X", *N, &X_, &INCX_);
+  rdint_t NX_ = *N, INCX_ = *INCX;
+  BLAS_CALL(get_output_param_vector_double)(&bc, "X", &X_, &NX_, &INCX_);
 
-  ASSERT(X_ == X && INCX_ == *INCX);
+  ASSERT(X_ == X && NX_ == *N && INCX_ == *INCX);
 
   BLAS_TIMING_REMOTE_GET(&bc, &libblas_scdc_timing[1]);
 
 do_quit:
   BLAS_CALL(destroy_scdc)(&bc);
+
+#if LIBBLAS_SCDC_CACHE
+  BLAS_CACHE(destroy)(&bch);
+#endif
 
   libblas_scdc_release();
 
@@ -1193,13 +1301,12 @@ do_quit:
 #endif /* LIBBLAS_SCDC_ENABLED */
 
   BLAS_TIMING_STOP(libblas_scdc_timing[0]);
-
   BLAS_TIMING_PRINT_F("%s: %f  %f", __func__, libblas_scdc_timing[0], libblas_scdc_timing[1]);
 
 #if LIBBLAS_SCDC_TRACE_DATA
   TRACE_CMD(
     TRACE_F("%s: X", __func__);
-    BLAS_CALL(print_param_vector_double)(*N, X, *INCX);
+    BLAS_CALL(print_param_vector_double)(X, *N, *INCX);
   );
 #endif
 
@@ -1242,41 +1349,45 @@ void LIB_F(dgemm_)(const char *TRANSA, const char *TRANSB, const int *M, const i
 #if LIBBLAS_SCDC_TRACE_DATA
   TRACE_CMD(
     TRACE_F("%s: A", __func__);
-    BLAS_CALL(print_param_matrix_double)(NETLIB_TRANS_GET_NROWS(*TRANSA, *M, *K), NETLIB_TRANS_GET_NCOLS(*TRANSA, *M, *K), A, *LDA, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
+    BLAS_CALL(print_param_matrix_double)(A, NETLIB_TRANS_GET_NROWS(*TRANSA, *M, *K), NETLIB_TRANS_GET_NCOLS(*TRANSA, *M, *K), *LDA, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
     TRACE_F("%s: B", __func__);
-    BLAS_CALL(print_param_matrix_double)(NETLIB_TRANS_GET_NROWS(*TRANSB, *K, *N), NETLIB_TRANS_GET_NCOLS(*TRANSB, *K, *N), B, *LDB, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
+    BLAS_CALL(print_param_matrix_double)(B, NETLIB_TRANS_GET_NROWS(*TRANSB, *K, *N), NETLIB_TRANS_GET_NCOLS(*TRANSB, *K, *N), *LDB, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
     TRACE_F("%s: C", __func__);
-    BLAS_CALL(print_param_matrix_double)(*M, *N, C, *LDC, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
+    BLAS_CALL(print_param_matrix_double)(C, *M, *N, *LDC, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
   );
 #endif
 
   BLAS_TIMING_INIT_();
-
   BLAS_TIMING_START(libblas_scdc_timing[0]);
 
 #if LIBBLAS_SCDC_ENABLED
 
   libblas_scdc_init();
 
-  blas_call_t bc;
+#if LIBBLAS_SCDC_CACHE
+  blas_cache_t bch;
+  BLAS_CACHE(create)(&bch);
+#endif
 
+  blas_call_t bc;
   BLAS_CALL(create_scdc)(&bc, "dgemm", libblas_scdc_uri);
+
+#if LIBBLAS_SCDC_CACHE
+  BLAS_CALL(set_cache_ptr)(&bc, &bch);
+#endif
 
   BLAS_CALL(put_input_conf_char)(&bc, "TRANSA", *TRANSA);
   BLAS_CALL(put_input_conf_char)(&bc, "TRANSB", *TRANSB);
-
   BLAS_CALL(put_input_conf_int)(&bc, "M", *M);
   BLAS_CALL(put_input_conf_int)(&bc, "N", *N);
   BLAS_CALL(put_input_conf_int)(&bc, "K", *K);
-
   BLAS_CALL(put_input_conf_double)(&bc, "ALPHA", *ALPHA);
-
-  BLAS_CALL(put_input_param_matrix_double)(&bc, "A", NETLIB_TRANS_GET_NROWS(*TRANSA, *M, *K), NETLIB_TRANS_GET_NCOLS(*TRANSA, *M, *K), A, *LDA, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
-  BLAS_CALL(put_input_param_matrix_double)(&bc, "B", NETLIB_TRANS_GET_NROWS(*TRANSB, *K, *N), NETLIB_TRANS_GET_NCOLS(*TRANSB, *K, *N), B, *LDB, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
+  BLAS_CALL(put_input_param_matrix_double)(&bc, "A", A, NETLIB_TRANS_GET_NROWS(*TRANSA, *M, *K), NETLIB_TRANS_GET_NCOLS(*TRANSA, *M, *K), *LDA, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
+  BLAS_CALL(put_input_param_matrix_double)(&bc, "B", B, NETLIB_TRANS_GET_NROWS(*TRANSB, *K, *N), NETLIB_TRANS_GET_NCOLS(*TRANSB, *K, *N), *LDB, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
 
   BLAS_CALL(put_input_conf_double)(&bc, "BETA", *BETA);
 
-  BLAS_CALL(put_inout_param_matrix_double)(&bc, "C", *M, *N, C, *LDC, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
+  BLAS_CALL(put_inout_param_matrix_double)(&bc, "C", C, *M, *N, *LDC, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
 
   if (!BLAS_CALL(execute)(&bc))
   {
@@ -1285,16 +1396,19 @@ void LIB_F(dgemm_)(const char *TRANSA, const char *TRANSB, const int *M, const i
   }
 
   double *C_ = C;
-  int LDC_ = *LDC;
-  int rcmc_ = RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR;
-  BLAS_CALL(get_output_param_matrix_double)(&bc, "A", *M, *N, &C_, &LDC_, &rcmc_);
+  rdint_t NRC_ = *M, NCC_ = *N, LDC_ = *LDC, rcmc_ = RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR;
+  BLAS_CALL(get_output_param_matrix_double)(&bc, "C", &C_, &NRC_, &NCC_, &LDC_, &rcmc_);
 
-  ASSERT(C_ == C && LDC_ == *LDC && rcmc_ == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
+  ASSERT(C_ == C && NRC_ == *M && NCC_ == *N && LDC_ == *LDC && rcmc_ == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
 
   BLAS_TIMING_REMOTE_GET(&bc, &libblas_scdc_timing[1]);
 
 do_quit:
   BLAS_CALL(destroy_scdc)(&bc);
+
+#if LIBBLAS_SCDC_CACHE
+  BLAS_CACHE(destroy)(&bch);
+#endif
 
   libblas_scdc_release();
 
@@ -1306,13 +1420,12 @@ do_quit:
 #endif /* LIBBLAS_SCDC_ENABLED */
 
   BLAS_TIMING_STOP(libblas_scdc_timing[0]);
-
   BLAS_TIMING_PRINT_F("%s: %f  %f", __func__, libblas_scdc_timing[0], libblas_scdc_timing[1]);
 
 #if LIBBLAS_SCDC_TRACE_DATA
   TRACE_CMD(
     TRACE_F("%s: C", __func__);
-    BLAS_CALL(print_param_matrix_double)(*M, *N, C, *LDC, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
+    BLAS_CALL(print_param_matrix_double)(C, *M, *N, *LDC, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
   );
 #endif
 
@@ -1347,7 +1460,7 @@ void LIB_F(dtrsm_)(const char *SIDE, const char *UPLO, const char *TRANSA, const
   printf("%s: libblas_scdc_uri: %s\n", __func__, libblas_scdc_uri);
 #endif
 
-  const int k = NETLIB_SIDE_IS_LEFT(*SIDE)?*M:*N;
+  const int K = NETLIB_SIDE_IS_LEFT(*SIDE)?*M:*N;
 
   int rcma = RCM_ORDER_COL_MAJOR;
   rcma |= NETLIB_UPLO_IS_UPPER(*UPLO)?RCM_TYPE_TRIANGULAR_UPPER:RCM_TYPE_TRIANGULAR_LOWER;
@@ -1356,36 +1469,40 @@ void LIB_F(dtrsm_)(const char *SIDE, const char *UPLO, const char *TRANSA, const
 #if LIBBLAS_SCDC_TRACE_DATA
   TRACE_CMD(
     TRACE_F("%s: A", __func__);
-    BLAS_CALL(print_param_matrix_double)(k, k, A, *LDA, rcma);
+    BLAS_CALL(print_param_matrix_double)(A, K, K, *LDA, rcma);
     TRACE_F("%s: B", __func__);
-    BLAS_CALL(print_param_matrix_double)(*M, *N, B, *LDB, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
+    BLAS_CALL(print_param_matrix_double)(B, *M, *N, *LDB, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
   );
 #endif
 
   BLAS_TIMING_INIT_();
-
   BLAS_TIMING_START(libblas_scdc_timing[0]);
 
 #if LIBBLAS_SCDC_ENABLED
 
   libblas_scdc_init();
 
-  blas_call_t bc;
+#if LIBBLAS_SCDC_CACHE
+  blas_cache_t bch;
+  BLAS_CACHE(create)(&bch);
+#endif
 
+  blas_call_t bc;
   BLAS_CALL(create_scdc)(&bc, "dtrsm", libblas_scdc_uri);
+
+#if LIBBLAS_SCDC_CACHE
+  BLAS_CALL(set_cache_ptr)(&bc, &bch);
+#endif
 
   BLAS_CALL(put_input_conf_char)(&bc, "SIDE", *SIDE);
   BLAS_CALL(put_input_conf_char)(&bc, "UPLO", *UPLO);
   BLAS_CALL(put_input_conf_char)(&bc, "TRANSA", *TRANSA);
   BLAS_CALL(put_input_conf_char)(&bc, "DIAG", *DIAG);
-
   BLAS_CALL(put_input_conf_int)(&bc, "M", *M);
   BLAS_CALL(put_input_conf_int)(&bc, "N", *N);
-
   BLAS_CALL(put_input_conf_double)(&bc, "ALPHA", *ALPHA);
-
-  BLAS_CALL(put_input_param_matrix_double)(&bc, "A", k, k, A, *LDA, rcma);
-  BLAS_CALL(put_inout_param_matrix_double)(&bc, "B", *M, *N, B, *LDB, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
+  BLAS_CALL(put_input_param_matrix_double)(&bc, "A", A, K, K, *LDA, rcma);
+  BLAS_CALL(put_inout_param_matrix_double)(&bc, "B", B, *M, *N, *LDB, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
 
   if (!BLAS_CALL(execute)(&bc))
   {
@@ -1394,16 +1511,19 @@ void LIB_F(dtrsm_)(const char *SIDE, const char *UPLO, const char *TRANSA, const
   }
 
   double *B_ = B;
-  int LDB_ = *LDB;
-  int rcmb_ = RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR;
-  BLAS_CALL(get_output_param_matrix_double)(&bc, "B", *M, *N, &B_, &LDB_, &rcmb_);
+  rdint_t NRB_ = *M, NCB_ = *N, LDB_ = *LDB, rcmb_ = RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR;
+  BLAS_CALL(get_output_param_matrix_double)(&bc, "B", &B_, &NRB_, &NCB_, &LDB_, &rcmb_);
 
-  ASSERT(B_ == B && LDB_ == *LDB && rcmb_ == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
+  ASSERT(B_ == B && NRB_ == *M && NCB_ == *N && LDB_ == *LDB && rcmb_ == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
 
   BLAS_TIMING_REMOTE_GET(&bc, &libblas_scdc_timing[1]);
 
 do_quit:
   BLAS_CALL(destroy_scdc)(&bc);
+
+#if LIBBLAS_SCDC_CACHE
+  BLAS_CACHE(destroy)(&bch);
+#endif
 
   libblas_scdc_release();
 
@@ -1415,13 +1535,12 @@ do_quit:
 #endif /* LIBBLAS_SCDC_ENABLED */
 
   BLAS_TIMING_STOP(libblas_scdc_timing[0]);
-
   BLAS_TIMING_PRINT_F("%s: %f  %f", __func__, libblas_scdc_timing[0], libblas_scdc_timing[1]);
 
 #if LIBBLAS_SCDC_TRACE_DATA
   TRACE_CMD(
     TRACE_F("%s: C", __func__);
-    BLAS_CALL(print_param_matrix_double)(*M, *N, B, *LDB, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
+    BLAS_CALL(print_param_matrix_double)(B, *M, *N, *LDB, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
   );
 #endif
 

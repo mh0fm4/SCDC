@@ -41,5 +41,7 @@ typedef scdcint_t z_int_t;
 
 #define Z_PACK_STDIO  1
 
+#define Z_PACK_CXX  1
+
 
 #endif /* __Z_PACK_CONF_H__ */

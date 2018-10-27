@@ -28,7 +28,7 @@
 #include "scdc.h"
 #include "scdc_intern.h"
 
-#define PYSCDC_TRACE_NOT  1
+#define PYSCDC_TRACE_NOT  0
 
 #include "pylog.h"
 #include "scdcmod.h"
@@ -100,6 +100,7 @@ static PyObject *pyscdc_pybuf(PyObject *self, PyObject *pyargs);
 
 static PyObject *pyscdc_init(PyObject *self, PyObject *pyargs);
 static PyObject *pyscdc_release(PyObject *self, PyObject *pyargs);
+static PyObject *pyscdc_last_result(PyObject *self, PyObject *pyargs);
 
 static PyObject *pyscdc_log_init(PyObject *self, PyObject *pyargs);
 static PyObject *pyscdc_log_release(PyObject *self, PyObject *pyargs);
@@ -141,6 +142,7 @@ static PyMethodDef scdc_methods[] = {
   {"pybuf", pyscdc_pybuf, METH_VARARGS, "Create a buffer for input or output objects."},
   {"init", pyscdc_init, METH_VARARGS, "Init the SCDC library."},
   {"release", pyscdc_release, METH_VARARGS, "Release the SCDC library."},
+  {"last_result", pyscdc_last_result, METH_VARARGS, "Return last result message."},
   {"log_init", pyscdc_log_init, METH_VARARGS, "Init logging of the SCDC library."},
   {"log_release", pyscdc_log_release, METH_VARARGS, "Release logging of the SCDC library."},
   {"dataprov_open", pyscdc_dataprov_open, METH_VARARGS, "Open a new data provider."},
@@ -880,7 +882,7 @@ static scdc_dataset_output_t *pyscdc_dataset_output_class2struct(PyObject *pyout
 }
 
 
-static scdcint_t pyscdc_dataset_input_next_struct(scdc_dataset_input_t *input)
+static scdcint_t pyscdc_dataset_input_next_struct(scdc_dataset_input_t *input, scdc_result_t *result)
 {
   PyObject *pyinput, *pynext, *pyres, *pyret;
 
@@ -900,6 +902,7 @@ static scdcint_t pyscdc_dataset_input_next_struct(scdc_dataset_input_t *input)
 
   if (pynext != Py_None)
   {
+    /* FIXME: result from pynext to result */
     pyres = PyObject_CallFunction(pynext, "(O)", pyinput);
     PYSCDC_TRACE_CALL(pyres, "pyscdc_dataset_input_next_struct: ");
 
@@ -920,7 +923,7 @@ static scdcint_t pyscdc_dataset_input_next_struct(scdc_dataset_input_t *input)
 }
 
 
-static scdcint_t pyscdc_dataset_output_next_struct(scdc_dataset_output_t *output)
+static scdcint_t pyscdc_dataset_output_next_struct(scdc_dataset_output_t *output, scdc_result_t *result)
 {
   PyObject *pyoutput, *pynext, *pyres, *pyret;
 
@@ -940,6 +943,7 @@ static scdcint_t pyscdc_dataset_output_next_struct(scdc_dataset_output_t *output
 
   if (pynext != Py_None)
   {
+    /* FIXME: result from pynext to result */
     pyres = PyObject_CallFunction(pynext, "(O)", pyoutput);
     PYSCDC_TRACE_CALL(pyres, "pyscdc_dataset_output_next_struct: ");
 
@@ -964,6 +968,7 @@ static PyObject *pyscdc_dataset_input_next_class(PyObject *self, PyObject *pyarg
 {
   PyObject *pyinput, *next;
   scdc_dataset_input_t _input, *input = &_input;
+  scdc_result_t result = SCDC_RESULT_INIT_EMPTY;
   scdcint_t ret;
 
   PYSCDC_LIBSCDC_DEF()
@@ -977,7 +982,7 @@ static PyObject *pyscdc_dataset_input_next_class(PyObject *self, PyObject *pyarg
   PYSCDC_TRACE_DATASET_INPUT(input, "pyscdc_dataset_input_next_class: IN input: ");
 
   PYSCDC_LIBSCDC_BEGIN();
-  ret = input->next(input);
+  ret = input->next(input, &result);
   PYSCDC_LIBSCDC_END();
 
   PYSCDC_TRACE("pyscdc_dataset_input_next_class: next: %" scdcint_fmt, ret);
@@ -989,6 +994,8 @@ static PyObject *pyscdc_dataset_input_next_class(PyObject *self, PyObject *pyarg
   pyinput = pyscdc_dataset_input_struct2class(input, pyinput, PYSCDC_NEXT_PACK(next));
   PYSCDC_TRACE_DATASET_PYINPUT(pyinput, "pyscdc_dataset_input_next_struct: OUT pyinput: ");
 
+  /* FIXME: assign result to pyresult */
+
   PYSCDC_RETURN_BOOL(ret);
 }
 
@@ -997,6 +1004,7 @@ static PyObject *pyscdc_dataset_output_next_class(PyObject *self, PyObject *pyar
 {
   PyObject *pyoutput, *next;
   scdc_dataset_output_t _output, *output = &_output;
+  scdc_result_t result = SCDC_RESULT_INIT_EMPTY;
   scdcint_t ret;
 
   PYSCDC_LIBSCDC_DEF()
@@ -1010,7 +1018,7 @@ static PyObject *pyscdc_dataset_output_next_class(PyObject *self, PyObject *pyar
   PYSCDC_TRACE_DATASET_OUTPUT(output, "pyscdc_dataset_output_next_class: IN output: ");
 
   PYSCDC_LIBSCDC_BEGIN();
-  ret = output->next(output);
+  ret = output->next(output, &result);
   PYSCDC_LIBSCDC_END();
 
   PYSCDC_TRACE("pyscdc_dataset_output_next_class: next: %" scdcint_fmt, ret);
@@ -1021,6 +1029,8 @@ static PyObject *pyscdc_dataset_output_next_class(PyObject *self, PyObject *pyar
 
   pyoutput = pyscdc_dataset_output_struct2class(output, pyoutput, PYSCDC_NEXT_PACK(next));
   PYSCDC_TRACE_DATASET_PYOUTPUT(pyoutput, "pyscdc_dataset_output_next_struct: OUT pyoutput: ");
+
+  /* FIXME: assign result to pyresult */
 
   PYSCDC_RETURN_BOOL(ret);
 }
@@ -1045,8 +1055,8 @@ static pyscdc_dataprov_hook_t *pyscdc_dataprov_hook_init(PyObject *hook_class)
   pyscdc_dataprov_hook->dataset_open = PyObject_GetAttrString(hook_class, "dataset_open");
   pyscdc_dataprov_hook->dataset_close = PyObject_GetAttrString(hook_class, "dataset_close");
 
-  pyscdc_dataprov_hook->dataset_open_read_state = PyObject_GetAttrString(hook_class, "dataset_open_read_state");
   pyscdc_dataprov_hook->dataset_close_write_state = PyObject_GetAttrString(hook_class, "dataset_close_write_state");
+  pyscdc_dataprov_hook->dataset_open_read_state = PyObject_GetAttrString(hook_class, "dataset_open_read_state");
 
   pyscdc_dataprov_hook->dataset_cmd = PyObject_GetAttrString(hook_class, "dataset_cmd");
 
@@ -1063,8 +1073,8 @@ static void pyscdc_dataprov_hook_release(pyscdc_dataprov_hook_t *pyscdc_dataprov
   Py_XDECREF(pyscdc_dataprov_hook->dataset_open);
   Py_XDECREF(pyscdc_dataprov_hook->dataset_close);
 
-  Py_XDECREF(pyscdc_dataprov_hook->dataset_open_read_state);
   Py_XDECREF(pyscdc_dataprov_hook->dataset_close_write_state);
+  Py_XDECREF(pyscdc_dataprov_hook->dataset_open_read_state);
 
   Py_XDECREF(pyscdc_dataprov_hook->dataset_cmd);
 
@@ -1154,10 +1164,10 @@ static scdcint_t pyscdc_dataprov_hook_close(void *dataprov)
 }
 
 
-static scdcint_t pyscdc_dataprov_hook_config(void *dataprov, const char *cmd, const char *param, const char *val, scdcint_t val_size, char **result, scdcint_t *result_size)
+static scdcint_t pyscdc_dataprov_hook_config(void *dataprov, const char *cmd, const char *param, const char *val, scdcint_t val_size, scdc_result_t *result)
 {
   pyscdc_dataprov_hook_t *pyscdc_dataprov_hook = dataprov;
-  PyObject *pyresult = NULL;
+  PyObject *pycallres, *pyret, *pyres;
   Py_buffer pybuf;
   scdcint_t ret;
 
@@ -1166,37 +1176,39 @@ static scdcint_t pyscdc_dataprov_hook_config(void *dataprov, const char *cmd, co
 
   PYSCDC_LIBSCDC_PY_BEGIN();
 
-  PYSCDC_TRACE("pyscdc_dataprov_hook_config: dataprov: %p, cmd: '%s', param: '%s', val: '%*.s'", dataprov, cmd, param, (int) val_size, val);
-  PYSCDC_TRACE_OBJECT(pyscdc_dataprov_hook->dataprov, "pyscdc_dataprov_hook_close: dataprov: ");
+  PYSCDC_TRACE("%s: dataprov: %p, cmd: '%s', param: '%s', val: '%*.s'", __func__, dataprov, cmd, param, (int) val_size, val);
+  PYSCDC_TRACE_OBJECT(pyscdc_dataprov_hook->dataprov, "%s: dataprov: ", __func__);
 
-  pyresult = PyObject_CallFunction(pyscdc_dataprov_hook->config, "Ossz#", pyscdc_dataprov_hook->dataprov, cmd, param, val, (Py_ssize_t) val_size);
-  PYSCDC_TRACE_CALL(result, "pyscdc_dataprov_hook_config: ");
+  pycallres = PyObject_CallFunction(pyscdc_dataprov_hook->config, "Ossz#", pyscdc_dataprov_hook->dataprov, cmd, param, val, (Py_ssize_t) val_size);
+  PYSCDC_TRACE_CALL(pycallres, "%s: ", __func__);
 
-  if (pyresult != Py_False)
+  if (PyTuple_Check(pycallres))
   {
-    if (result && result_size)
+    pyret = PyTuple_GetItem(pycallres, 0);
+
+    if (result)
     {
-      if (pyresult != Py_True)
+      pyres = PyTuple_GetItem(pycallres, 1);
+
+      if (pyres != Py_None)
       {
-        pyscdc_parseret = PyArg_Parse(pyresult, "z*", &pybuf);
-        PYSCDC_TRACE_PARSE("pyscdc_dataprov_hook_config: ");
+        pyscdc_parseret = PyArg_Parse(pyres, "z*", &pybuf);
+        PYSCDC_TRACE_PARSE("%s: ", __func__);
 
-        *result_size = z_min(pybuf.len, *result_size - 1);
+        SCDC_RESULT_SET_STR_N(result, pybuf.buf, pybuf.len);
 
-        memcpy(*result, pybuf.buf, *result_size);
+      } else SCDC_RESULT_SET_EMPTY(result);
 
-      } else *result_size = 0;
-
-      (*result)[*result_size] = '\0';
-
-      PYSCDC_TRACE("pyscdc_dataprov_hook_config: result: '%s'", *result);
+      PYSCDC_TRACE("%s: result: '%s'", __func__, SCDC_RESULT_STR(result));
     }
 
-    ret = SCDC_SUCCESS;
+  } else pyret = pycallres;
 
-  } else ret = SCDC_FAILURE;
+  ret = (pyret == Py_True)?SCDC_SUCCESS:SCDC_FAILURE;
 
-  PYSCDC_TRACE("pyscdc_dataprov_hook_config: return '%" scdcint_fmt "'", ret);
+  Py_DECREF(pycallres);
+
+  PYSCDC_TRACE("%s: return: %" scdcint_fmt ", result: '%s'", __func__, ret, (result)?SCDC_RESULT_STR(result):"<null>");
 
   PYSCDC_LIBSCDC_PY_END();
 
@@ -1204,23 +1216,46 @@ static scdcint_t pyscdc_dataprov_hook_config(void *dataprov, const char *cmd, co
 }
 
 
-static void *pyscdc_dataprov_hook_dataset_open(void *dataprov, const char *path)
+static void *pyscdc_dataprov_hook_dataset_open(void *dataprov, const char *path, scdc_result_t *result)
 {
   pyscdc_dataprov_hook_t *pyscdc_dataprov_hook = dataprov;
-  PyObject *pyscdc_dataset = NULL;
+  PyObject *pycallres, *pyscdc_dataset, *pyres;
+  Py_buffer pybuf;
 
   PYSCDC_LIBSCDC_PY_DEF()
 
 
   PYSCDC_LIBSCDC_PY_BEGIN();
 
-  PYSCDC_TRACE("pyscdc_dataprov_hook_dataset_open: dataprov: %p, path: '%s'", dataprov, path);
-  PYSCDC_TRACE_OBJECT(pyscdc_dataprov_hook->dataprov, "pyscdc_dataprov_hook_dataset_open: dataprov: ");
+  PYSCDC_TRACE("%s: dataprov: %p, path: '%s', result: %p", __func__, dataprov, path, result);
+  PYSCDC_TRACE_OBJECT(pyscdc_dataprov_hook->dataprov, "%s: dataprov: ", __func__);
 
-  pyscdc_dataset = PyObject_CallFunction(pyscdc_dataprov_hook->dataset_open, "Os", pyscdc_dataprov_hook->dataprov, path);
-  PYSCDC_TRACE_CALL(pyscdc_dataset, "pyscdc_dataprov_hook_close: ");
+  pycallres = PyObject_CallFunction(pyscdc_dataprov_hook->dataset_open, "Os", pyscdc_dataprov_hook->dataprov, path);
+  PYSCDC_TRACE_CALL(pycallres, "%s: ", __func__);
 
-  PYSCDC_TRACE("pyscdc_dataprov_hook_dataset_open: return: %p", pyscdc_dataset);
+  if (PyTuple_Check(pycallres))
+  {
+    pyscdc_dataset = PyTuple_GetItem(pycallres, 0);
+
+    if (result)
+    {
+      pyres = PyTuple_GetItem(pycallres, 1);
+
+      if (pyres != Py_None)
+      {
+        pyscdc_parseret = PyArg_Parse(pyres, "z*", &pybuf);
+        PYSCDC_TRACE_PARSE("%s: ", __func__);
+
+        SCDC_RESULT_SET_STR_N(result, pybuf.buf, pybuf.len);
+
+      } else SCDC_RESULT_SET_EMPTY(result);
+
+      PYSCDC_TRACE("%s: result: '%s'", __func__, SCDC_RESULT_STR(result));
+    }
+
+  } else pyscdc_dataset = pycallres;
+
+  PYSCDC_TRACE("%s: return: %p, result: '%s'", __func__, pyscdc_dataset, (result)?SCDC_RESULT_STR(result):"<null>");
 
   PYSCDC_LIBSCDC_PY_END();
 
@@ -1228,11 +1263,12 @@ static void *pyscdc_dataprov_hook_dataset_open(void *dataprov, const char *path)
 }
 
 
-static scdcint_t pyscdc_dataprov_hook_dataset_close(void *dataprov, void *dataset)
+static scdcint_t pyscdc_dataprov_hook_dataset_close(void *dataprov, void *dataset, scdc_result_t *result)
 {
   pyscdc_dataprov_hook_t *pyscdc_dataprov_hook = dataprov;
   PyObject *pyscdc_dataset = dataset;
-  PyObject *result;
+  PyObject *pycallres, *pyret, *pyres;
+  Py_buffer pybuf;
   scdcint_t ret;
 
   PYSCDC_LIBSCDC_PY_DEF()
@@ -1240,16 +1276,40 @@ static scdcint_t pyscdc_dataprov_hook_dataset_close(void *dataprov, void *datase
 
   PYSCDC_LIBSCDC_PY_BEGIN();
 
-  PYSCDC_TRACE("pyscdc_dataprov_hook_dataset_close: dataprov: %p, dataset: %p", dataprov, dataset);
-  PYSCDC_TRACE_OBJECT(pyscdc_dataprov_hook->dataprov, "pyscdc_dataprov_hook_dataset_close: dataprov: ");
-  PYSCDC_TRACE_OBJECT(pyscdc_dataset, "pyscdc_dataprov_hook_dataset_close: dataset: ");
+  PYSCDC_TRACE("%s: dataprov: %p, dataset: %p, result: %p", __func__, dataprov, dataset, result);
+  PYSCDC_TRACE_OBJECT(pyscdc_dataprov_hook->dataprov, "%s: dataprov: ", __func__);
+  PYSCDC_TRACE_OBJECT(pyscdc_dataset, "%s: dataset: ", __func__);
 
-  result = PyObject_CallFunction(pyscdc_dataprov_hook->dataset_close, "OO", pyscdc_dataprov_hook->dataprov, pyscdc_dataset);
-  PYSCDC_TRACE_CALL(result, "pyscdc_dataprov_hook_dataset_close: ");
+  pycallres = PyObject_CallFunction(pyscdc_dataprov_hook->dataset_close, "OO", pyscdc_dataprov_hook->dataprov, pyscdc_dataset);
+  PYSCDC_TRACE_CALL(pycallres, "%s: ", __func__);
 
-  ret = (result == Py_True)?SCDC_SUCCESS:SCDC_FAILURE;
+  if (PyTuple_Check(pycallres))
+  {
+    pyret = PyTuple_GetItem(pycallres, 0);
 
-  PYSCDC_TRACE("pyscdc_dataprov_hook_dataset_close: return: '%" scdcint_fmt "'", ret);
+    if (result)
+    {
+      pyres = PyTuple_GetItem(pycallres, 1);
+
+      if (pyres != Py_None)
+      {
+        pyscdc_parseret = PyArg_Parse(pyres, "z*", &pybuf);
+        PYSCDC_TRACE_PARSE("%s: ", __func__);
+
+        SCDC_RESULT_SET_STR_N(result, pybuf.buf, pybuf.len);
+
+      } else SCDC_RESULT_SET_EMPTY(result);
+
+      PYSCDC_TRACE("%s: result: '%s'", __func__, SCDC_RESULT_STR(result));
+    }
+
+  } else pyret = pycallres;
+
+  ret = (pyret == Py_True)?SCDC_SUCCESS:SCDC_FAILURE;
+
+  Py_DECREF(pycallres);
+
+  PYSCDC_TRACE("%s: return: %" scdcint_fmt ", result: '%s'", __func__, ret, (result)?SCDC_RESULT_STR(result):"<null>");
 
   PYSCDC_LIBSCDC_PY_END();
 
@@ -1257,25 +1317,118 @@ static scdcint_t pyscdc_dataprov_hook_dataset_close(void *dataprov, void *datase
 }
 
 
-static void *pyscdc_dataprov_hook_dataset_open_read_state(void *dataprov, const char *buf, scdcint_t buf_size)
+static scdcint_t pyscdc_dataprov_hook_dataset_close_write_state(void *dataprov, void *dataset, void *state, scdcint_t state_size, scdc_result_t *result)
 {
   pyscdc_dataprov_hook_t *pyscdc_dataprov_hook = dataprov;
-  PyObject *pyscdc_dataset = NULL;
+  PyObject *pyscdc_dataset = dataset;
+  PyObject *pycallres, *pyret, *pyres;
+  Py_buffer pybuf;
+  scdcint_t ret = 0;
 
   PYSCDC_LIBSCDC_PY_DEF()
 
 
   PYSCDC_LIBSCDC_PY_BEGIN();
 
-  PYSCDC_TRACE("pyscdc_dataprov_hook_dataset_open_read_state: dataprov: %p, buf: %p, buf_size: '%" scdcint_fmt "'", dataprov, buf, buf_size);
-  PYSCDC_TRACE_OBJECT(pyscdc_dataprov_hook->dataprov, "pyscdc_dataprov_hook_dataset_open_read_state: dataprov: ");
+  PYSCDC_TRACE("%s: dataprov: %p, dataset: %p, state: %p, state_size: %" scdcint_fmt ", result: %p", __func__, dataprov, dataset, state, state_size, result);
+  PYSCDC_TRACE_OBJECT(pyscdc_dataprov_hook->dataprov, "%s: dataprov: ", __func__);
+  PYSCDC_TRACE_OBJECT(pyscdc_dataset, "%s: dataset: ", __func__);
 
-  PYSCDC_TRACE("pyscdc_dataprov_hook_dataset_open_read_state: buf: '%.*s'", (int) buf_size, buf);
+  pycallres = PyObject_CallFunction(pyscdc_dataprov_hook->dataset_close_write_state, "OO", pyscdc_dataprov_hook->dataprov, pyscdc_dataset);
+  PYSCDC_TRACE_CALL(pycallres, "%s: ", __func__);
 
-  pyscdc_dataset = PyObject_CallFunction(pyscdc_dataprov_hook->dataset_open_read_state, "Oz#", pyscdc_dataprov_hook->dataprov, buf, (Py_ssize_t) buf_size);
-  PYSCDC_TRACE_CALL(pyscdc_dataset, "pyscdc_dataprov_hook_dataset_open_read_state: ");
+  if (PyTuple_Check(pycallres))
+  {
+    pyret = PyTuple_GetItem(pycallres, 0);
 
-  PYSCDC_TRACE("pyscdc_dataprov_hook_dataset_open_read_state: return: %p", pyscdc_dataset);
+    if (result)
+    {
+      pyres = PyTuple_GetItem(pycallres, 1);
+
+      if (pyres != Py_None)
+      {
+        pyscdc_parseret = PyArg_Parse(pyres, "z*", &pybuf);
+        PYSCDC_TRACE_PARSE("%s: ", __func__);
+
+        SCDC_RESULT_SET_STR_N(result, pybuf.buf, pybuf.len);
+
+      } else SCDC_RESULT_SET_EMPTY(result);
+
+      PYSCDC_TRACE("%s: result: '%s'", __func__, SCDC_RESULT_STR(result));
+    }
+
+  } else pyret = pycallres;
+
+  if (pyret != Py_False)
+  {
+    pyscdc_parseret = PyArg_Parse(pyret, "z*", &pybuf);
+    PYSCDC_TRACE_PARSE("%s: ", __func__);
+
+    if (state_size < pybuf.len)
+    {
+      PYSCDC_FAIL("%s: state buffer of size %" scdcint_fmt " to small, required size is %" scdcint_fmt, __func__, state_size, scdcint_cast(pybuf.len));
+      goto do_return;
+    }
+
+    memcpy(state, pybuf.buf, pybuf.len);
+    ret = pybuf.len;
+
+    PYSCDC_TRACE("%s: state: '%.*s'", __func__, (int) ret, state);
+  }
+
+  Py_DECREF(pycallres);
+
+do_return:
+  PYSCDC_TRACE("%s: return: %" scdcint_fmt ", result: '%s'", __func__, ret, (result)?SCDC_RESULT_STR(result):"<null>");
+
+  PYSCDC_LIBSCDC_PY_END();
+
+  return ret;
+}
+
+
+static void *pyscdc_dataprov_hook_dataset_open_read_state(void *dataprov, const void *state, scdcint_t state_size, scdc_result_t *result)
+{
+  pyscdc_dataprov_hook_t *pyscdc_dataprov_hook = dataprov;
+  PyObject *pycallres, *pyscdc_dataset, *pyres;
+  Py_buffer pybuf;
+
+  PYSCDC_LIBSCDC_PY_DEF()
+
+
+  PYSCDC_LIBSCDC_PY_BEGIN();
+
+  PYSCDC_TRACE("%s: dataprov: %p, state: %p, state_size: %" scdcint_fmt ", result: %p", __func__, dataprov, state, state_size, result);
+  PYSCDC_TRACE_OBJECT(pyscdc_dataprov_hook->dataprov, "%s: dataprov: ", __func__);
+
+  PYSCDC_TRACE("%s: state: '%.*s'", __func__, (int) state_size, state);
+
+  pycallres = PyObject_CallFunction(pyscdc_dataprov_hook->dataset_open_read_state, "Oz#", pyscdc_dataprov_hook->dataprov, state, (Py_ssize_t) state_size);
+  PYSCDC_TRACE_CALL(pycallres, "%s: ", __func__);
+
+  if (PyTuple_Check(pycallres))
+  {
+    pyscdc_dataset = PyTuple_GetItem(pycallres, 0);
+
+    if (result)
+    {
+      pyres = PyTuple_GetItem(pycallres, 1);
+
+      if (pyres != Py_None)
+      {
+        pyscdc_parseret = PyArg_Parse(pyres, "z*", &pybuf);
+        PYSCDC_TRACE_PARSE("%s: ", __func__);
+
+        SCDC_RESULT_SET_STR_N(result, pybuf.buf, pybuf.len);
+
+      } else SCDC_RESULT_SET_EMPTY(result);
+
+      PYSCDC_TRACE("%s: result: '%s'", __func__, SCDC_RESULT_STR(result));
+    }
+
+  } else pyscdc_dataset = pycallres;
+
+  PYSCDC_TRACE("%s: return: %p, result: '%s'", __func__, pyscdc_dataset, (result)?SCDC_RESULT_STR(result):"<null>");
 
   PYSCDC_LIBSCDC_PY_END();
 
@@ -1283,56 +1436,23 @@ static void *pyscdc_dataprov_hook_dataset_open_read_state(void *dataprov, const 
 }
 
 
-static scdcint_t pyscdc_dataprov_hook_dataset_close_write_state(void *dataprov, void *dataset, char *buf, scdcint_t buf_size)
-{
-  pyscdc_dataprov_hook_t *pyscdc_dataprov_hook = dataprov;
-  PyObject *pyscdc_dataset = dataset;
-  PyObject *result;
-  Py_buffer pybuf;
-  scdcint_t n;
-
-  PYSCDC_LIBSCDC_PY_DEF()
-
-
-  PYSCDC_LIBSCDC_PY_BEGIN();
-
-  PYSCDC_TRACE("pyscdc_dataprov_hook_dataset_close_write_state: dataprov: %p, dataset: %p, buf: %p, buf_size: '%" scdcint_fmt "'", dataprov, dataset, buf, buf_size);
-  PYSCDC_TRACE_OBJECT(pyscdc_dataprov_hook->dataprov, "pyscdc_dataprov_hook_dataset_close_write_state: dataprov: ");
-  PYSCDC_TRACE_OBJECT(pyscdc_dataset, "pyscdc_dataprov_hook_dataset_close_write_state: dataset: ");
-
-  result = PyObject_CallFunction(pyscdc_dataprov_hook->dataset_close_write_state, "OO" PYSCDCINT_FMT, pyscdc_dataprov_hook->dataprov, pyscdc_dataset, buf_size);
-  PYSCDC_TRACE_CALL(result, "pyscdc_dataprov_hook_dataset_close_write_state: ");
-  PYSCDC_TRACE_OBJECT(result, "pyscdc_dataprov_hook_dataset_close_write_state: result: ");
-
-  pyscdc_parseret = PyArg_Parse(result, "z*", &pybuf);
-  PYSCDC_TRACE_PARSE("pyscdc_dataprov_hook_dataset_close_write_state: ");
-
-  n = (buf_size < pybuf.len)?buf_size:pybuf.len;
-
-  memcpy(buf, pybuf.buf, n);
-
-  PYSCDC_TRACE("pyscdc_dataprov_hook_dataset_close_write_state: return: '%" scdcint_fmt "'", n);
-
-  PYSCDC_LIBSCDC_PY_END();
-
-  return n;
-}
-
-
-static scdcint_t pyscdc_dataprov_hook_dataset_cmd(void *dataprov, void *dataset, const char *cmd, const char *params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+static scdcint_t pyscdc_dataprov_hook_dataset_cmd(void *dataprov, void *dataset, const char *cmd, const char *params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result_t *result)
 {
   pyscdc_dataprov_hook_t *pyscdc_dataprov_hook = dataprov;
   PyObject *pyscdc_dataset = (dataset)?dataset:Py_None;
-  PyObject *pyinput, *pyinput_given, *pyinput_next, *pyoutput, *pyoutput_given, *pyoutput_next, *pyret;
+  PyObject *pyinput, *pyinput_given, *pyinput_next, *pyoutput, *pyoutput_given, *pyoutput_next;
   scdc_dataset_input_t _input_given, *input_given = &_input_given;
   scdc_dataset_output_t _output_given, *output_given = &_output_given;
+  PyObject *pycallres, *pyret, *pyres;
+  Py_buffer pybuf;
+  scdcint_t ret;
 
   PYSCDC_LIBSCDC_PY_DEF()
 
 
   PYSCDC_LIBSCDC_PY_BEGIN();
 
-  PYSCDC_TRACE("%s: dataprov: %p, dataset: %p, cmd: '%s', params: '%s', input: %p, output: %p", __func__, dataprov, dataset, cmd, params, input, output);
+  PYSCDC_TRACE("%s: dataprov: %p, dataset: %p, cmd: '%s', params: '%s', input: %p, output: %p, result: %p", __func__, dataprov, dataset, cmd, params, input, output, result);
   PYSCDC_TRACE_OBJECT(pyscdc_dataprov_hook->dataprov, "%s: dataprov: ", __func__);
   PYSCDC_TRACE_OBJECT(pyscdc_dataset, "%s: dataset: ", __func__);
   PYSCDC_TRACE_DATASET_INPUT(input, "%s: IN input: ", __func__);
@@ -1366,10 +1486,9 @@ static scdcint_t pyscdc_dataprov_hook_dataset_cmd(void *dataprov, void *dataset,
 
   scdcint_t pyoutput_next_hash_in = pyscdc_dataset_inout_next_hash(pyoutput);
 
-  pyret = PyObject_CallFunction(pyscdc_dataprov_hook->dataset_cmd, "OOssOO", pyscdc_dataprov_hook->dataprov, pyscdc_dataset, cmd, params, pyinput, pyoutput);
-  PYSCDC_TRACE_CALL(pyret, "%s: ", __func__);
+  pycallres = PyObject_CallFunction(pyscdc_dataprov_hook->dataset_cmd, "OOssOO", pyscdc_dataprov_hook->dataprov, pyscdc_dataset, cmd, params, pyinput, pyoutput);
+  PYSCDC_TRACE_CALL(pycallres, "%s: ", __func__);
 
-  PYSCDC_TRACE_OBJECT(pyret, "%s: return: ", __func__);
   PYSCDC_TRACE_DATASET_PYINPUT(pyinput, "%s: OUT pyinput: ", __func__);
   PYSCDC_TRACE_DATASET_PYOUTPUT(pyoutput, "%s: OUT pyoutput: ", __func__);
 
@@ -1387,9 +1506,37 @@ static scdcint_t pyscdc_dataprov_hook_dataset_cmd(void *dataprov, void *dataset,
   output = pyscdc_dataset_output_class2struct(pyoutput, output, (pyoutput_next_hash_in != pyoutput_next_hash_out)?PYSCDC_NEXT_PACK(pyscdc_dataset_output_next_struct):PYSCDC_NEXT_UNPACK, 1);
   PYSCDC_TRACE_DATASET_OUTPUT(output, "%s: OUT output return: ", __func__);
 
+  if (PyTuple_Check(pycallres))
+  {
+    pyret = PyTuple_GetItem(pycallres, 0);
+
+    if (result)
+    {
+      pyres = PyTuple_GetItem(pycallres, 1);
+
+      if (pyres != Py_None)
+      {
+        pyscdc_parseret = PyArg_Parse(pyres, "z*", &pybuf);
+        PYSCDC_TRACE_PARSE("%s: ", __func__);
+
+        SCDC_RESULT_SET_STR_N(result, pybuf.buf, pybuf.len);
+
+      } else SCDC_RESULT_SET_EMPTY(result);
+
+      PYSCDC_TRACE("%s: result: '%s'", __func__, SCDC_RESULT_STR(result));
+    }
+
+  } else pyret = pycallres;
+
+  ret = (pyret == Py_True)?SCDC_SUCCESS:SCDC_FAILURE;
+
+  Py_DECREF(pycallres);
+
+  PYSCDC_TRACE("%s: return: %" scdcint_fmt ", result: '%s'", __func__, ret, (result)?SCDC_RESULT_STR(result):"<null>");
+
   PYSCDC_LIBSCDC_PY_END();
 
-  return (pyret == Py_True)?SCDC_SUCCESS:SCDC_FAILURE;
+  return ret;
 }
 
 
@@ -1424,7 +1571,7 @@ static void pyscdc_dataprov_hook_get_args(scdc_dataprov_hook_t *hook, PyObject *
 }
 
 
-static scdcint_t pyscdc_dataprov_jobrun_handler(void *data, const char *jobid, const char *cmd, const char *params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+static scdcint_t pyscdc_dataprov_jobrun_handler(void *data, const char *jobid, const char *cmd, const char *params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result_t *result)
 {
   PyObject *pyinput, *pyinput_given, *pyinput_next, *pyoutput, *pyoutput_given, *pyoutput_next, *pyret;
   scdc_dataset_input_t _input_given, *input_given = &_input_given;
@@ -1487,6 +1634,8 @@ static scdcint_t pyscdc_dataprov_jobrun_handler(void *data, const char *jobid, c
 
   output = pyscdc_dataset_output_class2struct(pyoutput, output, (pyoutput_next_hash_in != pyoutput_next_hash_out)?PYSCDC_NEXT_PACK(pyscdc_dataset_output_next_struct):PYSCDC_NEXT_UNPACK, 1);
   PYSCDC_TRACE_DATASET_OUTPUT(output, "%s: OUT output return: ", __func__);
+
+  /* FIXME: pyresult to result */
 
   PYSCDC_LIBSCDC_PY_END();
 
@@ -1845,6 +1994,31 @@ static PyObject *pyscdc_release(PyObject *self, PyObject *pyargs)
   PYSCDC_LIBSCDC_END();
 
   Py_RETURN_NONE;
+}
+
+
+static PyObject *pyscdc_last_result(PyObject *self, PyObject *pyargs)
+{
+  const char *result;
+  PyObject *pyresult;
+
+  PYSCDC_LIBSCDC_DEF()
+
+
+  PYSCDC_TRACE("%s:", __func__);
+
+  PYSCDC_LIBSCDC_BEGIN();
+  result = scdc_last_result();
+  PYSCDC_LIBSCDC_END();
+
+  PYSCDC_TRACE("%s: result: '%s'", __func__, result);
+
+  if (!result) pyresult = Py_False;
+  else pyresult = Py_BuildValue("s", result);
+
+  PYSCDC_TRACE_OBJECT_STR(pyresult, "%s: return: ", __func__);
+
+  PYSCDC_RETURN_OBJECT(pyresult);
 }
 
 
@@ -2326,7 +2500,7 @@ static PyObject *pyscdc_dataset_cmd(PyObject *self, PyObject *pyargs)
 #endif
   scdc_dataset_input_t _input, *input = &_input, _input_given, *input_given = &_input_given;
   scdc_dataset_output_t _output, *output = &_output, _output_given, *output_given = &_output_given;
-  scdcint_t ret = 0;
+  scdcint_t ret = SCDC_FAILURE;
 
   PYSCDC_LIBSCDC_DEF()
 
@@ -2347,7 +2521,7 @@ static PyObject *pyscdc_dataset_cmd(PyObject *self, PyObject *pyargs)
     }
 
     pyscdc_parseret = PyArg_Parse(PyObject_CallMethod(pydataset, "get_c", NULL), PYSCDC_DATASET_FMT, &pydataset_dataset);
-    PYSCDC_TRACE_PARSE("pyscdc_dataset_close: ");
+    PYSCDC_TRACE_PARSE("pyscdc_dataset_cmd: ");
 
     dataset = PYSCDC_DATASET_TO_C(pydataset_dataset);
 
@@ -2413,6 +2587,8 @@ static PyObject *pyscdc_dataset_cmd(PyObject *self, PyObject *pyargs)
   /* pack return output  */
   pyoutput = pyscdc_dataset_output_struct2class(output, pyoutput, (output_next_hash_in != output_next_hash_out)?PYSCDC_NEXT_PACK(pyoutput_next):PYSCDC_NEXT_UNPACK);
   PYSCDC_TRACE_DATASET_PYOUTPUT(pyoutput, "pyscdc_dataset_cmd: OUT pyoutput: ");
+
+  PYSCDC_TRACE("pyscdc_dataset_cmd: return: %" scdcint_fmt, ret);
 
   PYSCDC_RETURN_BOOL(ret);
 }

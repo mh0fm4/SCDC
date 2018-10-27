@@ -175,7 +175,7 @@ class scdc_dataset_jobrun: public scdc_dataset
 
       jobid = safe_jobid(jobid);
 
-      /* FIXME: Liste von job_params_proc (= $TPN$ analog zu $NPT$) als notwendige Resourcen, Auswahl durch Range 'min-max' und Alternativen '...|...' (insb. für Nodenames) */
+      /* FIXME: Liste von job_params_proc (= $TPN$ analog zu $NPT$) als notwendige Resourcen, Auswahl durch Range 'min-max' und Alternativen '...|...' (insb. fï¿½r Nodenames) */
 
       string s, t;
 
@@ -265,15 +265,15 @@ class scdc_dataset_jobrun: public scdc_dataset
     }
 
 
-    bool do_cmd_cd(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+    bool do_cmd_cd(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
     {
       string jobid;
       string p = params;
 
       if (!select_job(p, false, false, jobid))
       {
-        SCDC_FAIL("do_cmd_cd: selecting job '" << jobid.c_str() << "' failed");
-        SCDC_DATASET_OUTPUT_PRINTF(output, "selecting job '%s' failed", jobid.c_str());
+        result = "selecting job '" + jobid + "' failed";
+        SCDC_FAIL("do_cmd_cd: " << result);
         return false;
       }
 
@@ -281,29 +281,29 @@ class scdc_dataset_jobrun: public scdc_dataset
     }
 
 
-    bool do_cmd_pwd(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+    bool do_cmd_pwd(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
     {
-      return scdc_dataset::do_cmd_pwd(params, input, output);
+      return scdc_dataset::do_cmd_pwd(params, input, output, result);
     }
 
 
-    virtual bool do_cmd_ls_inout(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output) = 0;
+    virtual bool do_cmd_ls_inout(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result) = 0;
 
-    bool do_cmd_ls(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+    bool do_cmd_ls(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
     {
-      if (!has_jobid() && dataprov_jobrun()->do_cmd_ls(params, input, output)) return true;
+      if (!has_jobid() && dataprov_jobrun()->do_cmd_ls(params, input, output, result)) return true;
 
       string jobid;
       string p = params;
 
       if (!select_job(p, true, true, jobid))
       {
-        SCDC_FAIL("do_cmd_ls: selecting job '" << jobid.c_str() << "' failed");
-        SCDC_DATASET_OUTPUT_PRINTF(output, "selecting job '%s' failed", jobid.c_str());
+        result = "selecting job '" + jobid + "' failed";
+        SCDC_FAIL("do_cmd_ls: " << result);
         return false;
       }
 
-      bool ret = do_cmd_ls_inout(p, input, output);
+      bool ret = do_cmd_ls_inout(p, input, output, result);
 
       undo_select_job();
 
@@ -311,23 +311,21 @@ class scdc_dataset_jobrun: public scdc_dataset
     }
 
 
-    bool do_cmd_info(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+    bool do_cmd_info(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
     {
-      if (!has_jobid() && dataprov_jobrun()->do_cmd_info(params, input, output)) return true;
+      if (!has_jobid() && dataprov_jobrun()->do_cmd_info(params, input, output, result)) return true;
 
       string jobid;
       string p = params;
 
       if (!select_job(p, true, true, jobid))
       {
-        SCDC_FAIL("do_cmd_info: selecting job '" << jobid.c_str() << "' failed");
-        SCDC_DATASET_OUTPUT_PRINTF(output, "selecting job '%s' failed", jobid.c_str());
+        result = "selecting job '" + jobid + "' failed";
+        SCDC_FAIL("do_cmd_info: " << result);
         return false;
       }
 
-      string state;
-      dataprov_jobrun()->get_job_state(jobid, state);
-      SCDC_DATASET_OUTPUT_PRINTF(output, state.c_str());
+      dataprov_jobrun()->get_job_state(jobid, result);
 
       undo_select_job();
 
@@ -335,11 +333,11 @@ class scdc_dataset_jobrun: public scdc_dataset
     }
 
 
-    virtual bool do_cmd_put_inout(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output) = 0;
+    virtual bool do_cmd_put_inout(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result) = 0;
 
-    bool do_cmd_put(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+    bool do_cmd_put(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
     {
-      if (!has_jobid() && dataprov_jobrun()->do_cmd_put(params, input, output)) return true;
+      if (!has_jobid() && dataprov_jobrun()->do_cmd_put(params, input, output, result)) return true;
 
       string jobid = get_jobid();
 
@@ -353,8 +351,8 @@ class scdc_dataset_jobrun: public scdc_dataset
         {
           if (!create_job(jobid, job_params))
           {
-            SCDC_FAIL("do_cmd_put: creating job '" << jobid << "' failed");
-            SCDC_DATASET_OUTPUT_PRINTF(output, "creating job '%s' failed", jobid.c_str());
+            result = "creating job '" + jobid + "' failed";
+            SCDC_FAIL("do_cmd_put: " << result);
             return false;
           }
 
@@ -362,8 +360,8 @@ class scdc_dataset_jobrun: public scdc_dataset
         {
           if (!update_job(jobid, job_params))
           {
-            SCDC_FAIL("do_cmd_put: updating job '" << jobid << "' failed");
-            SCDC_DATASET_OUTPUT_PRINTF(output, "updating job '%s' failed", jobid.c_str());
+            result = "updating job '" + jobid + "' failed";
+            SCDC_FAIL("do_cmd_put: " << result);
             return false;
           }
         }
@@ -373,8 +371,8 @@ class scdc_dataset_jobrun: public scdc_dataset
 
       if (!select_job(p, true, true, jobid))
       {
-        SCDC_FAIL("do_cmd_put: selecting job '" << jobid << "' failed");
-        SCDC_DATASET_OUTPUT_PRINTF(output, "selecting job '%s' failed", jobid.c_str());
+        result = "selecting job '" + jobid + "' failed";
+        SCDC_FAIL("do_cmd_put: " << result);
         return false;
       }
 
@@ -382,7 +380,7 @@ class scdc_dataset_jobrun: public scdc_dataset
 
       bool ret = true;
 
-      ret = ret && do_cmd_put_inout(p, input, output);
+      ret = ret && do_cmd_put_inout(p, input, output, result);
 
       ret = ret && dataprov_jobrun()->job_run(jobid, p, dataprov_jobrun()->local_res);
 
@@ -392,19 +390,19 @@ class scdc_dataset_jobrun: public scdc_dataset
     }
 
 
-    virtual bool do_cmd_get_inout(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output) = 0;
+    virtual bool do_cmd_get_inout(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result) = 0;
 
-    bool do_cmd_get(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+    bool do_cmd_get(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
     {
-      if (!has_jobid() && dataprov_jobrun()->do_cmd_get(params, input, output)) return true;
+      if (!has_jobid() && dataprov_jobrun()->do_cmd_get(params, input, output, result)) return true;
 
       string jobid;
       string p = params;
 
       if (!select_job(p, true, true, jobid))
       {
-        SCDC_FAIL("do_cmd_put: selecting job '" << jobid.c_str() << "' failed");
-        SCDC_DATASET_OUTPUT_PRINTF(output, "selecting job '%s' failed", jobid.c_str());
+        result = "selecting job '" + jobid + "' failed";
+        SCDC_FAIL("do_cmd_put: " << result);
         return false;
       }
 
@@ -414,7 +412,7 @@ class scdc_dataset_jobrun: public scdc_dataset
 
       bool ret = true;
 
-      ret = ret && do_cmd_get_inout(p, input, output);
+      ret = ret && do_cmd_get_inout(p, input, output, result);
 
       undo_select_job();
 
@@ -422,19 +420,19 @@ class scdc_dataset_jobrun: public scdc_dataset
     }
 
 
-    virtual bool do_cmd_rm_inout(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output) = 0;
+    virtual bool do_cmd_rm_inout(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result) = 0;
 
-    bool do_cmd_rm(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+    bool do_cmd_rm(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
     {
-      if (!has_jobid() && dataprov_jobrun()->do_cmd_rm(params, input, output)) return true;
+      if (!has_jobid() && dataprov_jobrun()->do_cmd_rm(params, input, output, result)) return true;
 
       string jobid;
       string p = params;
 
       if (!select_job(p, true, true, jobid))
       {
-        SCDC_FAIL("do_cmd_put: selecting job '" << jobid.c_str() << "' failed");
-        SCDC_DATASET_OUTPUT_PRINTF(output, "selecting job '%s' failed", jobid.c_str());
+        result = "selecting job '" + jobid + "' failed";
+        SCDC_FAIL("do_cmd_put: " << result);
         return false;
       }
 
@@ -444,7 +442,7 @@ class scdc_dataset_jobrun: public scdc_dataset
 
       bool ret = true;
 
-      ret = ret && do_cmd_rm_inout(p, input, output);
+      ret = ret && do_cmd_rm_inout(p, input, output, result);
 
       ret = ret && destroy_job(jobid);
 
@@ -519,7 +517,7 @@ class scdc_dataset_jobrun_system: public scdc_dataset_jobrun
     }
 
     
-    bool do_cmd_ls_inout(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+    bool do_cmd_ls_inout(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
     {
       bool ret = (scdc_dataset_output_redirect(output, "from:fslist", workdir().c_str()) == SCDC_SUCCESS);
 
@@ -527,7 +525,7 @@ class scdc_dataset_jobrun_system: public scdc_dataset_jobrun
     }
 
 
-    bool do_cmd_put_inout(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+    bool do_cmd_put_inout(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
     {
       bool ret = true;
 
@@ -549,7 +547,7 @@ class scdc_dataset_jobrun_system: public scdc_dataset_jobrun
     }
 
 
-    bool do_cmd_get_inout(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+    bool do_cmd_get_inout(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
     {
       bool ret = true;
 
@@ -564,7 +562,7 @@ class scdc_dataset_jobrun_system: public scdc_dataset_jobrun
     }
 
 
-    bool do_cmd_rm_inout(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+    bool do_cmd_rm_inout(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
     {
       return true;
     }
@@ -590,13 +588,15 @@ class scdc_dataset_jobrun_handler: public scdc_dataset_jobrun
 
     bool create_job_inout(const string &jobid, scdc_dataprov_jobrun_job_params_t &job_params)
     {
-      return dataprov_jobrun_handler()->job_do_cmd(jobid, "add", "", 0, 0);
+      string result;
+      return dataprov_jobrun_handler()->job_do_cmd(jobid, "add", "", 0, 0, result);
     }
 
 
     bool destroy_job_inout()
     {
-      return dataprov_jobrun_handler()->job_do_cmd(get_jobid(), "del", "", 0, 0);
+      string result;
+      return dataprov_jobrun_handler()->job_do_cmd(get_jobid(), "del", "", 0, 0, result);
     }
 
 
@@ -606,27 +606,27 @@ class scdc_dataset_jobrun_handler: public scdc_dataset_jobrun
     }
 
 
-    bool do_cmd_ls_inout(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+    bool do_cmd_ls_inout(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
     {
-      return dataprov_jobrun_handler()->job_do_cmd(get_jobid(), "ls", params, input, output);
+      return dataprov_jobrun_handler()->job_do_cmd(get_jobid(), "ls", params, input, output, result);
     }
 
 
-    bool do_cmd_put_inout(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+    bool do_cmd_put_inout(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
     {
-      return dataprov_jobrun_handler()->job_do_cmd(get_jobid(), "put", params, input, output);
+      return dataprov_jobrun_handler()->job_do_cmd(get_jobid(), "put", params, input, output, result);
     }
 
 
-    bool do_cmd_get_inout(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+    bool do_cmd_get_inout(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
     {
-      return dataprov_jobrun_handler()->job_do_cmd(get_jobid(), "get", params, input, output);
+      return dataprov_jobrun_handler()->job_do_cmd(get_jobid(), "get", params, input, output, result);
     }
 
 
-    bool do_cmd_rm_inout(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+    bool do_cmd_rm_inout(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
     {
-      return dataprov_jobrun_handler()->job_do_cmd(get_jobid(), "rm", params, input, output);
+      return dataprov_jobrun_handler()->job_do_cmd(get_jobid(), "rm", params, input, output, result);
     }
 };
 
@@ -812,11 +812,11 @@ bool scdc_dataprov_jobrun::open_config_conf(const std::string &conf, scdc_args *
 }
 
 
-bool scdc_dataprov_jobrun::open(const char *conf, scdc_args *args)
+bool scdc_dataprov_jobrun::open(const char *conf, scdc_args *args, scdc_result &result)
 {
   SCDC_TRACE(__func__ << ": '" << conf << "'");
 
-  if (!scdc_dataprov::open(conf, args))
+  if (!scdc_dataprov::open(conf, args, result))
   {
     SCDC_FAIL("open: opening base");
     return false;
@@ -840,9 +840,11 @@ bool scdc_dataprov_jobrun::open(const char *conf, scdc_args *args)
 }
 
 
-void scdc_dataprov_jobrun::close()
+bool scdc_dataprov_jobrun::close(scdc_result &result)
 {
   SCDC_TRACE(__func__ << ":");
+
+  bool ret = true;
 
   sched_release();
 
@@ -850,41 +852,38 @@ void scdc_dataprov_jobrun::close()
   pthread_mutex_destroy(&libscdc_lock);
 #endif
 
-  scdc_dataprov::close();
+  ret = scdc_dataprov::close(result);
+
+  SCDC_TRACE(__func__ << ": return: " << ret);
+
+  return ret;
 }
 
 
 template<class DATASET_JOBRUN>
-scdc_dataset *scdc_dataprov_jobrun::dataset_open(const char *path, scdcint_t path_size, scdc_dataset_output_t *output)
+scdc_dataset *scdc_dataprov_jobrun::dataset_open(std::string &path, scdc_result &result)
 {
-  SCDC_TRACE(__func__ << ": '" << string(path, path_size) << "'");
+  SCDC_TRACE(__func__ << ": path: '" << path << "'");
 
-  scdc_dataset *dataset = 0;
-  
-  if (config_open(path, path_size, output, &dataset)) return dataset;
+  DATASET_JOBRUN *dataset_jobrun = new DATASET_JOBRUN(this);
 
-  DATASET_JOBRUN *dataset_jobrun = 0;
-
-  dataset_jobrun = new DATASET_JOBRUN(this);
-
-  string s(path, path_size);
-  dataset_jobrun->do_cmd_cd(ltrim(s, "/").c_str(), 0, output);
-
-  SCDC_TRACE(__func__ << ": return: '" << dataset_jobrun << "'");
+  SCDC_TRACE(__func__ << ": return: " << dataset_jobrun);
 
   return dataset_jobrun;
 }
 
 
-void scdc_dataprov_jobrun::dataset_close(scdc_dataset *dataset, scdc_dataset_output_t *output)
+bool scdc_dataprov_jobrun::dataset_close(scdc_dataset *dataset, scdc_result &result)
 {
-  SCDC_TRACE(__func__ << ": '" << dataset << "'");
+  SCDC_TRACE(__func__ << ": dataset: " << dataset);
 
-  if (config_close(dataset, output)) return;
+  bool ret = true;
 
   delete dataset;
 
-  SCDC_TRACE(__func__ << ": return");
+  SCDC_TRACE(__func__ << ": return: " << ret);
+
+  return ret;
 }
 
 
@@ -988,7 +987,7 @@ do_quit:
 }
 
 
-bool scdc_dataprov_jobrun::do_cmd_ls(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+bool scdc_dataprov_jobrun::do_cmd_ls(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
 {
   stringstream ss;
 
@@ -1007,13 +1006,13 @@ bool scdc_dataprov_jobrun::do_cmd_ls(const std::string &params, scdc_dataset_inp
 
   if (s.size() > 0) s.resize(s.size() - 1);
 
-  SCDC_DATASET_OUTPUT_PRINTF(output, s.c_str());
+  result = s;
 
   return true;
 }
 
 
-bool scdc_dataprov_jobrun::do_cmd_info(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+bool scdc_dataprov_jobrun::do_cmd_info(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
 {
   stringstream ss;
 
@@ -1021,13 +1020,13 @@ bool scdc_dataprov_jobrun::do_cmd_info(const std::string &params, scdc_dataset_i
   ss << jobs.size() << ":" << sched_jobs_wait.size() << ":" << sched_jobs_run.size();
   pthread_mutex_unlock(&sched_lock);
 
-  SCDC_DATASET_OUTPUT_PRINTF(output, ss.str().c_str());
+  result = ss.str();
 
   return true;
 }
 
 
-bool scdc_dataprov_jobrun::do_cmd_put(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+bool scdc_dataprov_jobrun::do_cmd_put(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
 {
   SCDC_TRACE(__func__ << ": job: '" << params << "'");
 
@@ -1035,7 +1034,7 @@ bool scdc_dataprov_jobrun::do_cmd_put(const std::string &params, scdc_dataset_in
 }
 
 
-bool scdc_dataprov_jobrun::do_cmd_get(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+bool scdc_dataprov_jobrun::do_cmd_get(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
 {
   SCDC_TRACE(__func__ << ": job: '" << params << "'");
 
@@ -1043,7 +1042,7 @@ bool scdc_dataprov_jobrun::do_cmd_get(const std::string &params, scdc_dataset_in
 }
 
 
-bool scdc_dataprov_jobrun::do_cmd_rm(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+bool scdc_dataprov_jobrun::do_cmd_rm(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
 {
   SCDC_TRACE(__func__ << ": job: '" << params << "'");
 
@@ -1839,7 +1838,7 @@ bool scdc_dataprov_jobrun_system::open_config_conf(const std::string &conf, scdc
 }
 
 
-bool scdc_dataprov_jobrun_system::open(const char *conf, scdc_args *args)
+bool scdc_dataprov_jobrun_system::open(const char *conf, scdc_args *args, scdc_result &result)
 {
   SCDC_TRACE(__func__ << ": conf: '" << conf << "'");
 
@@ -1856,7 +1855,7 @@ bool scdc_dataprov_jobrun_system::open(const char *conf, scdc_args *args)
 
   jobcmd = s;
 
-  if (!scdc_dataprov_jobrun::open(conf, args))
+  if (!scdc_dataprov_jobrun::open(conf, args, result))
   {
     SCDC_FAIL("open: opening base");
     ret = false;
@@ -1869,17 +1868,21 @@ do_quit:
 }
 
 
-void scdc_dataprov_jobrun_system::close()
+bool scdc_dataprov_jobrun_system::close(scdc_result &result)
 {
   SCDC_TRACE(__func__ << ":");
 
-  scdc_dataprov_jobrun::close();
+  bool ret = scdc_dataprov_jobrun::close(result);
+
+  SCDC_TRACE(__func__ << ": return: " << ret);
+
+  return ret;
 }
 
 
-scdc_dataset *scdc_dataprov_jobrun_system::dataset_open(const char *path, scdcint_t path_size, scdc_dataset_output_t *output)
+scdc_dataset *scdc_dataprov_jobrun_system::dataset_open(std::string &path, scdc_result &result)
 {
-  return scdc_dataprov_jobrun::dataset_open<scdc_dataset_jobrun_system>(path, path_size, output);
+  return scdc_dataprov_jobrun::dataset_open<scdc_dataset_jobrun_system>(path, result);
 }
 
 
@@ -2062,7 +2065,7 @@ scdc_dataprov_jobrun_handler::scdc_dataprov_jobrun_handler()
 }
 
 
-bool scdc_dataprov_jobrun_handler::open(const char *conf, scdc_args *args)
+bool scdc_dataprov_jobrun_handler::open(const char *conf, scdc_args *args, scdc_result &result)
 {
   SCDC_TRACE(__func__ << ": '" << conf << "'");
 
@@ -2077,7 +2080,7 @@ bool scdc_dataprov_jobrun_handler::open(const char *conf, scdc_args *args)
     goto do_quit;
   }
 
-  if (!scdc_dataprov_jobrun::open(conf, args))
+  if (!scdc_dataprov_jobrun::open(conf, args, result))
   {
     SCDC_FAIL("open: opening base");
     ret = false;
@@ -2094,13 +2097,17 @@ do_quit:
 }
 
 
-void scdc_dataprov_jobrun_handler::close()
+bool scdc_dataprov_jobrun_handler::close(scdc_result &result)
 {
   SCDC_TRACE(__func__ << ":");
 
-  scdc_dataprov_jobrun::close();
+  bool ret = scdc_dataprov_jobrun::close(result);
 
   open_args_release();
+
+  SCDC_TRACE(__func__ << ": return: " << ret);
+
+  return ret;
 }
 
 
@@ -2142,9 +2149,9 @@ do_quit:
 }
 
 
-scdc_dataset *scdc_dataprov_jobrun_handler::dataset_open(const char *path, scdcint_t path_size, scdc_dataset_output_t *output)
+scdc_dataset *scdc_dataprov_jobrun_handler::dataset_open(std::string &path, scdc_result &result)
 {
-  return scdc_dataprov_jobrun::dataset_open<scdc_dataset_jobrun_handler>(path, path_size, output);
+  return scdc_dataprov_jobrun::dataset_open<scdc_dataset_jobrun_handler>(path, result);
 }
 
 
@@ -2161,7 +2168,8 @@ bool scdc_dataprov_jobrun_handler::job_do_run(const std::string &jobid, const st
 
     build_cmd(jobcmd.c_str(), "run", jobid.c_str(), params.c_str(), res, c);
 
-    ret = job_do_cmd(jobid, c.c_str(), params, 0, 0);
+    string result;
+    ret = job_do_cmd(jobid, c.c_str(), params, 0, 0, result);
 
   } else ret = false;
 
@@ -2169,15 +2177,18 @@ bool scdc_dataprov_jobrun_handler::job_do_run(const std::string &jobid, const st
 }
 
 
-bool scdc_dataprov_jobrun_handler::job_do_cmd(const std::string &jobid, const std::string &cmd, const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+bool scdc_dataprov_jobrun_handler::job_do_cmd(const std::string &jobid, const std::string &cmd, const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
 {
   bool ret = true;
 
   if (handler_args.handler)
   {
-    if (handler_args.handler(handler_args.data, jobid.c_str(), cmd.c_str(), params.c_str(), input, output) != SCDC_SUCCESS)
+    scdc_result_t res = SCDC_RESULT_INIT_EMPTY;
+
+    if (handler_args.handler(handler_args.data, jobid.c_str(), cmd.c_str(), params.c_str(), input, output, &res) != SCDC_SUCCESS)
     {
-      SCDC_FAIL("job_do_cmd: jobrun handler");
+      result = string("jobrun handler failed: ") + SCDC_RESULT_STR(&res);
+      SCDC_FAIL("job_do_cmd: " << result);
       ret = false;
     }
   }

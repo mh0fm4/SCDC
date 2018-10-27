@@ -27,6 +27,8 @@
 
 #include "config.hh"
 #include "args.hh"
+#include "result.hh"
+#include "data.hh"
 #include "dataset.hh"
 #include "dataset_inout.h"
 #include "dataprov_config.hh"
@@ -41,28 +43,31 @@ class scdc_dataprov
     virtual bool open_config_conf(const std::string &conf, scdc_args *args, bool &done);
     bool open_config(std::string &conf, scdc_args *args);
 
-    virtual bool open(const char *conf, scdc_args *args);
-    virtual void close();
+    virtual bool open(const char *conf, scdc_args *args, scdc_result &result);
+    virtual bool close(scdc_result &result);
 
-    virtual scdc_dataset *dataset_open(const char *path, scdcint_t path_size, scdc_dataset_output_t *output) = 0;
-    virtual void dataset_close(scdc_dataset *dataset, scdc_dataset_output_t *output) = 0;
+    virtual scdc_dataset *dataset_path_open(const std::string &path, scdc_result &result);
+    virtual bool dataset_path_close(scdc_dataset *dataset, scdc_result &result);
 
-    virtual scdc_dataset *dataset_open_read_state(scdc_data *incoming, scdc_dataset_output_t *output);
-    virtual void dataset_close_write_state(scdc_dataset *dataset, scdc_data *outgoing, scdc_dataset_output_t *output);
+    virtual scdc_dataset *dataset_open(std::string &path, scdc_result &result) = 0;
+    virtual bool dataset_close(scdc_dataset *dataset, scdc_result &result) = 0;
 
-    bool config_open(const char *path, scdcint_t path_size, scdc_dataset_output_t *output, scdc_dataset **dataset);
-    bool config_close(scdc_dataset *dataset, scdc_dataset_output_t *output);
+    virtual scdc_dataset *dataset_open_read_state(scdc_data *incoming, scdc_result &result);
+    virtual bool dataset_close_write_state(scdc_dataset *dataset, scdc_data *outgoing, scdc_result &result);
 
-    virtual bool config_do_cmd(const std::string &cmd, const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output);
+    scdc_dataset *config_open(std::string &path, scdc_result &result);
+    bool config_close(scdc_dataset *dataset, scdc_result &result);
+
+    virtual bool config_do_cmd(const std::string &cmd, const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result);
     bool config_do_cmd_param_base(const std::string &cmd, const std::string &param, std::string val, scdc_config_result &result, bool &done);
     virtual bool config_do_cmd_param(const std::string &cmd, const std::string &param, std::string val, scdc_config_result &result, bool &done);
 
-    typedef bool (scdc_dataset::*dataset_cmds_do_cmd_f)(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output);
+    typedef bool (scdc_dataset::*dataset_cmds_do_cmd_f)(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result);
     typedef std::map<std::string, dataset_cmds_do_cmd_f> dataset_cmds_t;
 
     void dataset_cmds_add(const std::string &cmd, dataset_cmds_do_cmd_f do_cmd) { dataset_cmds.insert(dataset_cmds_t::value_type(std::string(cmd), do_cmd)); }
     void dataset_cmds_del(const std::string &cmd) { dataset_cmds.erase(std::string(cmd)); };
-    virtual bool dataset_cmds_do_cmd(scdc_dataset *dataset, const std::string &cmd, const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output);
+    virtual bool dataset_cmds_do_cmd(scdc_dataset *dataset, const std::string &cmd, const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result);
 
     void set_type(const std::string &type_) { type = type_; }
 

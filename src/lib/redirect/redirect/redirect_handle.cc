@@ -22,6 +22,7 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "redirect_config.h"
 #include "common.h"
 #include "redirect_handle.h"
 
@@ -49,7 +50,7 @@ int redirect_handle_create_scdc(redirect_handle_t *rh, const char *id, const cha
 
   if (rh->dataset == SCDC_DATASET_NULL)
   {
-    TRACE_F("%s: failed", __func__);
+    TRACE_F("failed");
     return 0;
   }
 

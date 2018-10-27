@@ -1,0 +1,45 @@
+\section{SCDC overview}
+
+A software component can be represented by any program or function available for the execution of a specific task.
+The library implements a service-oriented usage model where active client components access passive service components.
+Within this model, a software component might act in several roles, for example, by providing multiple different services or by being both a service and a client.
+The library design is application-independent and any interaction between a client and a services is considered as a data transfer.
+
+To act as a service with a specific functionality, a software component provides so-called \textit{datasets} which are managed by \textit{data providers}.
+Data providers and datasets are identified with an URI-based addressing scheme as follows:
+\begin{alltt}
+  <access-method>://<component-id>/<data-provider>[/<dataset>]
+\end{alltt}
+\begin{description}
+
+  \item[\texttt{<access-method>}] specifies how the service component, which provides the datasets, should be accessed and how data to and from the component should be transferred.
+Examples are \texttt{scdc} for accessing a local service component within the same process directly with function calls or \texttt{scdc+tcp} for accessing a remote service component in a distributed environment with TCP/IP network communication.
+Direct access is enabled by default for any component.
+Further access methods can be explicitly enabled by setting up so-called \textit{node ports} using the corresponding library functions as described in Sect.~\ref{sect:server_nodeport}.
+
+  \item[\texttt{<component-id}] identifies the service component to be accessed.
+The specific format of the identifier depends on the access method to be used.
+For example, direct access the local service component (\ie, method \texttt{scdc}) uses an empty identifier while accessing a remote service component with TCP/IP network communication (\ie, method \texttt{scdc+tcp}) uses the hostname (or IP address) of the computer where the remote service component is executed as identifier.
+Further details about specific access methods and their functionalities are described in Sect.~\ref{chap:nodeport}.
+
+  \item[\texttt{<data-provider>}] identifies the data provider to be accessed on a service component.
+The identifier is an alphanumeric string (\ie, without further path hierarchy).
+A service component can contain several data providers distinguished by different identifiers.
+Data providers can be created by using the corresponding library functions as described in Sect.~\ref{sect:server_dataprov}.
+
+  \item[\texttt{<dataset>}] identifies the dataset of a data provider to be accessed on a service component.
+The specific format of the identifier depends on the data provider of the dataset.
+Further details about specific data providers and their functionalities are described in Chap.~\ref{chap:dataprov}.
+
+\end{description}
+
+To act as a client, a software component accesses the datasets of services by executing \textit{commands}.
+Each execution of a commands can involve input data transferred from the client to the service and output data transferred back from the service to the client.
+Input and output data can be processed in continuous parts as a data stream, \ie in both directions the data does not need to be processed at once in a single piece, but can be continuously provided or consumed.
+The corresponding library functions to be used by a client component are described in Chap.~\ref{chap:client}.
+
+Additional information can be found in the following publications:
+\begin{itemize}
+  \item \bibolay[inline,plain]{HOSS14}
+  \item \bibolay[inline,plain]{HR15}
+\end{itemize}

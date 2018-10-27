@@ -29,9 +29,11 @@
 #ifdef __cplusplus
 # include <climits>
 # include <cstdarg>
+# include <cstddef>
 #else
 # include <limits.h>
 # include <stdarg.h>
+# include <stddef.h>
 #endif
 
 
@@ -73,7 +75,11 @@ typedef long long scdcint_t;
 #define scdcint_const(_c_)  _c_##LL
 /** @hideinitializer
 * @brief Macro to cast a value to type #scdcint_t. */
-#define scdcint_cast(_v_)  static_cast<scdcint_t>(_v_)
+#ifdef __cplusplus
+# define scdcint_cast(_v_)  static_cast<scdcint_t>(_v_)
+#else
+# define scdcint_cast(_v_)  (scdcint_t)(_v_)
+#endif
 /** @hideinitializer
 * @brief Macro to define the minimum value that can be represented by an #scdcint_t. */
 #define scdcint_min  LONG_LONG_MIN
@@ -81,8 +87,14 @@ typedef long long scdcint_t;
 * @brief Macro to define the maximum value that can be represented by an #scdcint_t. */
 #define scdcint_max  LONG_LONG_MAX
 
+/** @hideinitializer
+* @brief Macro to define whether #scdcint_t is a short integer. */
 #undef SCDCINT_IS_SHORT
+/** @hideinitializer
+* @brief Macro to define whether #scdcint_t is a int integer. */
 #undef SCDCINT_IS_INT
+/** @hideinitializer
+* @brief Macro to define whether #scdcint_t is a long integer. */
 #undef SCDCINT_IS_LONG
 /** @hideinitializer
 * @brief Macro to define whether #scdcint_t is a long long integer. */
@@ -90,10 +102,10 @@ typedef long long scdcint_t;
 
 /** @hideinitializer
 * @brief Macro to define the return value of a function that was successful. */
-#define SCDC_SUCCESS  (scdcint_t)1
+#define SCDC_SUCCESS  scdcint_cast(1)
 /** @hideinitializer
 * @brief Macro to define the return value of a function that failed. */
-#define SCDC_FAILURE  (scdcint_t)0
+#define SCDC_FAILURE  scdcint_cast(0)
 
 /** @hideinitializer
 * @brief Macro to define a NULL pointer. */
@@ -102,6 +114,31 @@ typedef long long scdcint_t;
 #else
 # define SCDC_NULL  (void *)0
 #endif
+
+/** @hideinitializer
+* @brief Macro to define the minimum length of the string scdc_result_t::str within the structure #scdc_result_t. */
+#define SCDC_RESULT_STR_MIN_SIZE  512
+
+/** @brief Structure of a result message. */
+typedef struct _scdc_result_t
+{
+  /** Size of the string buffer (bytes). */
+  scdcint_t size;
+  /** String containing the result message. */
+  char str[SCDC_RESULT_STR_MIN_SIZE];
+
+} scdc_result_t;
+
+/** @cond */
+#define SCDC_RESULT_INIT_EMPTY                { .size = SCDC_RESULT_STR_MIN_SIZE, .str = { '\0'} }
+#define SCDC_RESULT_EXTENT(_s_)               (offsetof(scdc_result_t, str) + (_s_))
+#define SCDC_RESULT_SIZE(_r_)                 (_r_)->size
+#define SCDC_RESULT_STR(_r_)                  (_r_)->str
+#define SCDC_RESULT_SET_SIZE(_r_, _s_)        (SCDC_RESULT_SIZE(_r_) = (_s_))
+#define SCDC_RESULT_SET_EMPTY(_r_)            (SCDC_RESULT_STR(_r_)[0] = '\0')
+#define SCDC_RESULT_SET_STR(_r_, _s_)         (strncpy(SCDC_RESULT_STR(_r_), (_s_), SCDC_RESULT_SIZE(_r_) - 1))
+#define SCDC_RESULT_SET_STR_N(_r_, _s_, _n_)  (strncpy(SCDC_RESULT_STR(_r_), (_s_), z_min(SCDC_RESULT_SIZE(_r_) - 1, _n_)))
+/** @endcond */
 
 
 /** @hideinitializer
@@ -137,9 +174,10 @@ typedef struct _scdc_dataset_inout_t scdc_dataset_inout_t;
 /** @brief Type definition of a next function.
 *
 * @param inout Dataset input or output that is or should be continued with the next function.
+* @param result Structure for storing a result message of the next function.
 * @return Whether the next function was successful (#SCDC_SUCCESS) or not (#SCDC_FAILURE).
 */
-typedef scdcint_t scdc_dataset_inout_next_f(scdc_dataset_inout_t *inout);
+typedef scdcint_t scdc_dataset_inout_next_f(scdc_dataset_inout_t *inout, scdc_result_t *result);
 
 /** @brief Forward declaration of the type of an internally used member of the structure scdc_dataset_inout_t.
 */
@@ -315,6 +353,8 @@ typedef struct _scdc_dataset_inout_t
 
 #endif /* SCDC_DATASET_INOUT_BUF_MULTIPLE */
 
+#define scdc_dataset_inout_next(_inout_, _res_)  (_inout_)->next(_inout_, _res_)
+
 /** @brief Structure of a dataset input object derived from #scdc_dataset_inout_t. */
 typedef scdc_dataset_inout_t scdc_dataset_input_t;
 
@@ -347,50 +387,53 @@ typedef scdcint_t scdc_dataprov_hook_close_f(void *dataprov);
 * @param param String specifying the parameter to be configured.
 * @param val String specifying the value to be set for the parameter.
 * @param val_size Size of the string specified in @a val.
-* @param result String for storing a result of the configuration command.
-* @param result_size Size of the result string stored in @a result.
+* @param result Structure for storing a result message of the configuration command.
 * @return Whether the function was successful (#SCDC_SUCCESS) or not (#SCDC_FAILURE).
 */
-typedef scdcint_t scdc_dataprov_hook_config_f(void *dataprov, const char *cmd, const char *param, const char *val, scdcint_t val_size, char **result, scdcint_t *result_size);
+typedef scdcint_t scdc_dataprov_hook_config_f(void *dataprov, const char *cmd, const char *param, const char *val, scdcint_t val_size, scdc_result_t *result);
 
 /** @brief Type definition of the callback function for opening a dataset of a hook data provider.
 * The function is (optionally) called when a client opens a dataset with #scdc_dataset_open.
 *
 * @param dataprov Handle of the data provider.
 * @param path Path of the dataset within the URI address.
+* @param result Structure for storing a result message.
 * @return Handle of the opened dataset.
 */
-typedef void *scdc_dataprov_hook_dataset_open_f(void *dataprov, const char *path);
+typedef void *scdc_dataprov_hook_dataset_open_f(void *dataprov, const char *path, scdc_result_t *result);
 
 /** @brief Type definition of the callback function for closing a dataset of a hook data provider.
 * The function is (optionally) called when a client closes a dataset with #scdc_dataset_close.
 *
 * @param dataprov Handle of the data provider.
 * @param dataset Handle of the dataset.
+* @param result Structure for storing a result message.
 * @return Whether the function was successful (#SCDC_SUCCESS) or not (#SCDC_FAILURE).
 */
-typedef scdcint_t scdc_dataprov_hook_dataset_close_f(void *dataprov, void *dataset);
+typedef scdcint_t scdc_dataprov_hook_dataset_close_f(void *dataprov, void *dataset, scdc_result_t *result);
 
 /** Type definition of the callback function for closing a dataset and writing its state to a memory location.
 * The function is (optionally) called when a server finished working with an open dataset and does not want to permanently allocate the resources of that dataset.
 *
 * @param dataprov Handle of the data provider.
 * @param dataset Handle of the dataset.
-* @param buf Memory location for storing the state of the dataset.
-* @param buf_size Size of the memory location.
-* @return Whether the function was successful (#SCDC_SUCCESS) or not (#SCDC_FAILURE).
+* @param state Memory location for storing the state of the dataset.
+* @param state_size Size of the memory location.
+* @param result Structure for storing a result message.
+* @return Number of bytes written to the memory location, i.e. greater than zero if the function was successful or zero otherwise.
 */
-typedef scdcint_t scdc_dataprov_hook_dataset_close_write_state_f(void *dataprov, void *dataset, char *buf, scdcint_t buf_size);
+typedef scdcint_t scdc_dataprov_hook_dataset_close_write_state_f(void *dataprov, void *dataset, void *state, scdcint_t state_size, scdc_result_t *result);
 
 /** Type definition of the callback function for opening a dataset and reading its state from a memory location.
 * The function is (optionally) called when a server continues working with an open dataset without having its resources permanently allocated.
 *
 * @param dataprov Handle of the data provider.
-* @param buf Memory location of the stored state of the dataset.
-* @param buf_size Size of the memory location.
+* @param state Memory location of the stored state of the dataset.
+* @param state_size Size of the memory location.
+* @param result Structure for storing a result message.
 * @return Handle of the opened dataset.
 */
-typedef void *scdc_dataprov_hook_dataset_open_read_state_f(void *dataprov, const char *buf, scdcint_t buf_size);
+typedef void *scdc_dataprov_hook_dataset_open_read_state_f(void *dataprov, const void *state, scdcint_t state_size, scdc_result_t *result);
 
 /** Type definition of the callback function for executing a command on a dataset of a hook data provider.
 * The function is (optionally) called when a client executes a command with #scdc_dataset_cmd.
@@ -401,9 +444,10 @@ typedef void *scdc_dataprov_hook_dataset_open_read_state_f(void *dataprov, const
 * @param params String specifying additional parameters of the command.
 * @param input Input object with data transferred from client to server.
 * @param output Output object with data transferred from server to client.
+* @param result Structure for storing a result message.
 * @return Whether the function was successful (#SCDC_SUCCESS) or not (#SCDC_FAILURE).
 */
-typedef scdcint_t scdc_dataprov_hook_dataset_cmd_f(void *dataprov, void *dataset, const char *cmd, const char *params, scdc_dataset_input_t *input, scdc_dataset_output_t *output);
+typedef scdcint_t scdc_dataprov_hook_dataset_cmd_f(void *dataprov, void *dataset, const char *cmd, const char *params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result_t *result);
 
 /**@brief Structure to specify the callback functions of a hook data provider.
 * A pointer to such a structure has to be provided as a paramter to when creating the data provider with #scdc_dataprov_open.
@@ -465,7 +509,7 @@ typedef scdcint_t scdc_nodeport_timer_handler_f(void *data);
 
 typedef scdcint_t scdc_nodeport_loop_handler_f(void *data, scdcint_t l);
 
-typedef scdcint_t scdc_dataprov_jobrun_handler_f(void *data, const char *jobid, const char *cmd, const char *params, scdc_dataset_input_t *input, scdc_dataset_output_t *output);
+typedef scdcint_t scdc_dataprov_jobrun_handler_f(void *data, const char *jobid, const char *cmd, const char *params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result_t *result);
 /** @endcond */
 
 

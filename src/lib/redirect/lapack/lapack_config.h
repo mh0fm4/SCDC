@@ -23,7 +23,7 @@
 
 
 #define LAPACK_SGESV  1
-#define LAPACK_STRSV  0
+#define LAPACK_STRSV  1
 
 
 #endif /* __LAPACK_CONFIG_H__ */

@@ -1,6 +1,5 @@
 /*
  *  Copyright (C) 2014, 2015, 2016, 2017, 2018 Michael Hofmann
- *  Copyright (C) 2016, 2017 Eric Kunze
  *  
  *  This file is part of the Simulation Component and Data Coupling (SCDC) library.
  *  
@@ -23,100 +22,15 @@
 #define __DATAPROV_WEBDAV_HH__
 
 
-#include <string>
-
-#include "dataprov.hh"
-
-
-class scdc_dataprov_webdav_session_handler;
-
-
-class scdc_dataprov_webdav_access: public scdc_dataprov
-{
-  public:
-
-    /**
-     * Session handler to manage the communication with the WebDAV server
-     */
-    scdc_dataprov_webdav_session_handler* session_handler;
+#include "dataprov_access.hh"
+#include "dataprov_access_posix_handler.hh"
+#include "dataprov_store.hh"
+#include "dataprov_store_posix_handler.hh"
+#include "posix_webdav_handler.hh"
 
 
-    scdc_dataprov_webdav_access();
-    virtual ~scdc_dataprov_webdav_access();
-
-    /**
-     * Open data store
-     * @param conf
-     * @param args
-     * @return true on success, false otherwise
-     */
-    virtual bool open(const char *conf, scdc_args *args);
-
-    /**
-     * close data store
-     */
-    virtual void close();
-
-    /**
-     * open data set
-     * @param path
-     * @param path_size
-     * @param output
-     * @return scdc_dataset
-     */
-    virtual scdc_dataset *dataset_open(const char *path, scdcint_t path_size, scdc_dataset_output_t *output);
-
-    /**
-     * close data set
-     * @param dataset
-     * @param output
-     */
-    virtual void dataset_close(scdc_dataset *dataset, scdc_dataset_output_t *output);
-};
-
-
-class scdc_dataprov_webdav_store: public scdc_dataprov
-{
-  public:
-
-    /**
-     * Session handler to manage the communication with the WebDAV server
-     */
-    scdc_dataprov_webdav_session_handler* session_handler;
-
-
-    scdc_dataprov_webdav_store();
-    virtual ~scdc_dataprov_webdav_store();
-
-    /**
-     * Open data store
-     * @param conf
-     * @param args
-     * @return true on success, false otherwise
-     */
-    virtual bool open(const char *conf, scdc_args *args);
-
-    /**
-     * close data store
-     */
-    virtual void close();
-
-    /**
-     * open data set
-     * @param path
-     * @param path_size
-     * @param output
-     * @return scdc_dataset
-     */
-    virtual scdc_dataset *dataset_open(const char *path, scdcint_t path_size, scdc_dataset_output_t *output);
-
-    /**
-     * close data set
-     * @param dataset
-     * @param output
-     */
-    virtual void dataset_close(scdc_dataset *dataset, scdc_dataset_output_t *output);
-};
+typedef scdc_dataprov_access<scdc_dataprov_access_posix_handler<scdc_posix_webdav_handler> > scdc_dataprov_access_webdav;
+typedef scdc_dataprov_store<scdc_dataprov_store_posix_handler<scdc_posix_webdav_handler> > scdc_dataprov_store_webdav;
 
 
 #endif /* __DATAPROV_WEBDAV_HH__ */

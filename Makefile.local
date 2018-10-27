@@ -24,4 +24,7 @@ SUBDIRS:=
 SUBDIRS+=src
 SUBDIRS+=test
 SUBDIRS+=tools
-#SUBDIRS+=doc
+ifneq ($(USE_DOC),)
+ SUBDIRS+=doc
+endif
+

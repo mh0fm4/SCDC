@@ -22,7 +22,10 @@
 #define __DATASET_HH__
 
 
-#include "data.hh"
+#include <string>
+
+#include "scdc_defs.h"
+#include "result.hh"
 
 
 class scdc_dataprov;
@@ -40,11 +43,11 @@ class scdc_dataset
     void set_pwd(const std::string &pwd_) { pwd = pwd_; }
     std::string &get_pwd() { return pwd; }
 
-    virtual bool do_cmd(const char *cmd, scdcint_t cmd_size, scdc_dataset_input_t *input, scdc_dataset_output_t *output);
+    virtual bool do_cmd(const std::string &cmd, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result);
 
-    virtual bool do_cmd_info(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output);
-    virtual bool do_cmd_cd(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output);
-    virtual bool do_cmd_pwd(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output);
+    virtual bool do_cmd_info(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result);
+    virtual bool do_cmd_cd(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result);
+    virtual bool do_cmd_pwd(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result);
 
   protected:
     scdc_dataprov *dataprov;

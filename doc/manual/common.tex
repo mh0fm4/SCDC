@@ -1,0 +1,72 @@
+
+% define command \escapeus{} to escape underscores (see https://tex.stackexchange.com/a/20892)
+\makeatletter
+\DeclareRobustCommand*{\escapeus}[1]{%
+  \begingroup\@activeus\scantokens{#1\endinput}\endgroup}
+\begingroup\lccode`\~=`\_\relax
+   \lowercase{\endgroup\def\@activeus{\catcode`\_=\active \let~\_}}
+\makeatother
+
+\newcommand{\code}[1]{\texttt{\escapeus{#1}}}
+
+\newenvironment{codedesc}[1][]%
+{\begin{description}[font=\normalfont\code,itemindent=1ex,leftmargin=2ex,topsep=1ex,parsep=1ex,#1]}%
+{\end{description}}
+
+\newcommand{\fnct}[1]{\code{#1}}
+\newcommand{\prmt}[1]{\code{#1}}
+\newcommand{\dtyp}[1]{\code{#1}}
+\newcommand{\cnst}[1]{\code{#1}}
+
+\newcommand{\reflst}[1]{%
+\noindent%
+\begin{description}[font=\normalfont\textbf,itemindent=1ex,leftmargin=2ex,topsep=0ex,parsep=1ex]
+#1
+\end{description}
+}
+\newcommand{\reflstprop}[2][:]{\item[#2#1]}
+
+\newcommand{\reflstdtyp}[2]{\reflstprop{Type \dtyp{#1}} #2}
+\newcommand{\reflstcnst}[2]{\reflstprop{Constant \cnst{#1}} #2}
+\newcommand{\reflstcode}[2]{\reflstprop{\code{#1}} #2}
+
+
+\newcommand{\reffnc}[2]{%
+\noindent%
+\fnct{#1}
+\begin{description}[font=\normalfont\textbf,itemindent=1ex,leftmargin=2ex,topsep=0ex,parsep=1ex]
+#2
+\end{description}
+}
+\newcommand{\reffncprop}[2][:]{\item[#2#1]}
+
+\newcommand{\reffncparam}[2]{\reffncprop{Parameter \prmt{#1}} #2}
+\newcommand{\reffncret}[2][]{\reffncprop{Return\ifthenelse{\equal{#1}{}}{}{ \dtyp{#1}}} #2}
+\newcommand{\reffncdesc}[1]{\reffncprop{Description} #1}
+% \newcommand{\reffncbrief}[1]{\reffncprop[]{} #1}
+% \newcommand{\reffnclong}[1]{\reffncprop[]{} #1}
+
+\newcommand{\dscmd}[1]{\texttt{#1}}
+
+\newcommand{\refcmd}[2]{%
+\noindent%
+\textbf{Command:} \dscmd{#1}
+\begin{description}[font=\normalfont\textbf,itemindent=1ex,leftmargin=2ex,topsep=1ex,itemsep=0ex]
+#2
+\end{description}
+}
+\newcommand{\refcmdprop}[1]{\item[#1:]}
+
+\newcommand{\refcmdparam}[1]{\refcmdprop{Parameters} \dscmd{#1}}
+\newcommand{\refcmdin}[1]{\refcmdprop{Input} #1}
+\newcommand{\refcmdout}[1]{\refcmdprop{Output} #1}
+\newcommand{\refcmdres}[1]{\refcmdprop{Result} #1}
+\newcommand{\refcmdfail}[1]{\refcmdprop{Failure} #1}
+\newcommand{\refcmduse}[1]{\refcmdprop{Usage} #1}
+
+\newenvironment{dscmdref}%
+{}%
+{}
+
+\newcommand{\ie}{i.\,e.\xspace}
+\newcommand{\eg}{e.\,g.\xspace}

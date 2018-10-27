@@ -1,0 +1,68 @@
+\section{Hook: User-defined functionality}
+\label{sect:dataprov_hook}
+
+\begin{itemize}
+  \item data provider with arbitrary functionality defined by the user through hook functions
+\end{itemize}
+
+
+\subsection{Server-side setup}
+
+hook functions that can be assigned to members of the structure \code{scdc_dataprov_hook_t},
+format and role of the specific functions:
+\begin{description}[font=\code,itemindent=0ex,leftmargin=1ex]
+
+  \item[open] Open the data provider (optional):\\
+\textit{Format:} \code{void *scdc_dataprov_hook_open_f(const char *conf, va_list ap)}\\
+\textit{Python:} \code{def scdc_dataprov_hook_open_f(conf, *args):\\ return dataprov|False}
+
+  \item[close] Close the data provider (optional):\\
+\textit{Format:} \code{scdcint_t scdc_dataprov_hook_close_f(void *dataprov)}\\
+\textit{Python:} \code{def scdc_dataprov_hook_close(dataprov):\\ return bool}
+
+  \item[config] Configure the data provider (optional):\\
+\textit{Format:} \code{scdcint_t scdc_dataprov_hook_config_f(void *dataprov,\\ const char *cmd, const char *param,\\ const char *val, scdcint_t val_size,\\ scdc_result_t *result)}\\
+\textit{Python:} \code{def scdc_dataprov_hook_config(dataprov, cmd, param, val):\\ return bool \textit{or} (bool, result)}
+
+  \item[dataset_open] Open a dataset (optional):\\
+\textit{Format:} \code{void *scdc_dataprov_hook_dataset_open_f(void *dataprov,\\ const char *path,\\ scdc_result_t *result)}\\
+\textit{Python:} \code{def scdc_dataprov_hook_dataset_open(dataprov, path):\\ return dataset|False \textit{or} (dataset|False, result)}
+
+  \item[dataset_close] Close a dataset (optional):\\
+\textit{Format:} \code{scdcint_t scdc_dataprov_hook_dataset_close_f(void *dataprov,\\ void *dataset,\\ scdc_result_t *result)}\\
+\textit{Python:} \code{def scdc_dataprov_hook_dataset_close(dataprov):\\ return bool \textit{or} (bool, result)}
+
+  \item[dataset_close_write_state] Close a dataset and write its state to a string (optional):\\
+\textit{Format:} \code{scdcint_t scdc_dataprov_hook_dataset_close_write_state_f(void *dataprov,\\ void *dataset,\\ void *state, scdcint_t state_size,\\ scdc_result_t *result)}\\
+\textit{Python:} \code{def scdc_dataprov_hook_dataset_close_write_state(dataprov, dataset):\\ return str|False \textit{or} (str|False, result)}
+
+  \item[dataset_open_read_state] Open a dataset by reading its state from a string (optional):\\
+\textit{Format:} \code{void *scdc_dataprov_hook_dataset_open_read_state_f(void *dataprov,\\ const void *state, scdcint_t state_size,\\ scdc_result_t *result)}\\
+\textit{Python:} \code{def scdc_dataprov_hook_dataset_open_read_state(dataprov, state):\\ return dataset|False \textit{or} (dataset|False, result)}
+
+  \item[dataset_cmd] Execute a command on a dataset:\\
+\textit{Format:} \code{scdcint_t scdc_dataprov_hook_dataset_cmd_f(void *dataprov,\\ void *dataset,\\ const char *cmd, const char *params,\\ scdc_dataset_input_t *input, scdc_dataset_output_t *output,\\ scdc_result_t *result)}\\
+\textit{Python:} \code{def scdc_dataprov_hook_dataset_cmd(dataprov, dataset, cmd, params, input, output):\\ return bool \textit{or} (bool, result)}
+
+\end{description}
+
+
+\subsection{Client-side usage}
+
+\begin{dscmdref}
+% command: any
+\refcmd{<cmd> [<param>]}{
+\refcmduse{
+Execute command \dscmd{<cmd>} with parameters \dscmd{<param>.}
+}
+% \refcmdparam{[<param>]}
+\refcmdin{Input of the command.}
+\refcmdout{Output of the command.}
+\refcmdfail{The command executed by the \code{dataset_cmd} hook function failed.}
+}
+\end{dscmdref}
+
+
+\subsection{Configuration}
+
+Any configuration performed by the \code{config} hook function.

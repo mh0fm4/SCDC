@@ -20,19 +20,28 @@
 #  
 
 
-SCDC_SRC:=../../../
+# current directory from current file, push to stack
+CWD:=$(subst Makefile.in,,$(MAKEFILE_IN))
+CWD_STACK:=$(CWD) $(CWD_STACK)
+# $(info CWD: $(CWD))
+# $(info CWD_STACK: $(CWD_STACK))
 
-include ../Makefile.in
+MAKEFILE_IN:=$(CWD)../Makefile.in
+DEPS+=$(MAKEFILE_IN)
+# $(info MAKEFILE_IN: $(MAKEFILE_IN))
+# $(info DEPS: $(DEPS))
 
-DEPS+=../Makefile.in
+include $(MAKEFILE_IN)
 
-#CPPFLAGS+=$(SCDC_A_CPPFLAGS) -I$(SCDC_SRC)include
-#CFLAGS+=$(SCDC_A_CFLAGS)
-#CXXFLAGS+=$(SCDC_A_CXXFLAGS)
+# current directory from stack, pop from stack
+CWD:=$(firstword $(CWD_STACK))
+CWD_STACK:=$(wordlist 2,$(words $(CWD_STACK)),$(CWD_STACK))
+# $(info CWD: $(CWD))
+# $(info CWD_STACK: $(CWD_STACK))
 
-CPPFLAGS+=$(LIBSCDC_CPPFLAGS) -DHAVE_Z_CONFIG_H=1
-LDFLAGS+=$(LIBSCDC_LDFLAGS)
-LIBS+=$(LIBSCDC_LIBS)
+USE_REDIRECT:=
+
+CPPFLAGS+=-DHAVE_Z_CONFIG_H=1 -DZ_OVERRIDE_CONFIG_H=1
 
 ifneq ($(wildcard /usr/include/uthash.h),)
  CPPFLAGS+=-DHAVE_UTHASH_H

@@ -35,86 +35,98 @@
 using namespace std;
 
 
+#define SCDC_LOG_PREFIX  "dataprov-store-mem-handler: "
+
+
+/* instantiate the template class in this compile unit */
 template class scdc_dataprov_store<scdc_dataprov_store_mem_handler>;
 
 
-#define SCDC_LOG_PREFIX  "dataprov-store-mem-handler: "
-
 const char * const scdc_dataprov_store_mem_handler::type = "mem";
-const scdc_dataprov_store_mem_handler::store_t scdc_dataprov_store_mem_handler::store_null = 0;
-const scdc_dataprov_store_mem_handler::entry_t scdc_dataprov_store_mem_handler::entry_null = 0;
 
 
-scdc_dataprov_store_mem_handler::store_t scdc_dataprov_store_mem_handler::add_store(const char *path)
+bool scdc_dataprov_store_mem_handler::open_config_conf(const std::string &conf, scdc_args *args, bool &done)
 {
-  SCDC_TRACE(__func__ << ": path: '" << path << "'");
+  SCDC_TRACE_F("conf: '" << conf << "'");
 
-  store_t store = new store_data_t;
-  store->name = path;
+  bool ret = false;
+  done = false;
 
-  return store;
-}
-
-
-void scdc_dataprov_store_mem_handler::del_store(store_t store)
-{
-  SCDC_TRACE(__func__ << ": store: '" << store << "'");
-
-  clear_entries(store);
-
-  delete store;
-}
-
-
-scdc_dataprov_store_mem_handler::store_t scdc_dataprov_store_mem_handler::find_store(const char *path)
-{
-  SCDC_TRACE(__func__ << ": path: '" << path << "'");
-
-  store_t ret = store_null;
-
-  if (!path || path[0] == '\0') goto do_return;
-
-  for (stores_t::const_iterator i = stores.begin(); ret == store_null && i != stores.end(); ++i)
-  {
-    if ((*i)->name == path) ret = *i;
-  }
-
-do_return:
-
-  SCDC_TRACE(__func__ << ": return: " << ret);
+  SCDC_TRACE_F("return: " << ret);
 
   return ret;
 }
 
 
-void scdc_dataprov_store_mem_handler::clear_stores()
+bool scdc_dataprov_store_mem_handler::open_conf(std::string &conf, scdc_args *args, scdc_result &result)
 {
-  SCDC_TRACE(__func__ << ":");
+  SCDC_TRACE_F("conf: '" << conf << "'");
 
-  for (stores_t::iterator i = stores.begin(); i != stores.end(); ++i) del_store(*i);
+  bool ret = true;
 
-  stores.clear();
+  SCDC_TRACE_F("return: " << ret << ", result: '" << result << "'");
+
+  return ret;
 }
+
+
+bool scdc_dataprov_store_mem_handler::open(scdc_result &result)
+{
+  SCDC_TRACE_F("conf: '" << conf << "'");
+
+  bool ret = true;
+
+  SCDC_TRACE_F("return: " << ret << ", result: '" << result << "'");
+
+  return ret;
+}
+
+
+bool scdc_dataprov_store_mem_handler::close(scdc_result &result)
+{
+  SCDC_TRACE_F();
+
+  bool ret = true;
+
+  clear_stores();
+
+  SCDC_TRACE_F("return: " << ret);
+
+  return ret;
+}
+
+
+struct scdc_dataprov_store_mem_handler::entry_data_t
+{
+  std::string name;
+  scdc_buf_t buf;
+};
+const scdc_dataprov_store_mem_handler::entry_t scdc_dataprov_store_mem_handler::entry_null = 0;
+
+struct scdc_dataprov_store_mem_handler::store_data_t
+{
+  std::string name;
+  scdc_dataprov_store_mem_handler::entries_t entries;
+};
+const scdc_dataprov_store_mem_handler::store_t scdc_dataprov_store_mem_handler::store_null = 0;
 
 
 bool scdc_dataprov_store_mem_handler::ls_stores(std::string &result)
 {
-  SCDC_TRACE(__func__ << ":");
+  SCDC_TRACE_F();
 
   bool ret = false;
 
-  char s[16];
-  sprintf(s, "%" scdcint_fmt "|", scdcint_cast(stores.size()));
-
-  result = s;
+  result = zxx::to_string(stores.size()) + "|";
 
   for (stores_t::const_iterator i = stores.begin(); i != stores.end(); ++i)
   {
-    result += (*i)->name;
-    result += "|";
+    result += (*i)->name + "|";
   }
 
   ret = true;
+
+  SCDC_TRACE_F("return: " << ret << ", result: " << result);
 
   return ret;
 }
@@ -122,26 +134,32 @@ bool scdc_dataprov_store_mem_handler::ls_stores(std::string &result)
 
 bool scdc_dataprov_store_mem_handler::info_store(const char *path, std::string &result)
 {
-  SCDC_TRACE(__func__ << ": path: '" << path << "'");
+  SCDC_TRACE_F("path: '" << path << "'");
 
   bool ret = true;
 
-  char s[256];
-
   if (!path || path[0] == '\0')
   {
-    sprintf(s, "stores: %" scdcint_fmt, scdcint_t(stores.size()));
+    result = "stores: " + zxx::to_string(stores.size());
 
   } else
   {
     store_t store = find_store(path);
 
-    if (store != store_null) sprintf(s, "store '%s': entries: %" scdcint_fmt, path, scdcint_cast(store->entries.size()));
-    else sprintf(s, "store '%s': not found", path);
+    if (store == store_null)
+    {
+      result = string("store '") + path + "' not found";
+      SCDC_FAIL_F(result);
+      goto do_return;
+    }
+
+    result = string("store '") + path + "', entries: " + zxx::to_string(store->entries.size());
   }
 
   ret = true;
-  result = s;
+
+do_return:
+  SCDC_TRACE_F("return: " << ret << ", result: " << result);
 
   return ret;
 }
@@ -149,7 +167,7 @@ bool scdc_dataprov_store_mem_handler::info_store(const char *path, std::string &
 
 bool scdc_dataprov_store_mem_handler::mk_store(const char *path)
 {
-  SCDC_TRACE(__func__ << ": path: '" << path << "'");
+  SCDC_TRACE_F("path: '" << path << "'");
 
   bool ret = false;
   store_t store = store_null;
@@ -160,13 +178,18 @@ bool scdc_dataprov_store_mem_handler::mk_store(const char *path)
 
   store = add_store(path);
 
-  if (store == store_null) goto do_return;
+  if (store == store_null)
+  {
+    SCDC_FAIL_F("adding store '" << path << "' failed");
+    goto do_return;
+  } 
 
   stores.push_back(store);
 
   ret = true;
 
 do_return:
+  SCDC_TRACE_F("return: " << ret);
 
   return ret;
 }
@@ -174,7 +197,7 @@ do_return:
 
 bool scdc_dataprov_store_mem_handler::rm_store(const char *path)
 {
-  SCDC_TRACE(__func__ << ": path: '" << path << "'");
+  SCDC_TRACE_F("path: '" << path << "'");
 
   bool ret = false;
 
@@ -182,18 +205,22 @@ bool scdc_dataprov_store_mem_handler::rm_store(const char *path)
 
   for (stores_t::iterator i = stores.begin(); i != stores.end(); ++i)
   {
-    if ((*i)->name == path)
-    {
-      del_store(*i);
+    if ((*i)->name != path) continue;
 
-      stores.erase(i);
+    del_store(*i);
 
-      ret = true;
-      break;
-    }
+    stores.erase(i);
+
+    ret = true;
+  }
+
+  if (!ret)
+  {
+    SCDC_FAIL_F("removing store '" << path << "' failed");
   }
 
 do_return:
+  SCDC_TRACE_F("return: " << ret);
 
   return ret;
 }
@@ -201,11 +228,11 @@ do_return:
 
 scdc_dataprov_store_mem_handler::store_t scdc_dataprov_store_mem_handler::store_open(const char *path)
 {
-  SCDC_TRACE(__func__ << ": path: '" << path << "'");
+  SCDC_TRACE_F("path: '" << path << "'");
 
   store_t store = find_store(path);
 
-  SCDC_TRACE(__func__ << ": return: " << store);
+  SCDC_TRACE_F("return: " << store);
 
   return store;
 }
@@ -213,96 +240,26 @@ scdc_dataprov_store_mem_handler::store_t scdc_dataprov_store_mem_handler::store_
 
 void scdc_dataprov_store_mem_handler::store_close(store_t store)
 {
-  SCDC_TRACE(__func__ << ": store: '" << store << "'");
-}
-
-
-bool scdc_dataprov_store_mem_handler::store_match(store_t store, const char *path)
-{
-  SCDC_TRACE(__func__ << ": path: '" << path << "'");
-
-  bool ret = (store != store_null && store->name == path);
-
-  SCDC_TRACE(__func__ << ": return: " << ret);
-
-  return ret;
-}
-
-
-scdc_dataprov_store_mem_handler::entry_t scdc_dataprov_store_mem_handler::add_entry(store_t store, const char *path)
-{
-  SCDC_TRACE(__func__ << ": store: '" << store << "', path: '" << path << "'");
-
-  entry_t entry = new entry_data_t;
-  entry->name = path;
-  entry->buf.ptr = 0;
-  entry->buf.size = entry->buf.current = 0;
-
-  return entry;
-}
-
-
-void scdc_dataprov_store_mem_handler::del_entry(store_t store, entry_t entry)
-{
-  SCDC_TRACE(__func__ << ": store: '" << store << "', entry: '" << entry << "'");
-
-  if (entry->buf.ptr) free(entry->buf.ptr);
-
-  delete entry;
-}
-
-
-scdc_dataprov_store_mem_handler::entry_t scdc_dataprov_store_mem_handler::find_entry(store_t store, const char *path)
-{
-  SCDC_TRACE(__func__ << ": store: '" << store << "', path: '" << path << "'");
-
-  entry_t ret = entry_null;
-
-  if (!path || path[0] == '\0') goto do_return;
-
-  for (entries_t::const_iterator i = store->entries.begin(); ret == entry_null && i != store->entries.end(); ++i)
-  {
-    if ((*i)->name == path) ret = *i;
-  }
-
-do_return:
-
-  SCDC_TRACE(__func__ << ": return: " << ret);
-
-  return ret;
-}
-
-
-void scdc_dataprov_store_mem_handler::clear_entries(store_t store)
-{
-  SCDC_TRACE(__func__ << ": store: '" << store << "'");
-
-  for (entries_t::iterator i = store->entries.begin(); i != store->entries.end(); ++i) del_entry(store, *i);
-
-  store->entries.clear();
+  SCDC_TRACE_F("store: '" << store << "'");
 }
 
 
 bool scdc_dataprov_store_mem_handler::ls_entries(store_t store, std::string &result)
 {
-  SCDC_TRACE(__func__ << ": store: '" << store << "'");
-
-  SCDC_TRACE(__func__ << ":");
+  SCDC_TRACE_F("store: '" << store << "'");
 
   bool ret = false;
 
-  char s[256];
-  sprintf(s, "%" scdcint_fmt "|", scdcint_cast(store->entries.size()));
-
-  result = s;
+  result = zxx::to_string(store->entries.size()) + "|";
 
   for (entries_t::const_iterator i = store->entries.begin(); i != store->entries.end(); ++i)
   {
-    sprintf(s, "%s:%" scdcint_fmt "|", (*i)->name.c_str(), (*i)->buf.current);
-    result += s;
+    result += (*i)->name + ":" + zxx::to_string((*i)->buf.current) + "|";
   }
 
   ret = true;
+
+  SCDC_TRACE_F("return: " << ret << ", result: " << result);
 
   return ret;
 }
@@ -310,26 +267,32 @@ bool scdc_dataprov_store_mem_handler::ls_entries(store_t store, std::string &res
 
 bool scdc_dataprov_store_mem_handler::info_entry(store_t store, const char *path, std::string &result)
 {
-  SCDC_TRACE(__func__ << ": store: '" << store << "', path: '%s'" << path);
+  SCDC_TRACE_F("store: '" << store << "', path: '%s'" << path);
 
   bool ret = true;
 
-  char s[256];
-
   if (!path || path[0] == '\0')
   {
-    sprintf(s, "entries: %" scdcint_fmt, scdcint_t(store->entries.size()));
+    result = "entries: " + zxx::to_string(store->entries.size());
 
   } else
   {
     entry_t entry = find_entry(store, path);
 
-    if (entry != entry_null) sprintf(s, "entry '%s': size: %" scdcint_fmt, path, scdcint_cast(entry->buf.current));
-    else sprintf(s, "entry '%s': not found", path);
+    if (entry == entry_null)
+    {
+      result = string("entry '") + path + "' not found";
+      SCDC_FAIL_F(result);
+      goto do_return;
+    }
+
+    result = string("entry '") + path + "', size: " + zxx::to_string(entry->buf.current);
   }
 
   ret = true;
-  result = s;
+
+do_return:
+  SCDC_TRACE_F("return: " << ret << ", result: " << result);
 
   return ret;
 }
@@ -337,7 +300,7 @@ bool scdc_dataprov_store_mem_handler::info_entry(store_t store, const char *path
 
 bool scdc_dataprov_store_mem_handler::rm_entry(store_t store, const char *path)
 {
-  SCDC_TRACE(__func__ << ": store: '" << store << "', path: '" << path << "'");
+  SCDC_TRACE_F("store: '" << store << "', path: '" << path << "'");
 
   bool ret = false;
 
@@ -345,18 +308,22 @@ bool scdc_dataprov_store_mem_handler::rm_entry(store_t store, const char *path)
 
   for (entries_t::iterator i = store->entries.begin(); i != store->entries.end(); ++i)
   {
-    if ((*i)->name == path)
-    {
-      del_entry(store, *i);
+    if ((*i)->name != path) continue;
 
-      store->entries.erase(i);
+    del_entry(store, *i);
 
-      ret = true;
-      break;
-    }
+    store->entries.erase(i);
+
+    ret = true;
+  }
+
+  if (!ret)
+  {
+    SCDC_FAIL_F("removing entry '" << path << "' failed");
   }
 
 do_return:
+  SCDC_TRACE_F("return: " << ret);
 
   return ret;
 }
@@ -364,7 +331,7 @@ do_return:
 
 scdc_dataprov_store_mem_handler::entry_t scdc_dataprov_store_mem_handler::entry_open(store_t store, const char *path, bool read, bool write, bool create)
 {
-  SCDC_TRACE(__func__ << ": path: '" << path << "', read: " << read << ", write: " << write << ", create: " << create);
+  SCDC_TRACE_F("path: '" << path << "', read: " << read << ", write: " << write << ", create: " << create);
 
   entry_t entry = entry_null;
 
@@ -374,7 +341,11 @@ scdc_dataprov_store_mem_handler::entry_t scdc_dataprov_store_mem_handler::entry_
 
   if (entry == entry_null)
   {
-    if (!create) goto do_return;
+    if (!create)
+    {
+      SCDC_FAIL_F("opening entry '" << path << "' failed");
+      goto do_return;
+    }
 
     entry = add_entry(store, path);
 
@@ -382,8 +353,7 @@ scdc_dataprov_store_mem_handler::entry_t scdc_dataprov_store_mem_handler::entry_
   }
 
 do_return:
-
-  SCDC_TRACE(__func__ << ": return: " << entry);
+  SCDC_TRACE_F("return: " << entry);
 
   return entry;
 }
@@ -391,13 +361,16 @@ do_return:
 
 scdc_dataprov_store_mem_handler::entry_t scdc_dataprov_store_mem_handler::entry_reopen(store_t store, const char *path, bool read, bool write, bool create, entry_t entry)
 {
-  SCDC_TRACE(__func__ << ": path: '" << path << "', read: " << read << ", write: " << write << ", create: " << create << ", entry: " << entry);
+  SCDC_TRACE_F("path: '" << path << "', read: " << read << ", write: " << write << ", create: " << create << ", entry: " << entry);
 
-  if (entry != entry_null) entry_close(store, entry);
+  if (entry->name == path) goto do_return;
+
+  entry_close(store, entry);
 
   entry = entry_open(store, path, read, write, create);
 
-  SCDC_TRACE(__func__ << ": return: " << entry);
+do_return:
+  SCDC_TRACE_F("return: " << entry);
 
   return entry;
 }
@@ -405,17 +378,17 @@ scdc_dataprov_store_mem_handler::entry_t scdc_dataprov_store_mem_handler::entry_
 
 void scdc_dataprov_store_mem_handler::entry_close(store_t store, entry_t entry)
 {
-  SCDC_TRACE(__func__ << ": entry: '" << entry << "'");
+  SCDC_TRACE_F("entry: '" << entry << "'");
 }
 
 
 bool scdc_dataprov_store_mem_handler::entry_match(store_t store, entry_t entry, const char *path)
 {
-  SCDC_TRACE(__func__ << ": entry: '" << entry << "', path: '" << path << "'");
+  SCDC_TRACE_F("entry: '" << entry << "', path: '" << path << "'");
 
-  bool ret = (entry != entry_null && entry->name == path);
+  bool ret = (entry->name == path);
 
-  SCDC_TRACE(__func__ << ": return: " << ret);
+  SCDC_TRACE_F("return: " << ret);
 
   return ret;
 }
@@ -423,7 +396,7 @@ bool scdc_dataprov_store_mem_handler::entry_match(store_t store, entry_t entry, 
 
 bool scdc_dataprov_store_mem_handler::entry_read_access_at(store_t store, entry_t entry, scdcint_t size, scdcint_t pos, scdc_buf_t &buf)
 {
-  SCDC_TRACE(__func__ << ": store: '" << store << "', entry: '" << entry << "', size: " << size << ", pos: " << pos);
+  SCDC_TRACE_F("store: '" << store << "', entry: '" << entry << "', size: " << size << ", pos: " << pos);
 
   bool ret = false;
 
@@ -440,8 +413,7 @@ bool scdc_dataprov_store_mem_handler::entry_read_access_at(store_t store, entry_
   buf.current = size;
 
 do_return:
-
-  SCDC_TRACE(__func__ << ": return: " << ret);
+  SCDC_TRACE_F("return: " << ret);
 
   return ret;
 }
@@ -449,7 +421,7 @@ do_return:
 
 scdcint_t scdc_dataprov_store_mem_handler::entry_read_at(store_t store, entry_t entry, void *ptr, scdcint_t size, scdcint_t pos)
 {
-  SCDC_TRACE(__func__ << ": store: '" << store << "', entry: '" << entry << "', ptr: " << ptr << ", size: " << size << ", pos: " << pos);
+  SCDC_TRACE_F("store: '" << store << "', entry: '" << entry << "', ptr: " << ptr << ", size: " << size << ", pos: " << pos);
 
   scdcint_t n = -1;
 
@@ -465,8 +437,7 @@ scdcint_t scdc_dataprov_store_mem_handler::entry_read_at(store_t store, entry_t 
   n = size;
 
 do_return:
-
-  SCDC_TRACE(__func__ << ": return: " << n);
+  SCDC_TRACE_F("return: " << n);
 
   return n;
 }
@@ -474,7 +445,7 @@ do_return:
 
 scdcint_t scdc_dataprov_store_mem_handler::entry_write_at(store_t store, entry_t entry, const void *ptr, scdcint_t size, scdcint_t pos)
 {
-  SCDC_TRACE(__func__ << ": store: '" << store << "', entry: '" << entry << "', ptr: " << ptr << ", size: " << size << ", pos: " << pos);
+  SCDC_TRACE_F("store: '" << store << "', entry: '" << entry << "', ptr: " << ptr << ", size: " << size << ", pos: " << pos);
 
   scdcint_t n = -1;
 
@@ -498,10 +469,125 @@ scdcint_t scdc_dataprov_store_mem_handler::entry_write_at(store_t store, entry_t
   n = size;
 
 do_return:
-
-  SCDC_TRACE(__func__ << ": return: " << n);
+  SCDC_TRACE_F("return: " << n);
 
   return n;
+}
+
+
+scdc_dataprov_store_mem_handler::store_t scdc_dataprov_store_mem_handler::add_store(const char *path)
+{
+  SCDC_TRACE_F("path: '" << path << "'");
+
+  store_t store = new store_data_t;
+  store->name = path;
+
+  SCDC_TRACE_F("return: store: " << store);
+
+  return store;
+}
+
+
+void scdc_dataprov_store_mem_handler::del_store(store_t store)
+{
+  SCDC_TRACE_F("store: '" << store << "'");
+
+  clear_entries(store);
+
+  delete store;
+
+  SCDC_TRACE_F("return:");
+}
+
+
+scdc_dataprov_store_mem_handler::store_t scdc_dataprov_store_mem_handler::find_store(const char *path)
+{
+  SCDC_TRACE_F("path: '" << path << "'");
+
+  store_t ret = store_null;
+
+  if (!path || path[0] == '\0') goto do_return;
+
+  for (stores_t::const_iterator i = stores.begin(); ret == store_null && i != stores.end(); ++i)
+  {
+    if ((*i)->name == path) ret = *i;
+  }
+
+do_return:
+  SCDC_TRACE_F("return: " << ret);
+
+  return ret;
+}
+
+
+void scdc_dataprov_store_mem_handler::clear_stores()
+{
+  SCDC_TRACE_F();
+
+  for (stores_t::iterator i = stores.begin(); i != stores.end(); ++i) del_store(*i);
+
+  stores.clear();
+
+  SCDC_TRACE_F("return:");
+}
+
+
+scdc_dataprov_store_mem_handler::entry_t scdc_dataprov_store_mem_handler::add_entry(store_t store, const char *path)
+{
+  SCDC_TRACE_F("store: '" << store << "', path: '" << path << "'");
+
+  entry_t entry = new entry_data_t;
+  entry->name = path;
+  entry->buf.ptr = 0;
+  entry->buf.size = entry->buf.current = 0;
+
+  SCDC_TRACE_F("return: entry: " << entry);
+
+  return entry;
+}
+
+
+void scdc_dataprov_store_mem_handler::del_entry(store_t store, entry_t entry)
+{
+  SCDC_TRACE_F("store: '" << store << "', entry: '" << entry << "'");
+
+  if (entry->buf.ptr) free(entry->buf.ptr);
+
+  delete entry;
+
+  SCDC_TRACE_F("return:");
+}
+
+
+scdc_dataprov_store_mem_handler::entry_t scdc_dataprov_store_mem_handler::find_entry(store_t store, const char *path)
+{
+  SCDC_TRACE_F("store: '" << store << "', path: '" << path << "'");
+
+  entry_t ret = entry_null;
+
+  if (!path || path[0] == '\0') goto do_return;
+
+  for (entries_t::const_iterator i = store->entries.begin(); ret == entry_null && i != store->entries.end(); ++i)
+  {
+    if ((*i)->name == path) ret = *i;
+  }
+
+do_return:
+  SCDC_TRACE_F("return: " << ret);
+
+  return ret;
+}
+
+
+void scdc_dataprov_store_mem_handler::clear_entries(store_t store)
+{
+  SCDC_TRACE_F("store: '" << store << "'");
+
+  for (entries_t::iterator i = store->entries.begin(); i != store->entries.end(); ++i) del_entry(store, *i);
+
+  store->entries.clear();
+
+  SCDC_TRACE_F("return:");
 }
 
 #undef SCDC_LOG_PREFIX

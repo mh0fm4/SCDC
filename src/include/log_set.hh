@@ -55,6 +55,8 @@
 # define SCDC_TRACE_DATASET_INPUT(_d_, _x_...)   Z_NOP()
 # define SCDC_TRACE_DATASET_OUTPUT(_d_, _x_...)  Z_NOP()
 #endif
+#define SCDC_TRACE_F(_x_)    SCDC_TRACE(__func__ << ": " << _x_)
+#define SCDC_TRACE_F_N(_x_)  SCDC_TRACE_N(__func__ << ": " << _x_)
 
 #if HAVE_SCDC_FAIL
 # define SCDC_FAIL_PREFIX  "SCDC-FAIL: "
@@ -62,6 +64,7 @@
 #else
 # define SCDC_FAIL(_x_)    Z_NOP()
 #endif
+#define SCDC_FAIL_F(_x_)  SCDC_FAIL(__func__ << ": " << _x_)
 
 #if HAVE_SCDC_ERROR
 # define SCDC_ERROR_PREFIX  "SCDC-ERROR: "
@@ -69,19 +72,21 @@
 #else
 # define SCDC_ERROR(_x_)    Z_NOP()
 #endif
-
-#if HAVE_SCDC_ASSERT
-# define SCDC_ASSERT_PREFIX  "SCDC-ASSERT: "
-# define SCDC_ASSERT(_t_)    Z_MOP(if (!(_t_)) SCDC_LOG_CERR(SCDC_ASSERT_PREFIX << __FILE__ << ":" << __LINE__ << ": '" #_t_ << "' failed" << std::endl);)
-#else
-# define SCDC_ASSERT(_x_)    Z_NOP()
-#endif
+#define SCDC_ERROR_F(_x_)   SCDC_ERROR(__func__ << ": " << _x_)
 
 #if HAVE_SCDC_FATAL
 # define SCDC_FATAL_PREFIX  "SCDC-FATAL: "
 # define SCDC_FATAL(_x_)    SCDC_LOG_CERR(SCDC_FATAL_PREFIX << SCDC_LOG_PREFIX << _x_ << std::endl)
 #else
 # define SCDC_FATAL(_x_)    Z_NOP()
+#endif
+#define SCDC_FATAL_F(_x_)   SCDC_FATAL(__func__ << ": " << _x_)
+
+#if HAVE_SCDC_ASSERT
+# define SCDC_ASSERT_PREFIX  "SCDC-ASSERT: "
+# define SCDC_ASSERT(_t_)    Z_MOP(if (!(_t_)) SCDC_LOG_CERR(SCDC_ASSERT_PREFIX << __FILE__ << ":" << __LINE__ << ": '" #_t_ << "' failed" << std::endl);)
+#else
+# define SCDC_ASSERT(_x_)    Z_NOP()
 #endif
 
 

@@ -40,8 +40,11 @@ class scdc_nodeconn
 
     virtual bool is_idle() = 0;
 
+    scdc_dataset *dataset_open(const std::string &path, scdc_result &result) { return compcoup->dataset_open(path, result); }
+    bool dataset_close(scdc_dataset *dataset, scdc_result &result) { return compcoup->dataset_close(dataset, result); }
+    bool dataset_cmd(const std::string &cmd, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result) { return compcoup->dataset_cmd(cmd, input, output, result); }
+
     std::string get_type() { return type; }
-    scdc_compcoup *get_compcoup() { return compcoup; }
 
   public:
     std::string key;

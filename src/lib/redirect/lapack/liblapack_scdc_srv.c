@@ -34,7 +34,7 @@ int main(int argc, char *argv[])
 {
   scdc_init(SCDC_INIT_DEFAULT);
 
-  printf(PREFIX "dataprov close\n");
+  printf(PREFIX "dataprov open\n");
   scdc_dataprov_t dp = scdc_dataprov_open("lapack", "hook", &lapack_scdc_hook);
 
   printf(PREFIX "nodeport open\n");

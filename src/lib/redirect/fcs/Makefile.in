@@ -20,19 +20,30 @@
 #  
 
 
-USE_MPI=yes
+# current directory from current file, push to stack
+CWD:=$(subst Makefile.in,,$(MAKEFILE_IN))
+CWD_STACK:=$(CWD) $(CWD_STACK)
+# $(info CWD: $(CWD))
+# $(info CWD_STACK: $(CWD_STACK))
 
-SCDC_SRC:=../../../
+MAKEFILE_IN:=$(CWD)../Makefile.in
+DEPS+=$(MAKEFILE_IN)
+# $(info MAKEFILE_IN: $(MAKEFILE_IN))
+# $(info DEPS: $(DEPS))
 
-include ../Makefile.in
+# USE_MPI:=yes
 
-DEPS+=../Makefile.in
+include $(MAKEFILE_IN)
 
-DEPS+=$(LIBSCDC_DEPENDS)
-CPPFLAGS+=$(LIBSCDC_CPPFLAGS) -DHAVE_CONFIG_H=1 -DHAVE_Z_CONFIG_H=1 -DZ_OVERRIDE_CONFIG_H=1
-LDFLAGS+=$(LIBSCDC_LDFLAGS)
-LIBS+=$(LIBSCDC_LIBS)
+# current directory from stack, pop from stack
+CWD:=$(firstword $(CWD_STACK))
+CWD_STACK:=$(wordlist 2,$(words $(CWD_STACK)),$(CWD_STACK))
+# $(info CWD: $(CWD))
+# $(info CWD_STACK: $(CWD_STACK))
 
+USE_REDIRECT:=1
+
+CPPFLAGS+=-I./ -DHAVE_Z_CONFIG_H=1 -DZ_OVERRIDE_CONFIG_H=1 # -DHAVE_CONFIG_H=1
 #CPPFLAGS+=-DLIBFCS_SCDC_PROGRESS=1
 
 SCAFACOS_DIR    = ./scafacos_install/
@@ -40,10 +51,19 @@ SCAFACOS_CFLAGS = $(shell PKG_CONFIG_PATH=${SCAFACOS_DIR}lib/pkgconfig/ pkg-conf
 SCAFACOS_LIBS   = $(shell PKG_CONFIG_PATH=${SCAFACOS_DIR}lib/pkgconfig/ pkg-config --libs scafacos)
 
 #FCS_LDFLAGS:=
-FCS_LIBS:=${SCAFACOS_LIBS}
+FCS_LIBS:=${SCAFACOS_LIBS} -lm
 
+fcs_scdc.o_USE_MPI:=yes
 fcs_scdc.o_CPPFLAGS:=-DUSE_MPI=1
 
+libfcs_scdc_srv_USE_MPI:=yes
+libfcs_scdc_srv_CPPFLAGS:=-DUSE_MPI=1
+
+test_fcs_native_USE_MPI:=yes
 test_fcs_native_CPPFLAGS:=-DUSE_MPI=1
+
+test_fcs_scdc_USE_MPI:=yes
 test_fcs_scdc_CPPFLAGS:=-DUSE_MPI=1
+
+test_fcs_scdc_linked_USE_MPI:=yes
 test_fcs_scdc_linked_CPPFLAGS:=-DUSE_MPI=1

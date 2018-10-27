@@ -80,7 +80,7 @@ bool scdc_dataprov::open_config(std::string &conf, scdc_args *args)
 }
 
 
-bool scdc_dataprov::open(const char *conf, scdc_args *args)
+bool scdc_dataprov::open(const char *conf, scdc_args *args, scdc_result &result)
 {
   SCDC_TRACE("open: conf: '" << (conf?conf:"") << "'");
 
@@ -101,13 +101,82 @@ bool scdc_dataprov::open(const char *conf, scdc_args *args)
 }
 
 
-void scdc_dataprov::close()
+bool scdc_dataprov::close(scdc_result &result)
 {
   SCDC_TRACE("close:");
+
+  bool ret = true;
+
+  SCDC_TRACE("close: return: " << ret);
+
+  return ret;
 }
 
 
-scdc_dataset *scdc_dataprov::dataset_open_read_state(scdc_data *incoming, scdc_dataset_output_t *output)
+scdc_dataset *scdc_dataprov::dataset_path_open(const std::string &path, scdc_result &result)
+{
+  SCDC_TRACE(__func__ << ": path: '" << path << "'");
+
+  scdc_dataset *dataset = 0;
+
+  string p = path;
+  stringlist pl('/', p);
+
+  if (pl.front_pop() == SCDC_DATAPROV_CONFIG_STR)
+  {
+    p = pl.conflate();
+    dataset = config_open(p, result);
+
+  } else
+  {
+    dataset = dataset_open(p, result);
+  }
+
+  if (!dataset)
+  {
+    SCDC_FAIL(__func__ << ": opening dataset failed: " << result);
+    goto do_return;
+  }
+
+  if (!p.empty())
+  {
+    string cd_cmd = "cd " + p;
+    
+    if (!dataset->do_cmd(cd_cmd, 0, 0, result))
+    {
+      SCDC_FAIL(__func__ << ": changing path failed: " << result);
+      string r;
+      dataset_path_close(dataset, r);
+      dataset = 0;
+    }
+  }
+
+do_return:
+  SCDC_TRACE(__func__ << ": return: " << dataset << ", result: '" << result << "'");
+
+  return dataset;
+}
+
+
+bool scdc_dataprov::dataset_path_close(scdc_dataset *dataset, scdc_result &result)
+{
+  SCDC_TRACE(__func__ << ": dataset: " << dataset);
+
+  bool ret = false;
+
+  if (config_close(dataset, result))
+  {
+    ret = true;
+
+  } else ret = dataset_close(dataset, result);
+
+  SCDC_TRACE(__func__ << ": return: " << ret);
+
+  return ret;
+}
+
+
+scdc_dataset *scdc_dataprov::dataset_open_read_state(scdc_data *incoming, scdc_result &result)
 {
   SCDC_TRACE("dataset_open_read_state:");
 
@@ -137,8 +206,8 @@ scdc_dataset *scdc_dataprov::dataset_open_read_state(scdc_data *incoming, scdc_d
 
   if (!dataset)
   {
-    SCDC_DATASET_OUTPUT_PRINTF(output, "dataset not available");
-    SCDC_FAIL("dataset_open_read_state: dataset not available");
+    result = "dataset not available";
+    SCDC_FAIL("dataset_open_read_state: " << result);
     return 0;
   }
 
@@ -146,7 +215,7 @@ scdc_dataset *scdc_dataprov::dataset_open_read_state(scdc_data *incoming, scdc_d
 }
 
 
-void scdc_dataprov::dataset_close_write_state(scdc_dataset *dataset, scdc_data *outgoing, scdc_dataset_output_t *output)
+bool scdc_dataprov::dataset_close_write_state(scdc_dataset *dataset, scdc_data *outgoing, scdc_result &result)
 {
   SCDC_TRACE("dataset_close_write_state: '" << dataset << "'");
 
@@ -160,50 +229,24 @@ void scdc_dataprov::dataset_close_write_state(scdc_dataset *dataset, scdc_data *
   if (n > buf_size) n = buf_size;
 
   outgoing->inc_write_pos(n);
+
+  return true;
 }
 
 
-bool scdc_dataprov::config_open(const char *path, scdcint_t path_size, scdc_dataset_output_t *output, scdc_dataset **dataset)
+scdc_dataset *scdc_dataprov::config_open(std::string &path, scdc_result &result)
 {
-  SCDC_TRACE("config_open: path: '" << string(path, path_size) << "', output: '" << output << "'");
+  SCDC_TRACE("config_open: path: '" << path << "'");
 
-  SCDC_DATASET_OUTPUT_CLEAR(output);
+  scdc_dataset *dataset = new scdc_dataset_config(this);
 
-  bool ret = false;
-  *dataset = 0;
+  SCDC_TRACE("config_open: return: " << dataset);
 
-  stringlist pl('/', path, path_size);
-
-  if (pl.front_pop() == SCDC_DATAPROV_CONFIG_STR)
-  {
-    ret = true;
-
-    *dataset = new scdc_dataset_config(this);
-
-    string p = pl.conflate();
-
-    if (p.size() > 0)
-    {
-      string cd_cmd = "cd " + p;
-    
-      if (!(*dataset)->do_cmd(cd_cmd.c_str(), cd_cmd.size(), 0, output))
-      {
-        SCDC_FAIL("selecting config parameter '" << p << "' failed");
-        SCDC_DATASET_OUTPUT_PRINTF(output, "selecting config parameter '%s' failed", p.c_str());
-        delete *dataset;
-        *dataset = 0;
-      }
-    }
-  }
-
-  SCDC_TRACE("config_open: dataset: '" << *dataset << "'");
-  SCDC_TRACE("config_open: return: '" << ret << "'");
-
-  return ret;
+  return dataset;
 }
 
 
-bool scdc_dataprov::config_close(scdc_dataset *dataset, scdc_dataset_output_t *output)
+bool scdc_dataprov::config_close(scdc_dataset *dataset, scdc_result &result)
 {
   SCDC_TRACE("config_close: dataset: '" << dataset << "'");
 
@@ -221,16 +264,14 @@ bool scdc_dataprov::config_close(scdc_dataset *dataset, scdc_dataset_output_t *o
 }
 
 
-bool scdc_dataprov::config_do_cmd(const std::string &cmd, const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+bool scdc_dataprov::config_do_cmd(const std::string &cmd, const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
 {
   SCDC_TRACE("config_do_cmd: cmd: '" << cmd << "', params: '" << params << "', input: '" << input << "', output: '" << output << "'");
 
   stringlist pvsl(',', params);
 
-  scdc_config_result result;
+  scdc_config_result res;
   bool done = false;
-
-  SCDC_DATASET_OUTPUT_CLEAR(output);
 
   if (pvsl.size() > 0)
   {
@@ -256,10 +297,10 @@ bool scdc_dataprov::config_do_cmd(const std::string &cmd, const std::string &par
 
       } else
       {
-        if (!config_do_cmd_param_base(cmd, p.c_str(), pvl.conflate(), result, done))
+        if (!config_do_cmd_param_base(cmd, p.c_str(), pvl.conflate(), res, done))
         {
-          SCDC_FAIL("config command '" << cmd << "' for parameter '" << p << "' failed: " << result << "");
-          SCDC_DATASET_OUTPUT_PRINTF(output, "config command for parameter '%s' failed: %s", p.c_str(), result.c_str());
+          result = "config command for parameter '" + p + "' failed: " + res;
+          SCDC_FAIL(__func__ << ": " << result);
           return false;
         }
       }
@@ -267,17 +308,17 @@ bool scdc_dataprov::config_do_cmd(const std::string &cmd, const std::string &par
 
   } else
   {
-    if (!config_do_cmd_param_base(cmd, "", string(""), result, done))
+    if (!config_do_cmd_param_base(cmd, "", string(""), res, done))
     {
-      SCDC_FAIL("doing config command '" << cmd << "' failed");
-      SCDC_DATASET_OUTPUT_PRINTF(output, "config command failed");
+      result = "config command '" + cmd + "' failed";
+      SCDC_FAIL(__func__ << ": " << result);
       return false;
     }
   }
 
-  SCDC_TRACE("config_do_cmd: result: '" << result << "'");
+  SCDC_TRACE("config_do_cmd: result: '" << res << "'");
 
-  SCDC_DATASET_OUTPUT_PRINTF(output, result.c_str());
+  result = res;
 
   return true;
 }
@@ -340,7 +381,7 @@ bool scdc_dataprov::config_do_cmd_param(const std::string &cmd, const std::strin
 }
 
 
-bool scdc_dataprov::dataset_cmds_do_cmd(scdc_dataset *dataset, const std::string &cmd, const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+bool scdc_dataprov::dataset_cmds_do_cmd(scdc_dataset *dataset, const std::string &cmd, const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
 {
   SCDC_TRACE("dataset_cmds_do_cmd: cmd: '" << cmd << "', params: '" << params << "'");
 
@@ -348,14 +389,14 @@ bool scdc_dataprov::dataset_cmds_do_cmd(scdc_dataset *dataset, const std::string
 
   if (i == dataset_cmds.end())
   {
-    SCDC_FAIL("do_cmd: command '" << cmd << "' not implemented");
-    SCDC_DATASET_OUTPUT_PRINTF(output, "command '%s' not implemented", cmd.c_str());
+    result = "command '" + cmd + "' not implemented";
+    SCDC_FAIL(__func__ << ": " << result);
     return false;
   }
 
   dataset_cmds_do_cmd_f do_cmd = i->second;
 
-  bool ret = (dataset->*do_cmd)(params, input, output);
+  bool ret = (dataset->*do_cmd)(params, input, output, result);
 
   SCDC_TRACE("dataset_cmds_do_cmd: return: '" << ret << "'");
 

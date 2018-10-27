@@ -36,18 +36,18 @@ class scdc_dataprov_pool: public std::map<std::string, scdc_dataprov *>
   public:
     scdc_dataprov_pool() { };
 
-    scdc_dataprov *open(const char *base_path, const char *conf, scdc_args *args);
-    void close(scdc_dataprov *dataprov);
+    scdc_dataprov *open(const char *base_path, const char *conf, scdc_args *args, scdc_result &result);
+    bool close(scdc_dataprov *dataprov, scdc_result &result);
 
     void close_all();
 
     bool exists(scdc_dataprov *dataprov);
 
-    scdc_dataset *dataset_open(const char *path, scdcint_t path_size, scdc_dataset_output_t *output);
-    void dataset_close(scdc_dataset *dataset, scdc_dataset_output_t *output);
+    scdc_dataset *dataset_open(const std::string &path, scdc_result &result);
+    bool dataset_close(scdc_dataset *dataset, scdc_result &result);
 
-    scdc_dataset *dataset_open_read_state(scdc_data *incoming, scdc_dataset_output_t *output);
-    void dataset_close_write_state(scdc_dataset *dataset, scdc_data *outgoing, scdc_dataset_output_t *output);
+    scdc_dataset *dataset_open_read_state(scdc_data *incoming, scdc_result &result);
+    bool dataset_close_write_state(scdc_dataset *dataset, scdc_data *outgoing, scdc_result &result);
 };
 
 

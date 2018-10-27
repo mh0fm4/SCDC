@@ -1,6 +1,5 @@
 /*
  *  Copyright (C) 2014, 2015, 2016, 2017, 2018 Michael Hofmann
- *  Copyright (C) 2017 Thomas Weber
  *  
  *  This file is part of the Simulation Component and Data Coupling (SCDC) library.
  *  
@@ -23,29 +22,15 @@
 #define __DATAPROV_NFS_HH__
 
 
-#include <string>
+#include "dataprov_access.hh"
+#include "dataprov_access_posix_handler.hh"
+#include "dataprov_store.hh"
+#include "dataprov_store_posix_handler.hh"
+#include "posix_nfs_handler.hh"
 
-#include "dataprov.hh"
 
-
-class scdc_dataprov_nfs_store: public scdc_dataprov
-{
-  public:
-    scdc_dataprov_nfs_store();
-
-    virtual bool open(const char *conf, scdc_args *args);
-    virtual void close();
-
-    virtual scdc_dataset *dataset_open(const char *path, scdcint_t path_size, scdc_dataset_output_t *output);
-    virtual void dataset_close(scdc_dataset *dataset, scdc_dataset_output_t *output);
-
-  friend class scdc_dataset_nfs_store;
-
-  protected:
-    struct nfs_context *_nfs_context;
-
-    const char *_libnfs_err(void);
-};
+typedef scdc_dataprov_access<scdc_dataprov_access_posix_handler<scdc_posix_nfs_handler> > scdc_dataprov_access_nfs;
+typedef scdc_dataprov_store<scdc_dataprov_store_posix_handler<scdc_posix_nfs_handler> > scdc_dataprov_store_nfs;
 
 
 #endif /* __DATAPROV_NFS_HH__ */

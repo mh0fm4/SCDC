@@ -300,6 +300,6 @@ void mem2str(const void *mem, scdcint_t mem_size, std::string &str)
 }
 
 
-void str2mem(const std::string str, void *mem, scdcint_t *mem_size)
+void str2mem(const std::string &str, void *mem, scdcint_t *mem_size)
 {
 }

@@ -528,7 +528,7 @@ static scdcint_t read_dataset_output(scdc_dataset_output_t *output, char *buf, s
     SCDC_DATASET_INOUT_BUF_PTR(output) = buf;
     SCDC_DATASET_INOUT_BUF_SIZE(output) = size_left;
 
-    if (output->next(output) == SCDC_FAILURE) return -1;
+    if (output->next(output, NULL) == SCDC_FAILURE) return -1;
 
   } while (1);
 
@@ -1013,7 +1013,7 @@ scdcint_t fileio_scdc_seek(fileio_scdc_t *fio, scdcint_t offset, int whence, int
     z_snscanf(SCDC_DATASET_INOUT_BUF_PTR(&output), SCDC_DATASET_INOUT_BUF_CURRENT(&output), "f:%" scdcint_fmt "|", &fio->offset);
     whence = SEEK_CUR;
 
-    while (output.next) output.next(&output);
+    while (output.next) output.next(&output, NULL);
   }
 
   switch (whence)
@@ -1044,7 +1044,7 @@ static void ls2stat(scdc_dataset_output_t *output, fileio_scdc_stat_t *buf)
 {
   z_snscanf(SCDC_DATASET_INOUT_BUF_PTR(output), SCDC_DATASET_INOUT_BUF_CURRENT(output), "f:%" scdcint_fmt "|", &buf->size);
 
-  while (output->next) output->next(output);
+  while (output->next) output->next(output, NULL);
 }
 
 

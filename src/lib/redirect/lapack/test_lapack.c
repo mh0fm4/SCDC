@@ -30,11 +30,14 @@
 #include "lapack.h"
 
 
-#if LIBLAPACK_SCDC && LIBLAPACK_SCDC_PREFIX
-# undef __LAPACK_H__
-# undef MANGLE_LAPACK
-# define MANGLE_LAPACK(_f_)  Z_CONCAT(liblapack_scdc_, _f_)
-# include "lapack.h"
+#if LIBLAPACK_SCDC
+# include "lapack_scdc_config.h"
+# if LIBLAPACK_SCDC_PREFIX
+#  undef __LAPACK_H__
+#  undef MANGLE_LAPACK
+#  define MANGLE_LAPACK(_f_)  Z_CONCAT(liblapack_scdc_, _f_)
+#  include "lapack.h"
+# endif
 #endif
 
 
@@ -121,8 +124,8 @@ void test_sgesv()
   const int LDA = N + 1;
   const int LDB = N + 2;
 
-	float *A = malloc(LDA * N * sizeof(float));
-	int *IPIV = malloc(N * sizeof(int));
+  float *A = malloc(LDA * N * sizeof(float));
+  int *IPIV = malloc(N * sizeof(int));
   float *B = malloc(LDB * NRHS * sizeof(float));
 
   int INFO = 0;
@@ -135,7 +138,7 @@ void test_sgesv()
   printf("B: %d x %d\n", N, NRHS);
   print_matrix_cmo(B, N, NRHS, LDB);
 
-	MANGLE_LAPACK(sgesv_)(&N, &NRHS, A, &LDA, IPIV, B, &LDB, &INFO);
+  MANGLE_LAPACK(sgesv_)(&N, &NRHS, A, &LDA, IPIV, B, &LDB, &INFO);
 
   printf("A: %d x %d\n", N, N);
   print_matrix_cmo(A, N, N, LDA);

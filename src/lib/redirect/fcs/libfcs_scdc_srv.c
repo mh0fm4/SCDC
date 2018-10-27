@@ -19,6 +19,11 @@
 
 
 #include <stdio.h>
+#include <string.h>
+
+#if USE_MPI
+# include <mpi.h>
+#endif
 
 #include "scdc.h"
 
@@ -32,31 +37,52 @@
 
 int main(int argc, char *argv[])
 {
+#if USE_MPI
+  MPI_Init(&argc, &argv);
+#endif
+
+  --argc; ++argv;
+
+  int uds = 1;
+  int tcp = 0;
+
+  if (argc > 0)
+  {
+    if (strcmp(argv[0], "tcp") == 0) tcp = 1;
+  }
+
   scdc_init(SCDC_INIT_DEFAULT);
 
-  printf(PREFIX "dataprov close\n");
+  printf(PREFIX "dataprov open\n");
   scdc_dataprov_t dp = scdc_dataprov_open("fcs", "hook", &fcs_scdc_hook);
 
   printf(PREFIX "nodeport open\n");
-  scdc_nodeport_t np = scdc_nodeport_open("uds:socketname:max_connections", "libfcs_scdc", 2);
-/*  scdc_nodeport_t np = scdc_nodeport_open("tcp:max_connections", 2);*/
+  scdc_nodeport_t np_uds = uds?scdc_nodeport_open("uds:socketname:max_connections", "libblas_scdc", 2):SCDC_NODEPORT_NULL;
+  scdc_nodeport_t np_tcp = tcp?scdc_nodeport_open("tcp:max_connections", 2):SCDC_NODEPORT_NULL;
 
   printf(PREFIX "nodeport start\n");
-  scdc_nodeport_start(np, SCDC_NODEPORT_START_ASYNC_UNTIL_CANCEL);
+  scdc_nodeport_start(np_uds, SCDC_NODEPORT_START_ASYNC_UNTIL_CANCEL);
+  scdc_nodeport_start(np_tcp, SCDC_NODEPORT_START_ASYNC_UNTIL_CANCEL);
 
   printf(PREFIX "Press <ENTER> to quit!\n");
   getchar();
 
   printf(PREFIX "nodeport stop\n");
-  scdc_nodeport_stop(np);
+  scdc_nodeport_stop(np_uds);
+  scdc_nodeport_stop(np_tcp);
 
   printf(PREFIX "nodeport close\n");
-  scdc_nodeport_close(np);
+  scdc_nodeport_close(np_uds);
+  scdc_nodeport_close(np_tcp);
 
   printf(PREFIX "dataprov close\n");
   scdc_dataprov_close(dp);
 
   scdc_release();
+
+#if USE_MPI
+  MPI_Finalize();
+#endif
 
   return 0;
 }

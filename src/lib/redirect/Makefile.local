@@ -26,4 +26,4 @@ SUBDIRS+=fstream
 SUBDIRS+=redirect
 SUBDIRS+=blas
 SUBDIRS+=lapack
-SUBDIRS+=fcs
+#SUBDIRS+=fcs

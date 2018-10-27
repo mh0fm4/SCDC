@@ -22,9 +22,16 @@
 #include <cstdlib>
 #include <cstring>
 
-#include "common.h"
+#include "xxhash.h"
+
+#include "redirect_config.h"
+#include "redirect_param.h"
+#include "redirect_handle.h"
+#include "redirect_cache.h"
+#include "redirect_types.h"
 #include "redirect_data.h"
 #include "redirect_call.h"
+#include "common.h"
 
 
 #define TRACE_PREFIX  "redirect_call: "
@@ -37,24 +44,14 @@
 #endif
 
 
-static const char *FMTS[][3] = {
-#define FMT_CHAR  0
-  { "%c", "%c", 0 },
-#define FMT_INT  1
-  { "%d", "%d", 0 },
-#define FMT_FLOAT  2
-  { "%.8f", "%f", 0 },
-#define FMT_DOUBLE  3
-  { "%.16e", "%lf", 0 },
-#define FMT_VOID_PTR  4
-  { "%p", "%p", 0 },
-#define FMT_CHAR_PTR  5
-  { "%s", "%s", "*" },
-};
+template<typename T>
+int get_type();
 
-#define PRINTF_FMT(_f_)      FMTS[_f_][0]
-#define SCANF_FMT(_f_)       FMTS[_f_][1]
-#define SCANF_PTR(_f_, _v_)  ((FMTS[_f_][2] == 0)?static_cast<void *>(_v_):static_cast<void *>(*reinterpret_cast<void **>(_v_)))
+#define DEFINE_TYPE(_t_, _tn_, _fmt_) \
+  template<> \
+  int get_type<_t_>() { \
+    return _fmt_; \
+  } \
 
 
 #if 0
@@ -94,213 +91,6 @@ static rdint_t get_blocks_cont_size(rdint_t count, rdint_t size, rdint_t stride)
 }
 
 
-static rdint_t get_matrix_elem_size(rdint_t nr, rdint_t nc, rdint_t ld, int rcm)
-{
-  switch (RCM_GET_TYPE(rcm))
-  {
-    case RCM_TYPE_DENSE:
-    case RCM_TYPE_TRIANGULAR_UPPER:
-    case RCM_TYPE_TRIANGULAR_LOWER:
-      return nr * nc;
-  }
-
-  return 0;
-}
-
-
-static rdint_t get_matrix_cont_size(rdint_t nr, rdint_t nc, rdint_t ld, int rcm)
-{
-  switch (RCM_GET_TYPE(rcm))
-  {
-    case RCM_TYPE_DENSE:
-    case RCM_TYPE_TRIANGULAR_UPPER:
-    case RCM_TYPE_TRIANGULAR_LOWER:
-      if (nr == 0 || nc == 0) return 0;
-      if (RCM_IS_SET(rcm, RCM_ORDER_COL_MAJOR))
-      {
-        /* column-major order: nc-1 full columns of size ld + one column of size nr */
-        return (nc - 1) * ld + nr;
-      }
-      if (RCM_IS_SET(rcm, RCM_ORDER_ROW_MAJOR))
-      {
-        /* row-major order: nr-1 full rows of size ld + one row of size nc */
-        return (nr - 1) * ld + nc;
-      }
-  }
-
-  return 0;
-}
-
-
-static rdint_t get_matrix_cont_index(rdint_t nr, rdint_t nc, rdint_t ld, int rcm, rdint_t r, rdint_t c)
-{
-  switch (RCM_GET_TYPE(rcm))
-  {
-    case RCM_TYPE_DENSE:
-    case RCM_TYPE_TRIANGULAR_UPPER:
-    case RCM_TYPE_TRIANGULAR_LOWER:
-      if (RCM_IS_SET(rcm, RCM_ORDER_COL_MAJOR))
-      {
-        /* column-major order */
-        return c * ld + r;
-      }
-      if (RCM_IS_SET(rcm, RCM_ORDER_ROW_MAJOR))
-      {
-        /* row-major order */
-        return r * ld + c;
-      }
-  }
-
-  return 0;
-}
-
-
-static void get_matrix_blocks(rdint_t nr, rdint_t nc, rdint_t ld, int rcm, rdint_t *count, rdint_t *size, rdint_t *stride)
-{
-  switch (RCM_GET_TYPE(rcm))
-  {
-    case RCM_TYPE_DENSE:
-    case RCM_TYPE_TRIANGULAR_UPPER:
-    case RCM_TYPE_TRIANGULAR_LOWER:
-      if (RCM_IS_SET(rcm, RCM_ORDER_COL_MAJOR))
-      {
-        /* column-major order: nc-1 full columns of size ld + one column of size nr */
-        *count = nc;
-        *size = nr;
-        *stride = ld;
-      }
-      if (RCM_IS_SET(rcm, RCM_ORDER_ROW_MAJOR))
-      {
-        /* row-major order: nr-1 full rows of size ld + one row of size nc */
-        *count = nr;
-        *size = nc;
-        *stride = ld;
-      }
-      return;
-  }
-
-  *count = *size = *stride = 0;
-}
-
-
-static rdint_t get_vector_elem_size(rdint_t n, rdint_t inc)
-{
-  /* n rows of size 1 */
-
-  return n;
-}
-
-
-static rdint_t get_vector_cont_size(rdint_t n, rdint_t inc)
-{
-  /* column-major order: n-1 full rows of size inc + one row of size 1 */
-
-  return (n - 1) * inc + 1;
-}
-
-
-static rdint_t get_vector_cont_index(rdint_t n, rdint_t inc, rdint_t i)
-{
-  return inc * i;
-}
-
-
-template<typename T, int F>
-static void print_vector_val(rdint_t n, T *v, rdint_t inc, bool full = false)
-{
-  rdint_t nx = get_vector_cont_size(n, inc);
-
-  rdint_t i, j, k;
-  for (i = 0; i < n; ++i)
-  {
-    char s[32];
-
-    k = get_vector_cont_index(n, inc, i);
-    sprintf(s, PRINTF_FMT(F), v[k]);
-    printf("  %s", s);
-
-    for (j = 1; j < inc; ++j)
-    {
-      k = get_vector_cont_index(n, inc, i) + j;
-      if (k >= nx) continue;
-
-      if (full) sprintf(s, PRINTF_FMT(F), v[k]);
-      else sprintf(s, "X");
-      printf("  %s", s);
-    }
-    printf("\n");
-  }
-}
-
-
-#if 0
-template<typename T, int (*F)(char *s, T v)>
-static void print_matrix_val(rdint_t nr, rdint_t nc, T *m, rdint_t ld, int rcm)
-{
-  rdint_t i, j;
-  for (i = 0; i < nr; ++i)
-  {
-    for (j = 0; j < nc; ++j)
-    {
-      char s[32];
-      F(s, m[j * ld + i]);
-      printf("  %s", s);
-    }
-    printf("\n");
-  }
-}
-#endif
-
-template<typename T, int F>
-static void print_matrix_val(rdint_t nr, rdint_t nc, T *m, rdint_t ld, int rcm)
-{
-  if (nr == 0 || nc == 0) return;
-
-  switch (RCM_GET_TYPE(rcm))
-  {
-    case RCM_TYPE_DENSE:
-    case RCM_TYPE_TRIANGULAR_UPPER:
-    case RCM_TYPE_TRIANGULAR_LOWER:
-      rdint_t nx = get_matrix_cont_size(nr, nc, ld, rcm);
-
-      rdint_t i, j, k;
-      for (i = 0; i < (RCM_IS_SET(rcm, RCM_ORDER_COL_MAJOR)?ld:nr); ++i)
-      {
-        for (j = 0; j < (RCM_IS_SET(rcm, RCM_ORDER_ROW_MAJOR)?ld:nc); ++j)
-        {
-          k = get_matrix_cont_index(nr, nc, ld, rcm, i, j);
-          if (k >= nx) continue;
-
-          char s[32];
-          sprintf(s, PRINTF_FMT(F), m[k]);
-          printf("  %s", s);
-        }
-        printf("\n");
-      }
-  }
-}
-
-
-template<typename T>
-static void print_matrix_val(rdint_t nr, rdint_t nc, T *m, rdint_t ld, int rcm);
-
-#define DEFINE_PRINT_MATRIX(_t_, _tn_, _fmt_) \
-  template<> \
-  void print_matrix_val<_t_>(rdint_t nr, rdint_t nc, _t_ *m, rdint_t ld, int rcm) { \
-    print_matrix_val<_t_, _fmt_>(nr, nc, m, ld, rcm); \
-  }
-
-
-template<typename T>
-static void print_vector_val(rdint_t n, T *v, rdint_t inc);
-
-#define DEFINE_PRINT_VECTOR(_t_, _tn_, _fmt_) \
-  template<> \
-  void print_vector_val<_t_>(rdint_t n, _t_ *v, rdint_t inc) { \
-    print_vector_val<_t_, _fmt_>(n, v, inc); \
-  }
-
-
 template<typename T, int F>
 static rdint_t redirect_call_put_inout_conf_val(char *conf, const char *id, T x)
 {
@@ -315,20 +105,73 @@ static rdint_t redirect_call_put_inout_conf_val(char *conf, const char *id, T x)
 
 
 template<typename T, int F>
-static rdint_t redirect_call_get_inout_conf_val(char *conf, const char *id, T *v)
+static rdint_t redirect_call_get_inout_conf_val(const char *conf, const char *id, T *x)
 {
-  char *s = strchr(conf, ':');
-  char *e = strchr(s, ' ');
+  const char *s = strchr(conf, ':');
 
-  e[0] = '\0';
-  sscanf(s + 1, SCANF_FMT(F), SCANF_PTR(F, v));
-  e[0] = ' ';
+  char t[32];
+  sprintf(t, "%s %%n", SCANF_FMT(F));
 
-  return e + 1 - conf;
+  int n;
+  sscanf(s + 1, t, SCANF_PTR(F, x), &n);
+
+  return s + 1 + n - conf;
 }
 
 template<typename T>
-static rdint_t redirect_call_get_inout_conf_val(char *conf, const char *id, T *v);
+static rdint_t redirect_call_get_inout_conf_val(const char *conf, const char *id, T *x);
+
+
+template<typename T, int F>
+static rdint_t redirect_call_put_inout_conf_vals(char *conf, const char *id, const T *x, rdint_t n)
+{
+  char *s = conf;
+
+  s += sprintf(s, "%s", id);
+
+  rdint_t i;
+  for (i = 0; i < n; ++i)
+  {
+    *s = ':';
+    ++s;
+
+    s += sprintf(s, PRINTF_FMT(F), x[i]);
+  }
+
+  *s = ' ';
+  ++s;
+  *s = '\0';
+
+  return s - conf;
+}
+
+template<typename T>
+static rdint_t redirect_call_put_inout_conf_vals(char *conf, const char *id, const T *x, rdint_t n);
+
+
+template<typename T, int F>
+static rdint_t redirect_call_get_inout_conf_vals(const char *conf, const char *id, T *x, rdint_t n)
+{
+  const char *s = conf;
+  
+  s = strchr(s, ':');
+
+  char t[32];
+  sprintf(t, ":%s %%n", SCANF_FMT(F));
+
+  rdint_t i;
+  for (i = 0; i < n; ++i)
+  {
+    int ns;
+    sscanf(s, t, SCANF_PTR(F, &x[i]), &ns);
+    s += ns;
+  }
+
+  return s - conf;
+}
+
+template<typename T>
+static rdint_t redirect_call_get_inout_conf_vals(const char *conf, const char *id, T *x, rdint_t n);
 
 #define DEFINE_CONF(_t_, _tn_, _fmt_) \
   template<> \
@@ -336,9 +179,104 @@ static rdint_t redirect_call_get_inout_conf_val(char *conf, const char *id, T *v
     return redirect_call_put_inout_conf_val<_t_, _fmt_>(conf, id, x); \
   } \
   template<> \
-  rdint_t redirect_call_get_inout_conf_val<_t_>(char *conf, const char *id, _t_ *x) { \
+  rdint_t redirect_call_get_inout_conf_val<_t_>(const char *conf, const char *id, _t_ *x) { \
     return redirect_call_get_inout_conf_val<_t_, _fmt_>(conf, id, x); \
+  } \
+  template<> \
+  rdint_t redirect_call_put_inout_conf_vals<_t_>(char *conf, const char *id, const _t_ *x, rdint_t n) { \
+    return redirect_call_put_inout_conf_vals<_t_, _fmt_>(conf, id, x, n); \
+  } \
+  template<> \
+  rdint_t redirect_call_get_inout_conf_vals<_t_>(const char *conf, const char *id, _t_ *x, rdint_t n) { \
+    return redirect_call_get_inout_conf_vals<_t_, _fmt_>(conf, id, x, n); \
   }
+
+
+static rdint_t redirect_call_put_inout_conf_str(char *conf, const char *id, const char *x, rdint_t n)
+{
+  if (n < 0) n = strlen(x);
+
+  return sprintf(conf, "%s:%" rdint_fmt ":%.*s ", id, n, static_cast<int>(n), x);
+}
+
+
+static rdint_t redirect_call_get_inout_conf_str(const char *conf, const char *id, char *x, rdint_t *n)
+{
+  rdint_t _n = 0;
+
+  if (!n) n = &_n;
+
+  const char *s = strchr(conf, ':');
+  sscanf(s + 1, "%" rdint_fmt ":", n);
+
+  s = strchr(s + 1, ':');
+  strncpy(x, s + 1, *n);
+  x[*n] = '\0';
+
+  return s + 1 + *n + 1 - conf;
+}
+
+
+static void *redirect_call_alloc_buf(redirect_call_t *rc, rdint_t size)
+{
+  if (rc->free_nbufs >= REDIRECT_CALL_FREE_BUFS_MAX) return NULL;
+
+  void *buf = malloc(size);
+
+  rc->free_bufs[rc->free_nbufs] = buf;
+  ++rc->free_nbufs;
+
+  return buf;
+}
+
+
+static void redirect_call_free_buf(redirect_call_t *rc, rdint_t buf_index)
+{
+  if (buf_index < 0 || buf_index >= rc->free_nbufs) return;
+
+  free(rc->free_bufs[buf_index]);
+
+  --rc->free_nbufs;
+
+  if (buf_index != rc->free_nbufs) rc->free_bufs[buf_index] = rc->free_bufs[rc->free_nbufs];
+}
+
+
+static void redirect_call_free_bufs(redirect_call_t *rc)
+{
+#if 1
+  while (rc->free_nbufs > 0) redirect_call_free_buf(rc, rc->free_nbufs - 1);
+#else
+  rdint_t i;
+  for (i = 0; i < rc->free_nbufs; ++i) free(rc->free_bufs[i]);
+  rc->free_nbufs = 0;
+#endif
+}
+
+#if REDIRECT_CALL_PARAMS_CACHE
+
+static rdint_t redirect_call_find_buf(redirect_call_t *rc, const void *buf)
+{
+  rdint_t i;
+  for (i = 0; i < rc->free_nbufs; ++i)
+  {
+    if (rc->free_bufs[i] == buf) return i;
+  }
+
+  return -1;
+}
+
+
+static void redirect_call_remove_buf(redirect_call_t *rc, rdint_t buf_index)
+{
+  if (buf_index < 0 || buf_index >= rc->free_nbufs) return;
+
+  --rc->free_nbufs;
+
+  if (buf_index != rc->free_nbufs) rc->free_bufs[buf_index] = rc->free_bufs[rc->free_nbufs];
+}
+
+#endif /* REDIRECT_CALL_PARAMS_CACHE */
 
 
 /* client side */
@@ -353,16 +291,18 @@ int redirect_call_create_scdc(redirect_call_t *rc, const char *op, const char *u
 
   rc->dataset = SCDC_DATASET_NULL;
 
-  rc->input_nconf = 0;
+  rc->input_conf_n = 0;
   rc->input_conf[0] = '\0';
 
-  rc->output_nconf = 0;
-  rc->output_conf[0] = '\0';
+  rc->output_conf_put_n = rc->output_conf_get_n = 0;
+  rc->output_conf_put[0] = rc->output_conf_get[0] = '\0';
 
-#if REDIRECT_CALL_PARAMS_DENSE
-  rc->dense_nparams = 0;
+  rc->result_str[0] = '\0';
+
+#if REDIRECT_CALL_PARAMS_NEW
+  rc->nparams = 0;
 #else
-  rc->blocks_nparams = 0;
+  rc->dense_nparams = 0;
 #endif
 
   rc->input_offset = rc->output_offset = 0;
@@ -373,6 +313,10 @@ int redirect_call_create_scdc(redirect_call_t *rc, const char *op, const char *u
 
   rc->free_nbufs = 0;
 
+#if REDIRECT_CALL_PARAMS_CACHE
+  rc->cache = 0;
+#endif
+
   return 1;
 }
 
@@ -380,49 +324,93 @@ int redirect_call_create_scdc(redirect_call_t *rc, const char *op, const char *u
 void redirect_call_destroy_scdc(redirect_call_t *rc)
 {
   /* consume remaining output */
-  while (rc->output->next) rc->output->next(rc->output);
+  while (rc->output->next) rc->output->next(rc->output, 0);
 
   free(rc->input);
 
-  rdint_t i;
-  for (i = 0; i < rc->free_nbufs; ++i) free(rc->free_bufs[i]);
-  rc->free_nbufs = 0;
+  redirect_call_free_bufs(rc);
 }
 
 
-static scdcint_t do_input_next(scdc_dataset_input_t *input)
+static scdcint_t do_input_next(scdc_dataset_input_t *input, scdc_result_t *result)
 {
   redirect_call_t *rc = static_cast<redirect_call_t *>(input->data);
 
-#if REDIRECT_CALL_PARAMS_DENSE
-  ++rc->input_state;
+  bool finish = true;
 
-  TRACE_F("%s: dense state %d of %d", __func__, rc->input_state, rc->dense_nparams);
+#if REDIRECT_CALL_PARAMS_CACHE
+do_state:
+#endif
+
+#if REDIRECT_CALL_PARAMS_NEW
+  TRACE_F("params state %" rdint_fmt " of %" rdint_fmt, rc->params_state[0], rc->nparams);
+
+  if (rc->params_state[0] < rc->nparams)
+  {
+    rdint_t i = rc->params_state[0];
+
+#if REDIRECT_CALL_PARAMS_CACHE
+    if (rc->cache && rc->params[i].cacheable)
+    {
+      rdint_t entry_index = redirect_cache_get_next_param_entry_index(rc->cache);
+
+      if (entry_index >= 0)
+      {
+        TRACE_F("param %" rdint_fmt ": in cache, skipping to next", i);
+        ++rc->params_state[0];
+        goto do_state;
+      }
+    }
+#endif
+
+    if (rc->params[i].type == REDIRECT_PARAM_TYPE_DENSE)
+    {
+      TRACE_F("param %" rdint_fmt ": dense", i);
+
+      finish = false;
+
+      SCDC_DATASET_INOUT_BUF_PTR(rc->input) = rc->params[i].p.dense.buf;
+      SCDC_DATASET_INOUT_BUF_SIZE(rc->input) = SCDC_DATASET_INOUT_BUF_CURRENT(rc->input) = rc->params[i].p.dense.size;
+
+      ++rc->params_state[0];
+
+    } else if (rc->params[i].type == REDIRECT_PARAM_TYPE_BLOCKS)
+    {
+      TRACE_F("param %" rdint_fmt ": blocks, state: %" rdint_fmt " of %" rdint_fmt, i, rc->params_state[1], rc->params[i].p.blocks.count);
+
+      if (rc->params_state[1] < rc->params[i].p.blocks.count)
+      {
+        finish = false;
+
+        SCDC_DATASET_INOUT_BUF_PTR(rc->input) = static_cast<char *>(rc->params[i].p.blocks.buf) + (rc->params_state[1] * rc->params[i].p.blocks.stride);
+        SCDC_DATASET_INOUT_BUF_SIZE(rc->input) = SCDC_DATASET_INOUT_BUF_CURRENT(rc->input) = rc->params[i].p.blocks.size;
+
+        ++rc->params_state[1];
+      }
+
+    } else ASSERT(false);
+  }
+#else
+  TRACE_F("dense state %d of %d", rc->input_state, rc->dense_nparams);
 
   if (rc->input_state < rc->dense_nparams)
   {
+    finish = false;
+
     rdint_t i = rc->input_state;
 
     SCDC_DATASET_INOUT_BUF_PTR(rc->input) = rc->dense_params[i].buf;
     SCDC_DATASET_INOUT_BUF_SIZE(rc->input) = SCDC_DATASET_INOUT_BUF_CURRENT(rc->input) = rc->dense_params[i].size;
 
-  } else
-#else
-  if (rc->input_state[0] < rc->blocks_nparams)
-  {
-    rdint_t i = rc->input_state[0];
-
-    SCDC_DATASET_INOUT_BUF_PTR(rc->input) = rc->blocks_params[i].buf;
-    SCDC_DATASET_INOUT_BUF_SIZE(rc->input) = SCDC_DATASET_INOUT_BUF_CURRENT(rc->input) = (rc->blocks_params[i].count - 1) * rc->blocks_params[i].stride + rc->blocks_params[i].size;
-
-  } else
+    ++rc->input_state;
+  }
 #endif
-  {
-    TRACE_F("%s: freeing %d buffers", __func__, rc->free_nbufs);
 
-    rdint_t i;
-    for (i = 0; i < rc->free_nbufs; ++i) free(rc->free_bufs[i]);
-    rc->free_nbufs = 0;
+  if (finish)
+  {
+    TRACE_F("freeing %d buffers", rc->free_nbufs);
+
+    redirect_call_free_bufs(rc);
 
     SCDC_DATASET_INOUT_BUF_PTR(rc->input) = NULL;
     SCDC_DATASET_INOUT_BUF_SIZE(rc->input) = 0;
@@ -438,109 +426,210 @@ static scdcint_t do_input_next(scdc_dataset_input_t *input)
 
 int redirect_call_execute(redirect_call_t *rc)
 {
-  char cmd[1024];
+#if REDIRECT_CALL_PARAMS_CACHE
+  char cache_state[256];
+  rdint_t cache_state_size = 0;
 
-  if (rc->dataset == SCDC_DATASET_NULL) sprintf(cmd, "%s %s %s", rc->uri, rc->op, rc->input_conf);
-  else sprintf(cmd, "%s %s", rc->op, rc->input_conf);
+  if (rc->cache) redirect_cache_check(rc->cache, rc->dataset, rc->uri, cache_state, &cache_state_size);
+
+  TRACE_F("cache_state: %.*s", static_cast<int>(cache_state_size), cache_state);
+#endif
+
+  char cmd[REDIRECT_CALL_URI_MAX_SIZE + REDIRECT_CALL_OP_MAX_SIZE + REDIRECT_CALL_CACHE_STATE_MAX_SIZE + REDIRECT_CALL_INPUT_CONF_MAX_SIZE + REDIRECT_CALL_OUTPUT_CONF_MAX_SIZE];
+  rdint_t cmd_size = 0;
+
+  if (rc->dataset == SCDC_DATASET_NULL) cmd_size += sprintf(cmd, "%s ", rc->uri);
+
+  cmd_size += sprintf(cmd + cmd_size, "%s ", rc->op);
+
+#if REDIRECT_CALL_PARAMS_CACHE
+  cmd_size += redirect_call_put_inout_conf_str(cmd + cmd_size, "cstate", cache_state, cache_state_size);
+#endif
+  cmd_size += redirect_call_put_inout_conf_str(cmd + cmd_size, "iconf", rc->input_conf, rc->input_conf_n);
+  cmd_size += redirect_call_put_inout_conf_str(cmd + cmd_size, "oconf", rc->output_conf_put, rc->output_conf_put_n);
 
   rc->input->next = do_input_next;
   rc->input->data = rc;
-#if REDIRECT_CALL_PARAMS_DENSE
-  rc->input_state = -1;
+#if REDIRECT_CALL_PARAMS_NEW
+  rc->params_state[0] = rc->params_state[1] = 0;
 #else
-  rc->input_state[0] = rc->input_state[1] = -1;
+  rc->input_state = 0;
 #endif
 
-  rc->input->next(rc->input);
+  rc->input->next(rc->input, 0);
 
-  TRACE_F("%s: cmd: '%s'", __func__, cmd);
+  TRACE_F("cmd: '%s'", cmd);
 
   if (scdc_dataset_cmd(rc->dataset, cmd, rc->input, rc->output) != SCDC_SUCCESS)
   {
-    TRACE_F("%s: failed", __func__);
+    TRACE_F("failed");
     return 0;
   }
 
-  /* extract conf output from output */
-  const char *s = static_cast<char *>(SCDC_DATASET_INOUT_BUF_PTR(rc->output));
-  const char *e = strchr(s, '|');
+  /* extract result and output_conf_get from output */
+  const char *s = scdc_last_result();
+  rdint_t n = 0;
+  n += redirect_call_get_inout_conf_str(s + n, "result", rc->result_str, 0);
+  rc->output_conf_get_n = 0;
+  n += redirect_call_get_inout_conf_str(s + n, "oconf", rc->output_conf_get, 0);
 
-  ASSERT(e);
+  TRACE_F("result: '%s'", rc->result_str);
+  TRACE_F("output_conf_get: '%s'", rc->output_conf_get);
 
-  const rdint_t n = e - s;
-
-  rc->output_nconf = 0;
-  strncpy(rc->output_conf, s, n);
-  rc->output_conf[n] = '\0';
-
-  TRACE_F("%s: output: '%s'", __func__, rc->output_conf);
-
-  rc->output_offset = n + 1;
+  rc->output_offset = 0;
 
   return 1;
 }
 
 
-#define DEFINE_CLI_CONF(_t_, _tn_) \
+#define DEFINE_CLI_CONF_VAL(_t_, _tn_) \
   void redirect_call_put_input_conf_ ## _tn_(redirect_call_t *rc, const char *id, _t_ x) { \
-    rc->input_nconf += redirect_call_put_inout_conf_val<_t_>(rc->input_conf + rc->input_nconf, id, x); \
+    rc->input_conf_n += redirect_call_put_inout_conf_val<_t_>(rc->input_conf + rc->input_conf_n, id, x); \
   } \
   void redirect_call_get_output_conf_ ## _tn_(redirect_call_t *rc, const char *id, _t_ *x) { \
-    rc->output_nconf += redirect_call_get_inout_conf_val<_t_>(rc->output_conf + rc->output_nconf, id, x); \
+    rc->output_conf_get_n += redirect_call_get_inout_conf_val<_t_>(rc->output_conf_get + rc->output_conf_get_n, id, x); \
+  } \
+  void redirect_call_put_input_conf_ ## _tn_ ## s(redirect_call_t *rc, const char *id, const _t_ *x, rdint_t n) { \
+    rc->input_conf_n += redirect_call_put_inout_conf_vals<_t_>(rc->input_conf + rc->input_conf_n, id, x, n); \
+  } \
+  void redirect_call_get_output_conf_ ## _tn_ ## s(redirect_call_t *rc, const char *id, _t_ *x, rdint_t n) { \
+    rc->output_conf_get_n += redirect_call_get_inout_conf_vals<_t_>(rc->output_conf_get + rc->output_conf_get_n, id, x, n); \
   }
+
+
+void redirect_call_put_input_conf_rdint(redirect_call_t *rc, const char *id, rdint_t x)
+{
+  Z_CONCAT(redirect_call_put_input_conf_, rdint_type)(rc, id, x);
+}
+
+
+void redirect_call_get_output_conf_rdint(redirect_call_t *rc, const char *id, rdint_t *x)
+{
+  Z_CONCAT(redirect_call_get_output_conf_, rdint_type)(rc, id, x);
+}
+
+
+void redirect_call_put_input_conf_rdints(redirect_call_t *rc, const char *id, const rdint_t *x, rdint_t n)
+{
+  Z_CONCONCAT(redirect_call_put_input_conf_, rdint_type, s)(rc, id, x, n);
+}
+
+
+void redirect_call_get_output_conf_rdints(redirect_call_t *rc, const char *id, rdint_t *x, rdint_t n)
+{
+  Z_CONCONCAT(redirect_call_get_output_conf_, rdint_type, s)(rc, id, x, n);
+}
+
+
+void redirect_call_put_input_conf_str(redirect_call_t *rc, const char *id, const char *x, rdint_t n)
+{
+  rc->input_conf_n += redirect_call_put_inout_conf_str(rc->input_conf + rc->input_conf_n, id, x, n);
+}
+
+
+void redirect_call_get_output_conf_str(redirect_call_t *rc, const char *id, char *x, rdint_t *n)
+{
+  rc->output_conf_get_n += redirect_call_get_inout_conf_str(rc->output_conf_get + rc->output_conf_get_n, id, x, n);
+}
 
 
 /* server side */
 
-void redirect_call_init_scdc(redirect_call_t *rc, const char *params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+void redirect_call_init_scdc(redirect_call_t *rc)
 {
   rc->client = 0;
 
+  rc->op[0] = rc->uri[0] = '\0';
+
   rc->dataset = SCDC_DATASET_NULL;
 
-  rc->input_nconf = 0;
-  strcpy(rc->input_conf, params);
+  rc->input_conf_n = 0;
+  rc->input_conf[0] = '\0';
+  rc->output_conf_get_n = 0;
+  rc->output_conf_get[0] = '\0';
+  rc->output_conf_put_n = 0;
+  rc->output_conf_put[0] = '\0';
 
-  rc->output_nconf = 0;
-  rc->output_conf[0] = '\0';
+  rc->result_str[0] = '\0';
 
+#if REDIRECT_CALL_PARAMS_NEW
+  rc->nparams = 0;
+#else
   rc->dense_nparams = 0;
+#endif
 
   rc->input_offset = rc->output_offset = 0;
-  rc->input = input;
-  rc->output = output;
+  rc->input = 0;
+  rc->output = 0;
+  rc->result = 0;
 
   rc->free_nbufs = 0;
+
+#if REDIRECT_CALL_PARAMS_CACHE
+  rc->cache = 0;
+#endif
 }
 
 
-static scdcint_t release_scdc_output_next(scdc_dataset_output_t *output)
+static scdcint_t release_scdc_output_next(scdc_dataset_output_t *output, scdc_result_t *result)
 {
   redirect_call_t *rc = static_cast<redirect_call_t *>(output->data);
 
-#if REDIRECT_CALL_PARAMS_DENSE
-  ++rc->output_state;
+  bool finish = true;
 
-  TRACE_F("%s: dense state %d of %d", __func__, rc->output_state, rc->dense_nparams);
+#if REDIRECT_CALL_PARAMS_NEW
+  TRACE_F("params state %" rdint_fmt " of %" rdint_fmt, rc->params_state[0], rc->nparams);
+
+  if (rc->params_state[0] < rc->nparams)
+  {
+    rdint_t i = rc->params_state[0];
+
+    if (rc->params[i].type == REDIRECT_PARAM_TYPE_DENSE)
+    {
+      finish = false;
+
+      SCDC_DATASET_INOUT_BUF_PTR(rc->output) = rc->params[i].p.dense.buf;
+      SCDC_DATASET_INOUT_BUF_SIZE(rc->output) = SCDC_DATASET_INOUT_BUF_CURRENT(rc->output) = rc->params[i].p.dense.size;
+
+      ++rc->params_state[0];
+
+    } else if (rc->params[i].type == REDIRECT_PARAM_TYPE_BLOCKS)
+    {
+      TRACE_F("blocks state %" rdint_fmt " of %" rdint_fmt, rc->params_state[1], rc->params[i].p.blocks.count);
+
+      if (rc->params_state[1] < rc->params[i].p.blocks.count)
+      {
+        finish = false;
+
+        SCDC_DATASET_INOUT_BUF_PTR(rc->output) = static_cast<char *>(rc->params[i].p.blocks.buf) + (rc->params_state[1] * rc->params[i].p.blocks.stride);
+        SCDC_DATASET_INOUT_BUF_SIZE(rc->output) = SCDC_DATASET_INOUT_BUF_CURRENT(rc->output) = rc->params[i].p.blocks.size;
+
+        ++rc->params_state[1];
+      }
+
+    } else ASSERT(false);
+  }
+#else
+  TRACE_F("dense state %d of %d", rc->output_state, rc->dense_nparams);
 
   if (rc->output_state < rc->dense_nparams)
   {
+    finish = false;
+
     rdint_t i = rc->output_state;
 
     SCDC_DATASET_INOUT_BUF_PTR(rc->output) = rc->dense_params[i].buf;
-    SCDC_DATASET_INOUT_BUF_SIZE(rc->output) = rc->dense_params[i].size;
-    SCDC_DATASET_INOUT_BUF_CURRENT(rc->output) = rc->dense_params[i].size;
+    SCDC_DATASET_INOUT_BUF_SIZE(rc->output) = SCDC_DATASET_INOUT_BUF_CURRENT(rc->output) = rc->dense_params[i].size;
 
-  } else
-#else
-# error
+    ++rc->output_state;
+  }
 #endif
-  {
-    TRACE_F("%s: freeing %d buffers", __func__, rc->free_nbufs);
 
-    rdint_t i;
-    for (i = 0; i < rc->free_nbufs; ++i) free(rc->free_bufs[i]);
-    rc->free_nbufs = 0;
+  if (finish)
+  {
+    TRACE_F("freeing %d buffers", rc->free_nbufs);
+
+    redirect_call_free_bufs(rc);
 
     SCDC_DATASET_INOUT_BUF_PTR(rc->output) = NULL;
     SCDC_DATASET_INOUT_BUF_SIZE(rc->output) = 0;
@@ -556,37 +645,137 @@ static scdcint_t release_scdc_output_next(scdc_dataset_output_t *output)
 
 void redirect_call_release_scdc(redirect_call_t *rc)
 {
-  /* consume remaining input */
-  while (rc->input->next) rc->input->next(rc->input);
+  if (rc->input)
+  {
+    /* consume remaining input */
+    while (rc->input->next) rc->input->next(rc->input, 0);
+  }
 
-  strcpy(rc->output_conf + rc->output_nconf, "|");
-  rc->output_nconf += 1;
+  if (rc->result)
+  {
+    /* prepare result with result_str and output_conf_put */
+    char *s = SCDC_RESULT_STR(rc->result);
+    rdint_t n = 0;
+    n += redirect_call_put_inout_conf_str(s + n, "result", rc->result_str, -1);
+    n += redirect_call_put_inout_conf_str(s + n, "oconf", rc->output_conf_put, rc->output_conf_put_n);
 
-  SCDC_DATASET_INOUT_BUF_PTR(rc->output) = rc->output_conf;
-  SCDC_DATASET_INOUT_BUF_SIZE(rc->output) = rc->output_nconf;
+    ASSERT(n < SCDC_RESULT_SIZE(rc->result));
+  }
 
-  SCDC_DATASET_INOUT_BUF_CURRENT(rc->output) = rc->output_nconf;
-
-  rc->output->next = release_scdc_output_next;
-  rc->output->data = rc;
-#if REDIRECT_CALL_PARAMS_DENSE
-  rc->output_state = -1;
+  if (rc->output)
+  {
+    /* prepare parameter output */
+    rc->output->next = release_scdc_output_next;
+    rc->output->data = rc;
+#if REDIRECT_CALL_PARAMS_NEW
+    rc->params_state[0] = rc->params_state[1] = 0;
 #else
-  rc->output_state[0] = rc->output_state[1] = -1;
+    rc->output_state = 0;
 #endif
+
+    /* set first paramter to output */
+    rc->output->next(rc->output, 0);
+  }
 }
 
 
-#define DEFINE_SRV_CONF(_t_, _tn_) \
+int redirect_call_cmd(redirect_call_t *rc, const char *cmd, const char *params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result_t *result)
+{
+  TRACE_F("cmd: '%s', params: '%s', input: %p, output: %p, result: %p", cmd, params, input, output, result);
+
+#if REDIRECT_CALL_PARAMS_CACHE
+  if (redirect_cache_check_cmd(rc->cache, cmd, params, result)) return 0;
+#endif
+
+  rdint_t n = 0;
+#if REDIRECT_CALL_PARAMS_CACHE
+  char cache_state[REDIRECT_CALL_CACHE_STATE_MAX_SIZE] = { '\0' };
+  rdint_t cache_state_size = 0;
+  n += redirect_call_get_inout_conf_str(params + n, "cstate", cache_state, &cache_state_size);
+  if (rc->cache) redirect_cache_check_state(rc->cache, cache_state, cache_state_size);
+#endif
+  rc->input_conf_n = 0;
+  n += redirect_call_get_inout_conf_str(params + n, "iconf", rc->input_conf, 0);
+  rc->output_conf_get_n = 0;
+  n += redirect_call_get_inout_conf_str(params + n, "oconf", rc->output_conf_get, 0);
+
+  rc->input = input;
+  rc->output = output;
+  rc->result = result;
+
+  return 1;
+}
+
+
+#define DEFINE_SRV_CONF_VAL(_t_, _tn_) \
   void redirect_call_get_input_conf_ ## _tn_(redirect_call_t *rc, const char *id, _t_ *x) { \
-    rc->input_nconf += redirect_call_get_inout_conf_val<_t_>(rc->input_conf + rc->input_nconf, id, x); \
+    rc->input_conf_n += redirect_call_get_inout_conf_val<_t_>(rc->input_conf + rc->input_conf_n, id, x); \
   } \
   void redirect_call_put_output_conf_ ## _tn_(redirect_call_t *rc, const char *id, _t_ x) { \
-    rc->output_nconf += redirect_call_put_inout_conf_val<_t_>(rc->output_conf + rc->output_nconf, id, x); \
+    rc->output_conf_put_n += redirect_call_put_inout_conf_val<_t_>(rc->output_conf_put + rc->output_conf_put_n, id, x); \
+  } \
+  void redirect_call_get_input_conf_ ## _tn_ ## s(redirect_call_t *rc, const char *id, _t_ *x, rdint_t n) { \
+    rc->input_conf_n += redirect_call_get_inout_conf_vals<_t_>(rc->input_conf + rc->input_conf_n, id, x, n); \
+  } \
+  void redirect_call_put_output_conf_ ## _tn_ ## s(redirect_call_t *rc, const char *id, const _t_ *x, rdint_t n) { \
+    rc->output_conf_put_n += redirect_call_put_inout_conf_vals<_t_>(rc->output_conf_put + rc->output_conf_put_n, id, x, n); \
   }
 
 
+void redirect_call_get_input_conf_rdint(redirect_call_t *rc, const char *id, rdint_t *x)
+{
+  Z_CONCAT(redirect_call_get_input_conf_, rdint_type)(rc, id, x);
+}
+
+
+void redirect_call_put_output_conf_rdint(redirect_call_t *rc, const char *id, rdint_t x)
+{
+  Z_CONCAT(redirect_call_put_output_conf_, rdint_type)(rc, id, x);
+}
+
+
+void redirect_call_get_input_conf_rdints(redirect_call_t *rc, const char *id, rdint_t *x, rdint_t n)
+{
+  Z_CONCONCAT(redirect_call_get_input_conf_, rdint_type, s)(rc, id, x, n);
+}
+
+
+void redirect_call_put_output_conf_rdints(redirect_call_t *rc, const char *id, const rdint_t *x, rdint_t n)
+{
+  Z_CONCONCAT(redirect_call_put_output_conf_, rdint_type, s)(rc, id, x, n);
+}
+
+
+void redirect_call_get_input_conf_str(redirect_call_t *rc, const char *id, char *x, rdint_t *n)
+{
+  rc->input_conf_n += redirect_call_get_inout_conf_str(rc->input_conf + rc->input_conf_n, id, x, n);
+}
+
+
+void redirect_call_put_output_conf_str(redirect_call_t *rc, const char *id, const char *x, rdint_t n)
+{
+  rc->output_conf_put_n += redirect_call_put_inout_conf_str(rc->output_conf_put + rc->output_conf_put_n, id, x, n);
+}
+
+
 /* client and server side */
+
+/* cache */
+#if REDIRECT_CALL_PARAMS_CACHE
+
+void redirect_call_set_cache_ptr(redirect_call_t *rc, redirect_cache_t *cache)
+{
+  rc->cache = cache;
+}
+
+
+void redirect_call_get_cache_ptr(redirect_call_t *rc, redirect_cache_t **cache)
+{
+  *cache = rc->cache;
+}
+
+#endif
+
 
 /* handle */
 
@@ -595,12 +784,12 @@ void redirect_call_set_handle(redirect_call_t *rc, redirect_handle_t *rh)
   if (rc->client)
   {
     rc->dataset = rh->dataset;
-    redirect_call_put_input_conf_char_p(rc, "hdl_id", rh->id);
+    redirect_call_put_input_conf_str(rc, "hdl_id", rh->id, -1);
     redirect_call_put_input_conf_void_p(rc, "hdl_ptr", rh->ptr);
 
   } else
   {
-    redirect_call_put_output_conf_char_p(rc, "hdl_id", rh->id);
+    redirect_call_put_output_conf_str(rc, "hdl_id", rh->id, -1);
     redirect_call_put_output_conf_void_p(rc, "hdl_ptr", rh->ptr);
   }
 }
@@ -615,59 +804,351 @@ void redirect_call_get_handle(redirect_call_t *rc, redirect_handle_t *rh)
   if (rc->client)
   {
     rh->dataset = rc->dataset;
-    redirect_call_get_output_conf_char_p(rc, "hdl_id", reinterpret_cast<char **>(&rh_id_ptr));
+    redirect_call_get_output_conf_str(rc, "hdl_id", rh_id_ptr, 0);
     redirect_call_get_output_conf_void_p(rc, "hdl_ptr", &rh->ptr);
 
   } else
   {
-    redirect_call_get_input_conf_char_p(rc, "hdl_id", reinterpret_cast<char **>(&rh_id_ptr));
+    redirect_call_get_input_conf_str(rc, "hdl_id", rh_id_ptr, 0);
     redirect_call_get_input_conf_void_p(rc, "hdl_ptr", &rh->ptr);
   }
 }
 
 
-/* dense data */
+/* result */
 
-static void redirect_call_put_input_param_dense(redirect_call_t *rc, const char *id, rdint_t n, void *b)
+void redirect_call_set_result_str(redirect_call_t *rc, const char *result_str)
 {
-  /* client only */
-  ASSERT(rc->client);
-
-  rc->dense_params[rc->dense_nparams].buf = b;
-  rc->dense_params[rc->dense_nparams].size = n;
-
-  ++rc->dense_nparams;
+  strncpy(rc->result_str, result_str, sizeof(rc->result_str));
 }
 
 
-static void redirect_call_get_input_param_dense(redirect_call_t *rc, const char *id, rdint_t n, void **b)
+const char *redirect_call_get_result_str(redirect_call_t *rc, char *result_str, rdint_t n)
 {
-  /* server only */
-  ASSERT(!rc->client);
+  if (result_str) strncpy(result_str, rc->result_str, n);
 
-  if (*b == NULL)
-  {
-    /* puffer allokieren */
-    *b = static_cast<char *>(malloc(n));
+  return rc->result_str;
+}
 
-    rc->free_bufs[rc->free_nbufs] = *b;
-    ++rc->free_nbufs;
-  }
 
-  /* daten aus input in puffer kopieren */
+/* dense data */
+
+template<typename T>
+static void register_param_dense(redirect_call_t *rc, const T *buf, rdint_t size)
+{
+#if REDIRECT_CALL_PARAMS_NEW
+  ASSERT(rc->nparams < REDIRECT_CALL_PARAMS_MAX);
+
+  rc->params[rc->nparams].type = REDIRECT_PARAM_TYPE_DENSE;
+#if REDIRECT_CALL_PARAMS_CACHE
+  rc->params[rc->nparams].cacheable = 1;
+#endif
+  rc->params[rc->nparams].p.dense.buf = const_cast<T *>(buf);
+  rc->params[rc->nparams].p.dense.size = size * sizeof(T);
+
+  ++rc->nparams;
+#else
+  rc->dense_params[rc->dense_nparams].buf = const_cast<void *>(buf);
+  rc->dense_params[rc->dense_nparams].size = size * sizeof(T);
+
+  ++rc->dense_nparams;
+#endif
+}
+
+
+template<typename T>
+static void consume_input_dense(redirect_call_t *rc, T *buf, rdint_t size)
+{
+  rdint_t size_left = size * sizeof(T);
 
   char *src = static_cast<char *>(SCDC_DATASET_INOUT_BUF_PTR(rc->input));
-  char *dst = static_cast<char *>(*b);
+  char *dst = reinterpret_cast<char *>(buf);
 
   do
   {
-    rdint_t t = z_min(n, SCDC_DATASET_INOUT_BUF_CURRENT(rc->input) - rc->input_offset);
-    if (dst != src + rc->output_offset) memcpy(dst, src + rc->input_offset, t);
+    rdint_t t = z_min(size_left, SCDC_DATASET_INOUT_BUF_CURRENT(rc->input) - rc->input_offset);
+    if (dst != src + rc->input_offset) memcpy(dst, src + rc->input_offset, t);
     rc->input_offset += t;
     dst += t;
-    n -= t;
+    size_left -= t;
 
-    if (n <= 0 || rc->input->next == 0 || rc->input->next(rc->input) != SCDC_SUCCESS) break;
+    /* done */
+    if (size_left <= 0) break;
+
+    /* have no next or next fails? */
+    if (rc->input->next == 0 || rc->input->next(rc->input, 0) != SCDC_SUCCESS) break;
+
+    src = static_cast<char *>(SCDC_DATASET_INOUT_BUF_PTR(rc->input));
+    rc->input_offset = 0;
+
+  } while (1);
+
+#if REDIRECT_CALL_PARAMS_CACHE
+  /* try to add an entry to the cache (dense input is cacheable) */
+  if (rc->cache)
+  {
+    rdint_t size_cache = size * sizeof(T);
+    rdint_t buf_index = redirect_call_find_buf(rc, buf);
+    rdint_t entry_index = redirect_cache_find_entry(rc->cache, get_type<T>(), size_cache, buf);
+
+    /* caching entry if buffer is allocated or entry is already cached */
+    if (buf_index >= 0 || entry_index >= 0)
+    {
+      if (entry_index >= 0)
+      {
+        TRACE_F("updating entry %" rdint_fmt " of cache", entry_index);
+        redirect_cache_update_entry(rc->cache, entry_index);
+
+      } else
+      {
+        TRACE_F("adding entry [%d,%" rdint_fmt ",%p] to cache", get_type<T>(), size_cache, buf);
+        redirect_cache_put_entry(rc->cache, get_type<T>(), size_cache, buf);
+      }
+
+      if (buf_index >= 0) redirect_call_remove_buf(rc, buf_index);
+    }
+  }
+#endif
+}
+
+
+template<typename T>
+static void consume_output_dense(redirect_call_t *rc, T *buf, rdint_t size)
+{
+  rdint_t size_left = size * sizeof(T);
+
+  char *src = static_cast<char *>(SCDC_DATASET_INOUT_BUF_PTR(rc->output));
+  char *dst = reinterpret_cast<char *>(buf);
+
+  do
+  {
+    rdint_t t = z_min(size_left, SCDC_DATASET_INOUT_BUF_CURRENT(rc->output) - rc->output_offset);
+    if (dst != src + rc->output_offset) memcpy(dst, src + rc->output_offset, t);
+    rc->output_offset += t;
+    dst += t;
+    size_left -= t;
+
+    /* done */
+    if (size_left <= 0) break;
+
+    /* have no next or next fails? */
+    if (rc->output->next == 0 || rc->output->next(rc->output, 0) != SCDC_SUCCESS) break;
+
+    src = static_cast<char *>(SCDC_DATASET_INOUT_BUF_PTR(rc->output));
+    rc->output_offset = 0;
+
+  } while (1);
+}
+
+
+template<typename T>
+static void redirect_call_put_input_param_dense_val(redirect_call_t *rc, const char *id, const T *b, rdint_t n)
+{
+  TRACE_F("rc: %p, id: '%s', b: %p, n: %" rdint_fmt, rc, id, b, n);
+
+  /* client only */
+  ASSERT(rc->client);
+
+  /* register dense input */
+  register_param_dense<T>(rc, b, n);
+
+#if REDIRECT_CALL_PARAMS_CACHE
+  if (rc->cache) redirect_cache_register_param_dense(rc->cache, "unknown", get_type<T>(), &rc->params[rc->nparams - 1].p.dense);
+#endif
+}
+
+
+template<typename T>
+static void redirect_call_get_input_param_dense_val(redirect_call_t *rc, const char *id, T **b, rdint_t n)
+{
+  TRACE_F("rc: %p, id: '%s', b: %p, n: %" rdint_fmt, rc, id, *b, n);
+
+  /* server only */
+  ASSERT(!rc->client);
+
+#if REDIRECT_CALL_PARAMS_CACHE
+  if (rc->cache)
+  {
+    rdint_t entry_index = redirect_cache_get_next_param_entry_index(rc->cache);
+
+    if (entry_index >= 0)
+    {
+      TRACE_F("using cache entry %" rdint_fmt, entry_index);
+      if (*b)
+      {
+        /* copy cache entry to buffer */
+        memcpy(*b, redirect_cache_get_entry_buf(rc->cache, entry_index), n * sizeof(T));
+
+      } else
+      {
+        /* reuse buffer of cache entry */
+        *b = static_cast<T *>(redirect_cache_get_entry_buf(rc->cache, entry_index));
+      }
+
+      return;
+    }
+  }
+#endif
+
+  if (*b == NULL)
+  {
+    /* allocate buffer */
+    *b = static_cast<T *>(redirect_call_alloc_buf(rc, n * sizeof(T)));
+  }
+
+  /* copy data from input to buffer */
+  consume_input_dense<T>(rc, *b, n);
+}
+
+
+template<typename T>
+static void redirect_call_put_output_param_dense_val(redirect_call_t *rc, const char *id, const T *b, rdint_t n)
+{
+  TRACE_F("rc: %p, id: '%s', b: %p, n: %" rdint_fmt, rc, id, b, n);
+
+  if (rc->client) /* client */
+  {
+    /* FIXME: use buffer for output */
+
+  } else /* server */
+  {
+    /* register dense output */
+    register_param_dense<T>(rc, b, n);
+
+#if REDIRECT_CALL_PARAMS_CACHE
+    /* try to add an entry to the cache (dense output is cacheable) */
+    if (rc->cache)
+    {
+      rdint_t buf_index = redirect_call_find_buf(rc, b);
+      rdint_t entry_index = redirect_cache_find_entry(rc->cache, get_type<T>(), n * sizeof(T), b);
+
+      /* caching entry if buffer is allocated or entry is already cached */
+      if (buf_index >= 0 || entry_index >= 0)
+      {
+        if (entry_index >= 0)
+        {
+          TRACE_F("updating entry %" rdint_fmt " of cache", entry_index);
+          redirect_cache_update_entry(rc->cache, entry_index);
+
+        } else
+        {
+          TRACE_F("adding entry [%d,%" rdint_fmt ",%p] to cache", get_type<T>(), static_cast<rdint_t>(n * sizeof(T)), b);
+          redirect_cache_put_entry(rc->cache, get_type<T>(), n * sizeof(T), b);
+        }
+
+        if (buf_index >= 0) redirect_call_remove_buf(rc, buf_index);
+      }
+    }
+#endif
+  }
+}
+
+
+template<typename T>
+void redirect_call_get_output_param_dense_val(redirect_call_t *rc, const char *id, T **b, rdint_t n)
+{
+  TRACE_F("rc: %p, id: '%s', b: %p, n: %" rdint_fmt, rc, id, *b, n);
+
+  if (rc->client) /* client */
+  {
+    if (*b == NULL)
+    {
+      /* allocate buffer */
+      *b = static_cast<T *>(redirect_call_alloc_buf(rc, n * sizeof(T)));
+    }
+
+    /* copy data from output to buffer */
+    consume_output_dense<T>(rc, *b, n);
+
+  } else /* server */
+  {
+    if (*b == NULL)
+    {
+      /* FIXME: use output instead of allocation */
+
+      /* allocate buffer */
+      *b = static_cast<T *>(redirect_call_alloc_buf(rc, n * sizeof(T)));
+    }
+  }
+}
+
+
+template<typename T>
+static void redirect_call_put_inout_param_dense_val(redirect_call_t *rc, const char *id, const T *b, rdint_t n)
+{
+  TRACE_F("rc: %p, id: '%s', b: %p, n: %" rdint_fmt, rc, id, b, n);
+
+  /* FIXME: unroll and simplify the two calls */
+  redirect_call_put_input_param_dense_val<T>(rc, id, b, n);
+  redirect_call_put_output_param_dense_val<T>(rc, id, b, n);
+}
+
+
+template<typename T>
+static void redirect_call_get_inout_param_dense_val(redirect_call_t *rc, const char *id, T **b, rdint_t n)
+{
+  TRACE_F("rc: %p, id: '%s', b: %p, n: %" rdint_fmt, rc, id, *b, n);
+
+  /* FIXME: unroll and simplify the two calls */
+  redirect_call_get_input_param_dense_val<T>(rc, id, b, n);
+  redirect_call_get_output_param_dense_val<T>(rc, id, b, n);
+}
+
+
+/* blocks data */
+
+template<typename T>
+static void register_param_blocks(redirect_call_t *rc, const T *buf, rdint_t count, rdint_t size, rdint_t stride)
+{
+  ASSERT(rc->nparams < REDIRECT_CALL_PARAMS_MAX);
+
+  rc->params[rc->nparams].type = REDIRECT_PARAM_TYPE_BLOCKS;
+#if REDIRECT_CALL_PARAMS_CACHE
+  rc->params[rc->nparams].cacheable = 0;
+#endif
+  rc->params[rc->nparams].p.blocks.buf = const_cast<T *>(buf);
+  rc->params[rc->nparams].p.blocks.count = count;
+  rc->params[rc->nparams].p.blocks.size = size * sizeof(T);
+  rc->params[rc->nparams].p.blocks.stride = stride * sizeof(T);
+
+  ++rc->nparams;
+}
+
+
+template<typename T>
+static void consume_input_blocks(redirect_call_t *rc, void *buf, rdint_t count, rdint_t size, rdint_t stride)
+{
+  char *src = static_cast<char *>(SCDC_DATASET_INOUT_BUF_PTR(rc->input));
+  char *dst = static_cast<char *>(buf);
+
+  rdint_t stride_skip = (stride - size) * sizeof(T);
+  rdint_t size_left = size * sizeof(T);
+
+  do
+  {
+do_block:
+    rdint_t t = z_min(size_left, SCDC_DATASET_INOUT_BUF_CURRENT(rc->input) - rc->input_offset);
+    if (dst != src + rc->input_offset) memcpy(dst, src + rc->input_offset, t);
+    rc->input_offset += t;
+    dst += t;
+    size_left -= t;
+
+    /* block done? */
+    if (size_left <= 0)
+    {
+      dst += stride_skip;
+      size_left = size * sizeof(T);
+      --count;
+    }
+
+    /* all blocks done? */
+    if (count <= 0) break;
+
+    /* data left for next block? */
+    if (rc->input_offset < SCDC_DATASET_INOUT_BUF_CURRENT(rc->input)) goto do_block;
+
+    /* have no next or next fails? */
+    if (rc->input->next == 0 || rc->input->next(rc->input, 0) != SCDC_SUCCESS) break;
 
     src = static_cast<char *>(SCDC_DATASET_INOUT_BUF_PTR(rc->input));
     rc->input_offset = 0;
@@ -676,728 +1157,473 @@ static void redirect_call_get_input_param_dense(redirect_call_t *rc, const char 
 }
 
 
-static void redirect_call_put_output_param_dense(redirect_call_t *rc, const char *id, rdint_t n, void *b)
+template<typename T>
+static void consume_output_blocks(redirect_call_t *rc, void *buf, rdint_t count, rdint_t size, rdint_t stride)
 {
-  if (rc->client)
+  char *src = static_cast<char *>(SCDC_DATASET_INOUT_BUF_PTR(rc->output));
+  char *dst = static_cast<char *>(buf);
+
+  rdint_t stride_skip = (stride - size) * sizeof(T);
+  rdint_t size_left = size * sizeof(T);
+
+  do
   {
-    /* puffer in output hinterlegen */
-    /* FIXME */
+do_block:
+    rdint_t t = z_min(size_left, SCDC_DATASET_INOUT_BUF_CURRENT(rc->output) - rc->output_offset);
+    if (dst != src + rc->output_offset) memcpy(dst, src + rc->output_offset, t);
+    rc->output_offset += t;
+    dst += t;
+    size_left -= t;
+
+    /* block done? */
+    if (size_left <= 0)
+    {
+      dst += stride_skip;
+      size_left = size * sizeof(T);
+      --count;
+    }
+
+    /* all blocks done? */
+    if (count <= 0) break;
+
+    /* data left for next block? */
+    if (rc->output_offset < SCDC_DATASET_INOUT_BUF_CURRENT(rc->output)) goto do_block;
+
+    /* have no next or next fails? */
+    if (rc->output->next == 0 || rc->output->next(rc->output, 0) != SCDC_SUCCESS) break;
+
+    src = static_cast<char *>(SCDC_DATASET_INOUT_BUF_PTR(rc->output));
+    rc->output_offset = 0;
+
+  } while (1);
+}
+
+
+template<typename T>
+static void redirect_call_put_input_param_blocks_val(redirect_call_t *rc, const char *id, const T *b, rdint_t count, rdint_t size, rdint_t stride)
+{
+  TRACE_F("rc: %p, id: '%s', b: %p, count: %" rdint_fmt ", size: %" rdint_fmt ", stride: %" rdint_fmt, rc, id, b, count, size, stride);
+
+  /* client only */
+  ASSERT(rc->client);
+
+  bool transfer_dense = false;
+  rdint_t send_stride = stride;
+  rdint_t transfer_stride = stride;
+
+  if (size < stride)
+  {
+#if REDIRECT_CALL_INPUT_PARAM_BLOCKS == REDIRECT_CALL_BLOCKS_PLAIN
+    TRACE_F("transfer plain");
+    transfer_dense = true;
+    send_stride = stride;
+    transfer_stride = stride;
+#elif REDIRECT_CALL_INPUT_PARAM_BLOCKS == REDIRECT_CALL_BLOCKS_PACK_IP
+    TRACE_F("transform in-place to stride %" rdint_fmt, size);
+    redirect_data_blocks_transform_val<T>(count, size, stride, const_cast<T *>(b), size, NULL);
+    transfer_dense = true;
+    send_stride = size;
+    transfer_stride = size;
+#elif REDIRECT_CALL_INPUT_PARAM_BLOCKS == REDIRECT_CALL_BLOCKS_PACK_OP
+    TRACE_F("transform out-of-place to stride %" rdint_fmt, size);
+    T *b_tmp = static_cast<T *>(redirect_call_alloc_buf(rc, count * size * sizeof(T)));
+    redirect_data_blocks_transform_val<T>(count, size, stride, const_cast<T *>(b), size, b_tmp);
+    b = b_tmp;
+    transfer_dense = true;
+    send_stride = size;
+    transfer_stride = size;
+#elif REDIRECT_CALL_INPUT_PARAM_BLOCKS == REDIRECT_CALL_BLOCKS_PIECES
+    TRACE_F("process in pieces");
+    transfer_dense = false;
+    send_stride = stride;
+    transfer_stride = size;
+#endif
+  }
+
+  TRACE_F("send stride: %" rdint_fmt ", transfer stride: %" rdint_fmt, send_stride, transfer_stride);
+  redirect_call_put_input_conf_rdint(rc, "stride", transfer_stride);
+
+  if (size >= send_stride || transfer_dense)
+  {
+    TRACE_F("dense: %" rdint_fmt, get_blocks_cont_size(count, size, send_stride));
+    register_param_dense<T>(rc, b, get_blocks_cont_size(count, size, send_stride));
 
   } else
   {
-    /* ausgabe in output schreiben */
-    rc->dense_params[rc->dense_nparams].buf = b;
-    rc->dense_params[rc->dense_nparams].size = n;
-
-    ++rc->dense_nparams;
+    TRACE_F("blocks: %" rdint_fmt " x %" rdint_fmt " / %" rdint_fmt, count, size, send_stride);
+    register_param_blocks<T>(rc, b, count, size, send_stride);
   }
 }
 
 
-void redirect_call_get_output_param_dense(redirect_call_t *rc, const char *id, rdint_t n, void **b)
+template<typename T>
+static void redirect_call_get_input_param_blocks_val(redirect_call_t *rc, const char *id, T **b, rdint_t count, rdint_t size, rdint_t *stride)
 {
-  if (rc->client)
+  TRACE_F("rc: %p, id: '%s', b: %p, count: %" rdint_fmt ", size: %" rdint_fmt ", stride: %" rdint_fmt, rc, id, *b, count, size, *stride);
+
+  /* server only */
+  ASSERT(!rc->client);
+
+  bool transfer_dense = false;
+  rdint_t transfer_stride;
+
+  redirect_call_get_input_conf_rdint(rc, "stride", &transfer_stride);
+  TRACE_F("transfer stride: %" rdint_fmt, transfer_stride);
+
+  if (*stride == 0) *stride = transfer_stride;
+
+  rdint_t alloc_stride, recv_stride;
+
+#if REDIRECT_CALL_INPUT_PARAM_BLOCKS == REDIRECT_CALL_BLOCKS_PLAIN
+  transfer_dense = true;
+  alloc_stride = transfer_stride;
+  recv_stride = transfer_stride;
+#elif REDIRECT_CALL_INPUT_PARAM_BLOCKS == REDIRECT_CALL_BLOCKS_PACK_IP
+  transfer_dense = true;
+  alloc_stride = z_max(*stride, transfer_stride);
+  recv_stride = transfer_stride;
+#elif REDIRECT_CALL_INPUT_PARAM_BLOCKS == REDIRECT_CALL_BLOCKS_PACK_OP
+  transfer_dense = true;
+  alloc_stride = *stride;
+  recv_stride = transfer_stride;
+#elif REDIRECT_CALL_INPUT_PARAM_BLOCKS == REDIRECT_CALL_BLOCKS_PIECES
+  transfer_dense = false;
+  alloc_stride = *stride;
+  recv_stride = *stride;
+#endif
+
+  TRACE_F("alloc stride: %" rdint_fmt ", recv stride: %" rdint_fmt, alloc_stride, recv_stride);
+
+  if (*b == NULL) *b = static_cast<T *>(redirect_call_alloc_buf(rc, get_blocks_cont_size(count, size, alloc_stride) * sizeof(T)));
+
+  T* b_recv = *b;
+
+#if REDIRECT_CALL_INPUT_PARAM_BLOCKS == REDIRECT_CALL_BLOCKS_PACK_OP
+  T *b_tmp = 0;
+  if (recv_stride != *stride) b_recv = b_tmp = static_cast<T *>(malloc(get_blocks_cont_size(count, size, transfer_stride) * sizeof(T)));
+#endif
+
+  if (recv_stride == transfer_stride || transfer_dense)
   {
-    ASSERT(*b);
-
-    /* daten aus output in puffer kopieren */
-
-    char *src = static_cast<char *>(SCDC_DATASET_INOUT_BUF_PTR(rc->output));
-    char *dst = static_cast<char *>(*b);
-
-    do
-    {
-      rdint_t t = z_min(n, SCDC_DATASET_INOUT_BUF_CURRENT(rc->output) - rc->output_offset);
-      if (dst != src + rc->output_offset) memcpy(dst, src + rc->output_offset, t);
-      rc->output_offset += t;
-      dst += t;
-      n -= t;
-
-      if (n <= 0 || rc->output->next == 0 || rc->output->next(rc->output) != SCDC_SUCCESS) break;
-
-      src = static_cast<char *>(SCDC_DATASET_INOUT_BUF_PTR(rc->output));
-      rc->output_offset = 0;
-
-    } while (1);
+    TRACE_F("consume dense: %" rdint_fmt, get_blocks_cont_size(count, size, recv_stride));
+    consume_input_dense<T>(rc, b_recv, get_blocks_cont_size(count, size, recv_stride));
 
   } else
+  {
+    TRACE_F("consume blocks: %" rdint_fmt " x %" rdint_fmt " / %" rdint_fmt, count, size, recv_stride);
+    consume_input_blocks<T>(rc, b_recv, count, size, recv_stride);
+  }
+
+  if (recv_stride != *stride)
+  {
+#if REDIRECT_CALL_INPUT_PARAM_BLOCKS == REDIRECT_CALL_BLOCKS_PLAIN
+    TRACE_F("set stride to %" rdint_fmt, recv_stride);
+    *stride = recv_stride;
+#elif REDIRECT_CALL_INPUT_PARAM_BLOCKS == REDIRECT_CALL_BLOCKS_PACK_IP
+    TRACE_F("transform in-place to stride %" rdint_fmt, *stride);
+    redirect_data_blocks_transform_val<T>(count, size, recv_stride, b_recv, *stride, NULL);
+#elif REDIRECT_CALL_INPUT_PARAM_BLOCKS == REDIRECT_CALL_BLOCKS_PACK_OP
+    TRACE_F("transform out-of-place to stride %" rdint_fmt, *stride);
+    redirect_data_blocks_transform_val<T>(count, size, recv_stride, b_recv, *stride, *b);
+    free(b_tmp);
+#elif REDIRECT_CALL_INPUT_PARAM_BLOCKS == REDIRECT_CALL_BLOCKS_PIECES
+    /* this should never occur, because pieces are received with the correct stride */
+    ASSERT(false);
+#endif
+  }
+}
+
+
+template<typename T>
+static void redirect_call_put_output_param_blocks_val(redirect_call_t *rc, const char *id, const T *b, rdint_t count, rdint_t size, rdint_t stride)
+{
+  TRACE_F("rc: %p, id: '%s', b: %p, count: %" rdint_fmt ", size: %" rdint_fmt ", stride: %" rdint_fmt, rc, id, b, count, size, stride);
+
+  if (rc->client) /* client */
+  {
+    /* FIXME: use buffer for output */
+
+  } else /* server */
+  {
+    bool transfer_dense = false;
+    rdint_t send_stride = stride;
+    rdint_t transfer_stride = stride;
+
+    if (size < stride)
+    {
+#if REDIRECT_CALL_OUTPUT_PARAM_BLOCKS == REDIRECT_CALL_BLOCKS_PLAIN
+      TRACE_F("transfer plain");
+      transfer_dense = true;
+      send_stride = stride;
+      transfer_stride = stride;
+#elif REDIRECT_CALL_OUTPUT_PARAM_BLOCKS == REDIRECT_CALL_BLOCKS_PACK_IP
+      TRACE_F("transform in-place to stride: %" rdint_fmt, size);
+      redirect_data_blocks_transform_val<T>(count, size, stride, const_cast<T *>(b), size, NULL);
+      transfer_dense = true;
+      send_stride = size;
+      transfer_stride = size;
+#elif REDIRECT_CALL_OUTPUT_PARAM_BLOCKS == REDIRECT_CALL_BLOCKS_PACK_OP
+      TRACE_F("transform out-of-place to stride: %" rdint_fmt, size);
+      T *b_tmp = static_cast<T *>(redirect_call_alloc_buf(rc, count * size * sizeof(T)));
+      redirect_data_blocks_transform_val<T>(count, size, stride, const_cast<T *>(b), size, b_tmp);
+      b = b_tmp;
+      transfer_dense = true;
+      send_stride = size;
+      transfer_stride = size;
+#elif REDIRECT_CALL_OUTPUT_PARAM_BLOCKS == REDIRECT_CALL_BLOCKS_PIECES
+      TRACE_F("process in pieces");
+      transfer_dense = false;
+      send_stride = stride;
+      transfer_stride = size;
+#endif
+    }
+
+    TRACE_F("send stride: %" rdint_fmt ", transfer stride: %" rdint_fmt, send_stride, transfer_stride);
+    redirect_call_put_output_conf_rdint(rc, "stride", transfer_stride);
+
+    if (size >= send_stride || transfer_dense)
+    {
+      TRACE_F("dense: %" rdint_fmt, get_blocks_cont_size(count, size, send_stride));
+      register_param_dense<T>(rc, b, get_blocks_cont_size(count, size, send_stride));
+
+    } else
+    {
+      TRACE_F("blocks: %" rdint_fmt " x %" rdint_fmt " / %" rdint_fmt, count, size, send_stride);
+      register_param_blocks<T>(rc, b, count, size, send_stride);
+    }
+  }
+}
+
+
+template<typename T>
+void redirect_call_get_output_param_blocks_val(redirect_call_t *rc, const char *id, T **b, rdint_t count, rdint_t size, rdint_t *stride)
+{
+  TRACE_F("rc: %p, id: '%s', b: %p, count: %" rdint_fmt ", size: %" rdint_fmt ", stride: %" rdint_fmt, rc, id, *b, count, size, *stride);
+
+  if (rc->client) /* client */
+  {
+    bool transfer_dense = false;
+    rdint_t transfer_stride;
+
+    redirect_call_get_output_conf_rdint(rc, "stride", &transfer_stride);
+    TRACE_F("transfer stride: %" rdint_fmt, transfer_stride);
+
+    if (*stride == 0) *stride = transfer_stride;
+
+    rdint_t alloc_stride, recv_stride;
+
+#if REDIRECT_CALL_OUTPUT_PARAM_BLOCKS == REDIRECT_CALL_BLOCKS_PLAIN
+    transfer_dense = true;
+    alloc_stride = transfer_stride;
+    recv_stride = transfer_stride;
+#elif REDIRECT_CALL_OUTPUT_PARAM_BLOCKS == REDIRECT_CALL_BLOCKS_PACK_IP
+    transfer_dense = true;
+    alloc_stride = z_max(*stride, transfer_stride);
+    recv_stride = transfer_stride;
+#elif REDIRECT_CALL_OUTPUT_PARAM_BLOCKS == REDIRECT_CALL_BLOCKS_PACK_OP
+    transfer_dense = true;
+    alloc_stride = *stride;
+    recv_stride = transfer_stride;
+#elif REDIRECT_CALL_OUTPUT_PARAM_BLOCKS == REDIRECT_CALL_BLOCKS_PIECES
+    transfer_dense = false;
+    alloc_stride = *stride;
+    recv_stride = *stride;
+#endif
+
+    TRACE_F("alloc stride: %" rdint_fmt ", recv stride: %" rdint_fmt, alloc_stride, recv_stride);
+
+    if (*b == NULL) *b = static_cast<T *>(redirect_call_alloc_buf(rc, get_blocks_cont_size(count, size, alloc_stride) * sizeof(T)));
+
+    T* b_recv = *b;
+
+#if REDIRECT_CALL_INPUT_PARAM_BLOCKS == REDIRECT_CALL_BLOCKS_PACK_OP
+    T *b_tmp = 0;
+    if (recv_stride != *stride) b_recv = b_tmp = static_cast<T *>(malloc(get_blocks_cont_size(count, size, transfer_stride) * sizeof(T)));
+#endif
+
+    if (recv_stride == transfer_stride || transfer_dense)
+    {
+      TRACE_F("consume dense: %" rdint_fmt, get_blocks_cont_size(count, size, recv_stride));
+      consume_output_dense<T>(rc, b_recv, get_blocks_cont_size(count, size, recv_stride));
+
+    } else
+    {
+      TRACE_F("consume blocks: %" rdint_fmt " x %" rdint_fmt " / %" rdint_fmt, count, size, recv_stride);
+      consume_output_blocks<T>(rc, b_recv, count, size, recv_stride);
+    }
+
+    if (recv_stride != *stride)
+    {
+#if REDIRECT_CALL_INPUT_PARAM_BLOCKS == REDIRECT_CALL_BLOCKS_PLAIN
+      TRACE_F("set stride %" rdint_fmt, recv_stride);
+      *stride = recv_stride;
+#elif REDIRECT_CALL_INPUT_PARAM_BLOCKS == REDIRECT_CALL_BLOCKS_PACK_IP
+      TRACE_F("transform in-place to stride %" rdint_fmt, *stride);
+      redirect_data_blocks_transform_val<T>(count, size, recv_stride, b_recv, *stride, NULL);
+#elif REDIRECT_CALL_INPUT_PARAM_BLOCKS == REDIRECT_CALL_BLOCKS_PACK_OP
+      TRACE_F("transform out-of-place to stride: %" rdint_fmt, *stride);
+      redirect_data_blocks_transform_val<T>(count, size, recv_stride, b_recv, *stride, *b);
+      free(b_tmp);
+#elif REDIRECT_CALL_INPUT_PARAM_BLOCKS == REDIRECT_CALL_BLOCKS_PIECES
+      /* this should never occur, because pieces are received with the correct stride */
+      ASSERT(false);
+#endif
+    }
+
+  } else /* server */
   {
     if (*b == NULL)
     {
-#if 0
-      if (SCDC_DATASET_INOUT_BUF_PTR(rc->output) && SCDC_DATASET_INOUT_BUF_SIZE(rc->output) - rc->output_offset >= s)
-      {
-        /* puffer aus output.buf verwenden */
-        /* FIXME */
-        /* output_offset hochsetzen */
+      /* default stride is size */
+      if (*stride == 0) *stride = size;
 
-      } else
-#endif
-      {
-        /* puffer allokieren */
-        *b = static_cast<char *>(malloc(n));
+      /* FIXME: use output instead of allocation */
 
-        rc->free_bufs[rc->free_nbufs] = *b;
-        ++rc->free_nbufs;
-      }
-    }
-  }
-}
-
-
-static void redirect_call_put_inout_param_dense(redirect_call_t *rc, const char *id, rdint_t n, void *b)
-{
-  redirect_call_put_input_param_dense(rc, id, n, b);
-  redirect_call_put_output_param_dense(rc, id, n, b);
-}
-
-
-static void redirect_call_get_inout_param_dense(redirect_call_t *rc, const char *id, rdint_t n, void **b)
-{
-  redirect_call_get_input_param_dense(rc, id, n, b);
-  redirect_call_get_output_param_dense(rc, id, n, b);
-}
-
-
-/* blocks data */
-
-template<typename T>
-static void redirect_call_put_input_param_blocks_val(redirect_call_t *rc, const char *id, rdint_t count, rdint_t size, rdint_t stride, T *b)
-{
-  /* client only */
-  ASSERT(rc->client);
-
-#if REDIRECT_CALL_INPUT_PARAM_BLOCKS == REDIRECT_CALL_BLOCKS_DENSE
-  /* nothing to be done here */
-#elif REDIRECT_CALL_INPUT_PARAM_BLOCKS == REDIRECT_CALL_BLOCKS_PACK_IP
-  if (stride > size)
-  {
-    TRACE_F("%s: size: %" rdint_fmt ", stride: %" rdint_fmt ", transform in-place to stride: %" rdint_fmt, __func__, size, stride, size);
-    redirect_data_blocks_transform_val<T>(count, size, stride, b, size, NULL);
-    stride = size;
-  }
-#elif REDIRECT_CALL_INPUT_PARAM_BLOCKS == REDIRECT_CALL_BLOCKS_PACK_OP
-  if (stride > size)
-  {
-    TRACE_F("%s: size: %" rdint_fmt ", stride: %" rdint_fmt ", transform out-of-place to stride: %" rdint_fmt, __func__, size, stride, size);
-
-    T *b_tmp = static_cast<T *>(malloc(count * size * sizeof(T)));
-
-    rc->free_bufs[rc->free_nbufs] = b_tmp;
-    ++rc->free_nbufs;
-
-    redirect_data_blocks_transform_val<T>(count, size, stride, b, size, b_tmp);
-    stride = size;
-    b = b_tmp;
-  }
-#elif REDIRECT_CALL_INPUT_PARAM_BLOCKS == REDIRECT_CALL_BLOCKS_PIECES
-  if (stride > size)
-  {
-# error TODO
-  } else
-#endif
-  {
-    redirect_call_put_input_conf_int(rc, "bstride", stride);
-
-    redirect_call_put_input_param_dense(rc, id, get_blocks_cont_size(count, size, stride) * sizeof(T), static_cast<void *>(b));
-  }
-}
-
-
-template<typename T>
-static void redirect_call_get_input_param_blocks_val(redirect_call_t *rc, const char *id, rdint_t count, rdint_t size, rdint_t *stride, T **b)
-{
-  /* server only */
-  ASSERT(!rc->client);
-
-  rdint_t stride_in;
-
-  redirect_call_get_input_conf_int(rc, "bstride", &stride_in);
-
-  if (*stride == 0) *stride = stride_in;
-
-#if REDIRECT_CALL_INPUT_PARAM_BLOCKS == REDIRECT_CALL_BLOCKS_PACK_OP
-  if (*stride != stride_in && *b != NULL)
-  {
-    T *b_tmp = static_cast<T *>(malloc(get_blocks_cont_size(count, size, stride_in) * sizeof(T)));
-
-    redirect_call_get_input_param_dense(rc, id, get_blocks_cont_size(count, size, stride_in) * sizeof(T), reinterpret_cast<void **>(&b_tmp));
-
-    TRACE_F("%s: size: %" rdint_fmt ", stride: %" rdint_fmt ", transform out-of-place to stride: %" rdint_fmt , __func__, size, stride_in, *stride);
-    redirect_data_blocks_transform_val<T>(count, size, stride_in, b_tmp, *stride, *b);
-
-    free(b_tmp);
-
-  } else
-#endif
-  {
-    /* currently: if the buffer is allocated using stride_in, then we can not transform into a larger stride afterwards */
-    ASSERT(!(*b == NULL && *stride > stride_in));
-
-    redirect_call_get_input_param_dense(rc, id, get_blocks_cont_size(count, size, stride_in) * sizeof(T), reinterpret_cast<void **>(b));
-
-    if (*stride != stride_in)
-    {
-      TRACE_F("%s: size: %" rdint_fmt ", stride: %" rdint_fmt ", transform in-place to stride: %" rdint_fmt , __func__, size, stride_in, *stride);
-      redirect_data_blocks_transform_val<T>(count, size, stride_in, *b, *stride, NULL);
+      /* allocate buffer */
+      *b = static_cast<T *>(redirect_call_alloc_buf(rc, get_blocks_cont_size(count, size, *stride) * sizeof(T)));
     }
   }
 }
 
 
 template<typename T>
-static void redirect_call_put_output_param_blocks_val(redirect_call_t *rc, const char *id, rdint_t count, rdint_t size, rdint_t stride, T *b)
+static void redirect_call_put_inout_param_blocks_val(redirect_call_t *rc, const char *id, const T *b, rdint_t count, rdint_t size, rdint_t stride)
 {
-#if REDIRECT_CALL_OUTPUT_PARAM_BLOCKS == REDIRECT_CALL_BLOCKS_DENSE
-  /* nothing to be done here */
-#elif (REDIRECT_CALL_OUTPUT_PARAM_BLOCKS == REDIRECT_CALL_BLOCKS_PACK_IP) || (REDIRECT_CALL_OUTPUT_PARAM_BLOCKS == REDIRECT_CALL_BLOCKS_PACK_OP)
-  if (stride > size)
-  {
-    if (rc->client)
-    {
-      /* client-side */
-      TRACE_F("%s: size: %" rdint_fmt ", stride: %" rdint_fmt ", request stride: %" rdint_fmt, __func__, size, stride, size);
-      stride = size;
+  TRACE_F("rc: %p, id: '%s', b: %p, count: %" rdint_fmt ", size: %" rdint_fmt ", stride: %" rdint_fmt, rc, id, b, count, size, stride);
 
-    } else
-    {
-      /* server-side */
-#if REDIRECT_CALL_OUTPUT_PARAM_BLOCKS == REDIRECT_CALL_BLOCKS_PACK_IP
-      TRACE_F("%s: size: %" rdint_fmt ", stride: %" rdint_fmt ", transform in-place to stride: %" rdint_fmt, __func__, size, stride, size);
-      redirect_data_blocks_transform_val<T>(count, size, stride, b, size, NULL);
-      stride = size;
-#endif
-#if REDIRECT_CALL_OUTPUT_PARAM_BLOCKS == REDIRECT_CALL_BLOCKS_PACK_OP
-      TRACE_F("%s: size: %" rdint_fmt ", stride: %" rdint_fmt ", transform out-of-place to stride: %" rdint_fmt, __func__, size, stride, size);
+  /* FIXME: unroll and simplify the two calls */
+  redirect_call_put_input_param_blocks_val<T>(rc, id, b, count, size, stride);
+  redirect_call_put_output_param_blocks_val<T>(rc, id, b, count, size, stride);
+}
 
-      T *b_tmp = static_cast<T *>(malloc(count * size * sizeof(T)));
 
-      rc->free_bufs[rc->free_nbufs] = b_tmp;
-      ++rc->free_nbufs;
+template<typename T>
+static void redirect_call_get_inout_param_blocks_val(redirect_call_t *rc, const char *id, T **b, rdint_t count, rdint_t size, rdint_t *stride)
+{
+  TRACE_F("rc: %p, id: '%s', b: %p, count: %" rdint_fmt ", size: %" rdint_fmt ", stride: %" rdint_fmt, rc, id, *b, count, size, *stride);
 
-      redirect_data_blocks_transform_val<T>(count, size, stride, b, size, b_tmp);
-      stride = size;
-      b = b_tmp;
-#endif
-    }
+  /* FIXME: unroll and simplify the two calls */
+  redirect_call_get_input_param_blocks_val<T>(rc, id, b, count, size, stride);
+  redirect_call_get_output_param_blocks_val<T>(rc, id, b, count, size, stride);
+}
+
+
+#include "redirect_call_bytes.tcc"
+#include "redirect_call_array.tcc"
+#include "redirect_call_vector.tcc"
+#include "redirect_call_matrix.tcc"
+
+
+/* float */
+
+#define DEFINE_FLOAT_ARRAY(_t_, _tn_) \
+  void redirect_call_print_param_array_ ## _tn_(const _t_ *a, rdint_t n) { \
+    redirect_call_print_param_array_val<_t_>(a, n); \
+  } \
+  redirect_param_hash_t redirect_call_hash_param_array_ ## _tn_(const _t_ *a, rdint_t n) { \
+    return redirect_call_hash_param_array_val<_t_>(a, n); \
+  } \
+  void redirect_call_put_input_param_array_ ## _tn_(redirect_call_t *rc, const char *id, const _t_ *a, rdint_t n) { \
+    redirect_call_put_input_param_array_val<_t_>(rc, id, a, n); \
+  } \
+  void redirect_call_get_input_param_array_ ## _tn_(redirect_call_t *rc, const char *id, _t_ **a, rdint_t *n) { \
+    redirect_call_get_input_param_array_val<_t_>(rc, id, a, n); \
+  } \
+  void redirect_call_put_output_param_array_ ## _tn_(redirect_call_t *rc, const char *id, const _t_ *a, rdint_t n) { \
+    redirect_call_put_output_param_array_val<_t_>(rc, id, a, n); \
+  } \
+  void redirect_call_get_output_param_array_ ## _tn_(redirect_call_t *rc, const char *id, _t_ **a, rdint_t *n) { \
+    redirect_call_get_output_param_array_val<_t_>(rc, id, a, n); \
+  } \
+  void redirect_call_put_inout_param_array_ ## _tn_(redirect_call_t *rc, const char *id, const _t_ *a, rdint_t n) { \
+    redirect_call_put_inout_param_array_val<_t_>(rc, id, a, n); \
+  } \
+  void redirect_call_get_inout_param_array_ ## _tn_(redirect_call_t *rc, const char *id, _t_ **a, rdint_t *n) { \
+    redirect_call_get_inout_param_array_val<_t_>(rc, id, a, n); \
   }
-#elif REDIRECT_CALL_OUTPUT_PARAM_BLOCKS == REDIRECT_CALL_BLOCKS_PIECES
-  if (stride > size)
-  {
-# error TODO
-  } else
-#endif
-  {
-    if (rc->client)
-    {
-      /* client-side */
-      redirect_call_put_input_conf_int(rc, "bstride", stride);
-
-    } else
-    {
-      /* server-side */
-      redirect_call_put_output_conf_int(rc, "bstride", stride);
-    }
-
-    redirect_call_put_output_param_dense(rc, id, get_blocks_cont_size(count, size, stride) * sizeof(T), static_cast<void *>(b));
-  }
-}
-
-
-template<typename T>
-void redirect_call_get_output_param_blocks_val(redirect_call_t *rc, const char *id, rdint_t count, rdint_t size, rdint_t *stride, T **b)
-{
-  if (!rc->client)
-  {
-    /* server-side */
-    rdint_t stride_in;
-
-    redirect_call_get_input_conf_int(rc, "bstride", &stride_in);
-
-    if (*stride == 0) *stride = stride_in;
-
-    redirect_call_get_output_param_dense(rc, id, get_blocks_cont_size(count, size, stride_in) * sizeof(T), reinterpret_cast<void **>(b));
-
-  } else
-  {
-    /* client-side */
-    rdint_t stride_in;
-
-    redirect_call_get_output_conf_int(rc, "bstride", &stride_in);
-
-    if (*stride == 0) *stride = stride_in;
-
-#if REDIRECT_CALL_OUTPUT_PARAM_BLOCKS == REDIRECT_CALL_BLOCKS_PACK_OP
-    if (*stride != stride_in && *b != NULL)
-    {
-      T *b_tmp = static_cast<T *>(malloc(get_blocks_cont_size(count, size, stride_in) * sizeof(T)));
-
-      redirect_call_get_output_param_dense(rc, id, get_blocks_cont_size(count, size, stride_in) * sizeof(T), reinterpret_cast<void **>(&b_tmp));
-
-      TRACE_F("%s: size: %" rdint_fmt ", stride: %" rdint_fmt ", transform out-of-place to stride: %" rdint_fmt , __func__, size, stride_in, *stride);
-      redirect_data_blocks_transform_val<T>(count, size, stride_in, b_tmp, *stride, *b);
-
-      free(b_tmp);
-
-    } else
-#endif
-    {
-      /* currently: if the buffer is allocated using stride_in, then we can not transform into a larger stride afterwards */
-      ASSERT(!(*b == NULL && *stride > stride_in));
-
-      redirect_call_get_output_param_dense(rc, id, get_blocks_cont_size(count, size, stride_in) * sizeof(T), reinterpret_cast<void **>(b));
-
-      if (*stride != stride_in)
-      {
-        TRACE_F("%s: size: %" rdint_fmt ", stride: %" rdint_fmt ", transform in-place to stride: %" rdint_fmt , __func__, size, stride_in, *stride);
-        redirect_data_blocks_transform_val<T>(count, size, stride_in, *b, *stride, NULL);
-      }
-    }
-  }
-}
-
-
-template<typename T>
-static void redirect_call_put_inout_param_blocks_val(redirect_call_t *rc, const char *id, rdint_t count, rdint_t size, rdint_t stride, T *b)
-{
-  /* client only */
-  ASSERT(rc->client);
-
-#if REDIRECT_CALL_INOUT_PARAM_BLOCKS == REDIRECT_CALL_BLOCKS_DENSE
-  /* nothing to be done here */
-#elif REDIRECT_CALL_INOUT_PARAM_BLOCKS == REDIRECT_CALL_BLOCKS_PACK_IP
-  if (stride > size)
-  {
-    TRACE_F("%s: size: %" rdint_fmt ", stride: %" rdint_fmt ", transform in-place to stride: %" rdint_fmt, __func__, size, stride, size);
-    redirect_data_blocks_transform_val<T>(count, size, stride, b, size, NULL);
-    stride = size;
-  }
-#elif REDIRECT_CALL_INOUT_PARAM_BLOCKS == REDIRECT_CALL_BLOCKS_PACK_OP
-  if (stride > size)
-  {
-    TRACE_F("%s: size: %" rdint_fmt ", stride: %" rdint_fmt ", transform out-of-place to stride: %" rdint_fmt, __func__, size, stride, size);
-
-    T *b_tmp = static_cast<T *>(malloc(count * size * sizeof(T)));
-
-    rc->free_bufs[rc->free_nbufs] = b_tmp;
-    ++rc->free_nbufs;
-
-    redirect_data_blocks_transform_val<T>(count, size, stride, b, size, b_tmp);
-    stride = size;
-    b = b_tmp;
-  }
-#elif REDIRECT_CALL_INOUT_PARAM_BLOCKS == REDIRECT_CALL_BLOCKS_PIECES
-  if (stride > size)
-  {
-# error TODO
-  } else
-#endif
-  {
-    redirect_call_put_input_conf_int(rc, "bstride", stride);
-
-    redirect_call_put_inout_param_dense(rc, id, get_blocks_cont_size(count, size, stride) * sizeof(T), static_cast<void *>(b));
-  }
-}
-
-
-template<typename T>
-static void redirect_call_get_inout_param_blocks_val(redirect_call_t *rc, const char *id, rdint_t count, rdint_t size, rdint_t *stride, T **b)
-{
-  /* server only */
-  ASSERT(!rc->client);
-
-  rdint_t stride_in;
-
-  redirect_call_get_input_conf_int(rc, "bstride", &stride_in);
-
-  if (*stride == 0) *stride = stride_in;
-
-#if REDIRECT_CALL_INOUT_PARAM_BLOCKS == REDIRECT_CALL_BLOCKS_PACK_OP
-  if (*stride != stride_in && *b != NULL)
-  {
-    T *b_tmp = static_cast<T *>(malloc(get_blocks_cont_size(count, size, stride_in) * sizeof(T)));
-
-    redirect_call_get_inout_param_dense(rc, id, get_blocks_cont_size(count, size, stride_in) * sizeof(T), reinterpret_cast<void **>(&b_tmp));
-
-    TRACE_F("%s: size: %" rdint_fmt ", stride: %" rdint_fmt ", transform out-of-place to stride: %" rdint_fmt , __func__, size, stride_in, *stride);
-    redirect_data_blocks_transform_val<T>(count, size, stride_in, b_tmp, *stride, *b);
-
-    free(b_tmp);
-
-  } else
-#endif
-  {
-    /* currently: if the buffer is allocated using stride_in, then we can not transform into a larger stride afterwards */
-    ASSERT(!(*b == NULL && *stride > stride_in));
-
-    redirect_call_get_inout_param_dense(rc, id, get_blocks_cont_size(count, size, stride_in) * sizeof(T), reinterpret_cast<void **>(b));
-
-    if (*stride != stride_in)
-    {
-      TRACE_F("%s: size: %" rdint_fmt ", stride: %" rdint_fmt ", transform in-place to stride: %" rdint_fmt , __func__, size, stride_in, *stride);
-      redirect_data_blocks_transform_val<T>(count, size, stride_in, *b, *stride, NULL);
-    }
-  }
-}
-
-
-/* plain bytes */
-
-void redirect_call_put_input_param_bytes(redirect_call_t *rc, const char *id, rdint_t n, char *b)
-{
-  redirect_call_put_input_param_dense(rc, id, n, b);
-}
-
-
-void redirect_call_get_input_param_bytes(redirect_call_t *rc, const char *id, rdint_t n, char **b)
-{
-  redirect_call_get_input_param_dense(rc, id, n, reinterpret_cast<void **>(b));
-}
-
-
-void redirect_call_put_output_param_bytes(redirect_call_t *rc, const char *id, rdint_t n, char *b)
-{
-  redirect_call_put_output_param_dense(rc, id, n, b);
-}
-
-
-void redirect_call_get_output_param_bytes(redirect_call_t *rc, const char *id, rdint_t n, char **b)
-{
-  redirect_call_get_output_param_dense(rc, id, n, reinterpret_cast<void **>(b));
-}
-
-
-void redirect_call_put_inout_param_bytes(redirect_call_t *rc, const char *id, rdint_t n, char *b)
-{
-  redirect_call_put_inout_param_dense(rc, id, n, b);
-}
-
-
-void redirect_call_get_inout_param_bytes(redirect_call_t *rc, const char *id, rdint_t n, char **b)
-{
-  redirect_call_get_inout_param_dense(rc, id, n, reinterpret_cast<void **>(b));
-}
-
-
-/* typed vectors with stride */
-
-template<typename T>
-void redirect_call_print_param_vector_val(rdint_t n, T *v, rdint_t inc)
-{
-  print_vector_val<T>(n, v, inc);
-}
-
-
-template<typename T>
-void redirect_call_put_input_param_vector_val(redirect_call_t *rc, const char *id, rdint_t n, T *v, rdint_t inc)
-{
-  /* client only */
-  ASSERT(rc->client);
-
-#if TRACE_DATA
-  TRACE_F("%s:", __func__);
-  print_vector_val<T>(n, v, inc);
-#endif
-
-  redirect_call_put_input_param_blocks_val<T>(rc, id, n, 1, inc, v);
-}
-
-
-template<typename T>
-void redirect_call_get_input_param_vector_val(redirect_call_t *rc, const char *id, rdint_t n, T **v, rdint_t *inc)
-{
-  TRACE_F("%s: rc: %p, id: '%s', n: %" rdint_fmt ", v: %p, inc: %" rdint_fmt, __func__, rc, id, n, *v, *inc);
-
-  /* server only */
-  ASSERT(!rc->client);
-
-  redirect_call_get_input_param_blocks_val<T>(rc, id, n, 1, inc, v);
-
-#if TRACE_DATA
-  TRACE_F("%s:", __func__);
-  print_vector_val<T>(n, *v, *inc);
-#endif
-}
-
-
-template<typename T>
-void redirect_call_put_output_param_vector_val(redirect_call_t *rc, const char *id, rdint_t n, T *v, rdint_t inc)
-{
-  if (!rc->client)
-  {
-#if TRACE_DATA
-    TRACE_F("%s:", __func__);
-    print_vector_val<T>(n, v, inc);
-#endif
-  }
-
-  redirect_call_put_output_param_blocks_val<T>(rc, id, n, 1, inc, v);
-}
-
-
-template<typename T>
-void redirect_call_get_output_param_vector_val(redirect_call_t *rc, const char *id, rdint_t n, T **v, rdint_t *inc)
-{
-  TRACE_F("%s: rc: %p, id: '%s', n: %" rdint_fmt ", v: %p, inc: %" rdint_fmt, __func__, rc, id, n, *v, *inc);
-
-  redirect_call_get_output_param_blocks_val<T>(rc, id, n, 1, inc, v);
-
-  if (rc->client)
-  {
-#if TRACE_DATA
-    TRACE_F("%s:", __func__);
-    print_vector_val<T>(n, *v, *inc);
-#endif
-  }
-}
-
-
-template<typename T>
-void redirect_call_put_inout_param_vector_val(redirect_call_t *rc, const char *id, rdint_t n, T *v, rdint_t inc)
-{
-  /* client only */
-  ASSERT(rc->client);
-
-#if TRACE_DATA
-  TRACE_F("%s:", __func__);
-  print_vector_val<T>(n, v, inc);
-#endif
-
-  redirect_call_put_inout_param_blocks_val<T>(rc, id, n, 1, inc, v);
-}
-
-
-template<typename T>
-void redirect_call_get_inout_param_vector_val(redirect_call_t *rc, const char *id, rdint_t n, T **v, rdint_t *inc)
-{
-  /* server only */
-  ASSERT(!rc->client);
-
-  redirect_call_get_inout_param_blocks_val<T>(rc, id, n, 1, inc, v);
-
-#if TRACE_DATA
-  TRACE_F("%s:", __func__);
-  print_vector_val<T>(n, *v, *inc);
-#endif
-}
-
-
-/* typed matrices with leading dimension */
-
-template<typename T>
-void redirect_call_print_param_matrix_val(rdint_t nr, rdint_t nc, T *m, rdint_t ld, int rcm)
-{
-  print_matrix_val<T>(nr, nc, m, ld, rcm);
-}
-
-
-template<typename T>
-void redirect_call_put_input_param_matrix_val(redirect_call_t *rc, const char *id, rdint_t nr, rdint_t nc, T *m, rdint_t ld, int rcm)
-{
-  /* client only */
-  ASSERT(rc->client);
-
-#if TRACE_DATA
-  TRACE_F("%s:", __func__);
-  print_matrix_val<T>(nr, nc, m, ld, rcm);
-#endif
-
-  redirect_call_put_input_conf_int(rc, "mrcm", rcm);
-
-  rdint_t count, size, stride;
-  get_matrix_blocks(nr, nc, ld, rcm, &count, &size, &stride);
-  redirect_call_put_input_param_blocks_val<T>(rc, id, count, size, stride, m);
-}
-
-
-template<typename T>
-void redirect_call_get_input_param_matrix_val(redirect_call_t *rc, const char *id, rdint_t nr, rdint_t nc, T **m, rdint_t *ld, int *rcm)
-{
-  /* server only */
-  ASSERT(!rc->client);
-
-  redirect_call_get_input_conf_int(rc, "mrcm", rcm);
-
-  rdint_t count, size, stride;
-  get_matrix_blocks(nr, nc, *ld, *rcm, &count, &size, &stride);
-  redirect_call_get_input_param_blocks_val<T>(rc, id, count, size, &stride, m);
-  *ld = stride;
-
-#if TRACE_DATA
-  TRACE_F("%s:", __func__);
-  print_matrix_val<T>(nr, nc, *m, *ld, *rcm);
-#endif
-}
-
-
-template<typename T>
-void redirect_call_put_output_param_matrix_val(redirect_call_t *rc, const char *id, rdint_t nr, rdint_t nc, T *m, rdint_t ld, int rcm)
-{
-  if (!rc->client)
-  {
-#if TRACE_DATA
-    TRACE_F("%s:", __func__);
-    print_matrix_val<T>(nr, nc, m, ld, rcm);
-#endif
-  }
-
-  if (rc->client) redirect_call_put_input_conf_int(rc, "mrcm", rcm);
-  else redirect_call_put_output_conf_int(rc, "mrcm", rcm);
-
-  rdint_t count, size, stride;
-  get_matrix_blocks(nr, nc, ld, rcm, &count, &size, &stride);
-  redirect_call_put_output_param_blocks_val<T>(rc, id, count, size, stride, m);
-}
-
-
-template<typename T>
-void redirect_call_get_output_param_matrix_val(redirect_call_t *rc, const char *id, rdint_t nr, rdint_t nc, T **m, rdint_t *ld, int *rcm)
-{
-  if (!rc->client) redirect_call_get_input_conf_int(rc, "mrcm", rcm);
-  else redirect_call_get_output_conf_int(rc, "mrcm", rcm);
-
-  rdint_t count, size, stride;
-  get_matrix_blocks(nr, nc, *ld, *rcm, &count, &size, &stride);
-  redirect_call_get_output_param_blocks_val<T>(rc, id, count, size, &stride, m);
-  *ld = stride;
-
-  if (rc->client)
-  {
-#if TRACE_DATA
-    TRACE_F("%s:", __func__);
-    print_matrix_val<T>(nr, nc, *m, *ld, *rcm);
-#endif
-  }
-}
-
-
-template<typename T>
-void redirect_call_put_inout_param_matrix_val(redirect_call_t *rc, const char *id, rdint_t nr, rdint_t nc, T *m, rdint_t ld, int rcm)
-{
-  /* client only */
-  ASSERT(rc->client);
-
-#if TRACE_DATA
-  TRACE_F("%s:", __func__);
-  print_matrix_val<T>(nr, nc, m, ld, rcm);
-#endif
-
-  redirect_call_put_input_conf_int(rc, "mrcm", rcm);
-
-  rdint_t count, size, stride;
-  get_matrix_blocks(nr, nc, ld, rcm, &count, &size, &stride);
-  redirect_call_put_inout_param_blocks_val<T>(rc, id, count, size, stride, m);
-}
-
-
-template<typename T>
-void redirect_call_get_inout_param_matrix_val(redirect_call_t *rc, const char *id, rdint_t nr, rdint_t nc, T **m, rdint_t *ld, int *rcm)
-{
-  /* server only */
-  ASSERT(!rc->client);
-
-  redirect_call_get_input_conf_int(rc, "mrcm", rcm);
-
-  rdint_t count, size, stride;
-  get_matrix_blocks(nr, nc, *ld, *rcm, &count, &size, &stride);
-  redirect_call_get_inout_param_blocks_val<T>(rc, id, count, size, &stride, m);
-  *ld = stride;
-
-#if TRACE_DATA
-  TRACE_F("%s:", __func__);
-  print_matrix_val<T>(nr, nc, *m, *ld, *rcm);
-#endif
-}
-
-
-/* vectors */
 
 #define DEFINE_FLOAT_VECTOR(_t_, _tn_) \
-  void redirect_call_print_param_vector_ ## _tn_(rdint_t n, _t_ *v, rdint_t inc) { \
-    redirect_call_print_param_vector_val<_t_>(n, v, inc); \
+  void redirect_call_print_param_vector_ ## _tn_(const _t_ *v, rdint_t n, rdint_t inc) { \
+    redirect_call_print_param_vector_val<_t_>(v, n, inc); \
   } \
-  void redirect_call_put_input_param_vector_ ## _tn_(redirect_call_t *rc, const char *id, rdint_t n, _t_ *v, rdint_t inc) { \
-    redirect_call_put_input_param_vector_val<_t_>(rc, id, n, v, inc); \
+  void redirect_call_put_input_param_vector_ ## _tn_(redirect_call_t *rc, const char *id, const _t_ *v, rdint_t n, rdint_t inc) { \
+    redirect_call_put_input_param_vector_val<_t_>(rc, id, v, n, inc); \
   } \
-  void redirect_call_get_input_param_vector_ ## _tn_(redirect_call_t *rc, const char *id, rdint_t n, _t_ **v, rdint_t *inc) { \
-    redirect_call_get_input_param_vector_val<_t_>(rc, id, n, v, inc); \
+  void redirect_call_get_input_param_vector_ ## _tn_(redirect_call_t *rc, const char *id, _t_ **v, rdint_t *n, rdint_t *inc) { \
+    redirect_call_get_input_param_vector_val<_t_>(rc, id, v, n, inc); \
   } \
-  void redirect_call_put_output_param_vector_ ## _tn_(redirect_call_t *rc, const char *id, rdint_t n, _t_ *v, rdint_t inc) { \
-    redirect_call_put_output_param_vector_val<_t_>(rc, id, n, v, inc); \
+  void redirect_call_put_output_param_vector_ ## _tn_(redirect_call_t *rc, const char *id, const _t_ *v, rdint_t n, rdint_t inc) { \
+    redirect_call_put_output_param_vector_val<_t_>(rc, id, v, n, inc); \
   } \
-  void redirect_call_get_output_param_vector_ ## _tn_(redirect_call_t *rc, const char *id, rdint_t n, _t_ **v, rdint_t *inc) { \
-    redirect_call_get_output_param_vector_val<_t_>(rc, id, n, v, inc); \
+  void redirect_call_get_output_param_vector_ ## _tn_(redirect_call_t *rc, const char *id, _t_ **v, rdint_t *n, rdint_t *inc) { \
+    redirect_call_get_output_param_vector_val<_t_>(rc, id, v, n, inc); \
   } \
-  void redirect_call_put_inout_param_vector_ ## _tn_(redirect_call_t *rc, const char *id, rdint_t n, _t_ *v, rdint_t inc) { \
-    redirect_call_put_inout_param_vector_val<_t_>(rc, id, n, v, inc); \
+  void redirect_call_put_inout_param_vector_ ## _tn_(redirect_call_t *rc, const char *id, const _t_ *v, rdint_t n, rdint_t inc) { \
+    redirect_call_put_inout_param_vector_val<_t_>(rc, id, v, n, inc); \
   } \
-  void redirect_call_get_inout_param_vector_ ## _tn_(redirect_call_t *rc, const char *id, rdint_t n, _t_ **v, rdint_t *inc) { \
-    redirect_call_get_inout_param_vector_val<_t_>(rc, id, n, v, inc); \
+  void redirect_call_get_inout_param_vector_ ## _tn_(redirect_call_t *rc, const char *id, _t_ **v, rdint_t *n, rdint_t *inc) { \
+    redirect_call_get_inout_param_vector_val<_t_>(rc, id, v, n, inc); \
   }
-
-
-#define DEFINE_INT_VECTOR(_t_, _tn_) \
-  void redirect_call_print_param_vector_ ## _tn_(rdint_t n, _t_ *v) { \
-    redirect_call_print_param_vector_val<_t_>(n, v, 1); \
-  } \
-  void redirect_call_put_input_param_vector_ ## _tn_(redirect_call_t *rc, const char *id, rdint_t n, _t_ *v) { \
-    redirect_call_put_input_param_vector_val<_t_>(rc, id, n, v, 1); \
-  } \
-  void redirect_call_get_input_param_vector_ ## _tn_(redirect_call_t *rc, const char *id, rdint_t n, _t_ **v) { \
-    rdint_t inc = 1; \
-    redirect_call_get_input_param_vector_val<_t_>(rc, id, n, v, &inc); \
-    ASSERT(inc == 1); \
-  } \
-  void redirect_call_put_output_param_vector_ ## _tn_(redirect_call_t *rc, const char *id, rdint_t n, _t_ *v) { \
-    redirect_call_put_output_param_vector_val<_t_>(rc, id, n, v, 1); \
-  } \
-  void redirect_call_get_output_param_vector_ ## _tn_(redirect_call_t *rc, const char *id, rdint_t n, _t_ **v) { \
-    rdint_t inc = 1; \
-    redirect_call_get_output_param_vector_val<_t_>(rc, id, n, v, &inc); \
-    ASSERT(inc == 1); \
-  } \
-  void redirect_call_put_inout_param_vector_ ## _tn_(redirect_call_t *rc, const char *id, rdint_t n, _t_ *v) { \
-    redirect_call_put_inout_param_vector_val<_t_>(rc, id, n, v, 1); \
-  } \
-  void redirect_call_get_inout_param_vector_ ## _tn_(redirect_call_t *rc, const char *id, rdint_t n, _t_ **v) { \
-    rdint_t inc = 1; \
-    redirect_call_get_inout_param_vector_val<_t_>(rc, id, n, v, &inc); \
-    ASSERT(inc == 1); \
-  }
-
-
-/* matrices */
 
 #define DEFINE_FLOAT_MATRIX(_t_, _tn_) \
-  void redirect_call_print_param_matrix_ ## _tn_(rdint_t nr, rdint_t nc, _t_ *m, rdint_t ld, int rcm) { \
-    redirect_call_print_param_matrix_val<_t_>(nr, nc, m, ld, rcm); \
+  void redirect_call_print_param_matrix_ ## _tn_(const _t_ *m, rdint_t nr, rdint_t nc, rdint_t ld, rdint_t rcm) { \
+    redirect_call_print_param_matrix_val<_t_>(m, nr, nc, ld, rcm); \
   } \
-  void redirect_call_put_input_param_matrix_ ## _tn_(redirect_call_t *rc, const char *id, rdint_t nr, rdint_t nc, _t_ *m, rdint_t ld, int rcm) { \
-    redirect_call_put_input_param_matrix_val<_t_>(rc, id, nr, nc, m, ld, rcm); \
+  void redirect_call_put_input_param_matrix_ ## _tn_(redirect_call_t *rc, const char *id, const _t_ *m, rdint_t nr, rdint_t nc, rdint_t ld, rdint_t rcm) { \
+    redirect_call_put_input_param_matrix_val<_t_>(rc, id, m, nr, nc, ld, rcm); \
   } \
-  void redirect_call_get_input_param_matrix_ ## _tn_(redirect_call_t *rc, const char *id, rdint_t nr, rdint_t nc, _t_ **m, rdint_t *ld, int *rcm) { \
-    redirect_call_get_input_param_matrix_val<_t_>(rc, id, nr, nc, m, ld, rcm); \
+  void redirect_call_get_input_param_matrix_ ## _tn_(redirect_call_t *rc, const char *id, _t_ **m, rdint_t *nr, rdint_t *nc, rdint_t *ld, rdint_t *rcm) { \
+    redirect_call_get_input_param_matrix_val<_t_>(rc, id, m, nr, nc, ld, rcm); \
   } \
-  void redirect_call_put_output_param_matrix_ ## _tn_(redirect_call_t *rc, const char *id, rdint_t nr, rdint_t nc, _t_ *m, rdint_t ld, int rcm) { \
-    redirect_call_put_output_param_matrix_val<_t_>(rc, id, nr, nc, m, ld, rcm); \
+  void redirect_call_put_output_param_matrix_ ## _tn_(redirect_call_t *rc, const char *id, const _t_ *m, rdint_t nr, rdint_t nc, rdint_t ld, rdint_t rcm) { \
+    redirect_call_put_output_param_matrix_val<_t_>(rc, id, m, nr, nc, ld, rcm); \
   } \
-  void redirect_call_get_output_param_matrix_ ## _tn_(redirect_call_t *rc, const char *id, rdint_t nr, rdint_t nc, _t_ **m, rdint_t *ld, int *rcm) { \
-    redirect_call_get_output_param_matrix_val<_t_>(rc, id, nr, nc, m, ld, rcm); \
+  void redirect_call_get_output_param_matrix_ ## _tn_(redirect_call_t *rc, const char *id, _t_ **m, rdint_t *nr, rdint_t *nc, rdint_t *ld, rdint_t *rcm) { \
+    redirect_call_get_output_param_matrix_val<_t_>(rc, id, m, nr, nc, ld, rcm); \
   } \
-  void redirect_call_put_inout_param_matrix_ ## _tn_(redirect_call_t *rc, const char *id, rdint_t nr, rdint_t nc, _t_ *m, rdint_t ld, int rcm) { \
-    redirect_call_put_inout_param_matrix_val<_t_>(rc, id, nr, nc, m, ld, rcm); \
+  void redirect_call_put_inout_param_matrix_ ## _tn_(redirect_call_t *rc, const char *id, const _t_ *m, rdint_t nr, rdint_t nc, rdint_t ld, rdint_t rcm) { \
+    redirect_call_put_inout_param_matrix_val<_t_>(rc, id, m, nr, nc, ld, rcm); \
   } \
-  void redirect_call_get_inout_param_matrix_ ## _tn_(redirect_call_t *rc, const char *id, rdint_t nr, rdint_t nc, _t_ **m, rdint_t *ld, int *rcm) { \
-    redirect_call_get_inout_param_matrix_val<_t_>(rc, id, nr, nc, m, ld, rcm); \
+  void redirect_call_get_inout_param_matrix_ ## _tn_(redirect_call_t *rc, const char *id, _t_ **m, rdint_t *nr, rdint_t *nc, rdint_t *ld, rdint_t *rcm) { \
+    redirect_call_get_inout_param_matrix_val<_t_>(rc, id, m, nr, nc, ld, rcm); \
+  }
+
+
+/* int */
+
+#define DEFINE_INT_ARRAY(_t_, _tn_) \
+  void redirect_call_print_param_array_ ## _tn_(const _t_ *a, rdint_t n) { \
+    redirect_call_print_param_array_val<_t_>(a, n); \
+  } \
+  void redirect_call_put_input_param_array_ ## _tn_(redirect_call_t *rc, const char *id, const _t_ *a, rdint_t n) { \
+    redirect_call_put_input_param_array_val<_t_>(rc, id, a, n); \
+  } \
+  void redirect_call_get_input_param_array_ ## _tn_(redirect_call_t *rc, const char *id, _t_ **a, rdint_t *n) { \
+    redirect_call_get_input_param_array_val<_t_>(rc, id, a, n); \
+  } \
+  void redirect_call_put_output_param_array_ ## _tn_(redirect_call_t *rc, const char *id, const _t_ *a, rdint_t n) { \
+    redirect_call_put_output_param_array_val<_t_>(rc, id, a, n); \
+  } \
+  void redirect_call_get_output_param_array_ ## _tn_(redirect_call_t *rc, const char *id, _t_ **a, rdint_t *n) { \
+    redirect_call_get_output_param_array_val<_t_>(rc, id, a, n); \
+  } \
+  void redirect_call_put_inout_param_array_ ## _tn_(redirect_call_t *rc, const char *id, const _t_ *a, rdint_t n) { \
+    redirect_call_put_inout_param_array_val<_t_>(rc, id, a, n); \
+  } \
+  void redirect_call_get_inout_param_array_ ## _tn_(redirect_call_t *rc, const char *id, _t_ **a, rdint_t *n) { \
+    redirect_call_get_inout_param_array_val<_t_>(rc, id, a, n); \
   }
 
 
 #define DEFINE_FLOAT(_t_, _tn_, _fmt_) \
+  DEFINE_TYPE(_t_, _tn_, _fmt_); \
   DEFINE_CONF(_t_, _tn_, _fmt_); \
-  DEFINE_CLI_CONF(_t_, _tn_); \
-  DEFINE_SRV_CONF(_t_, _tn_); \
+  DEFINE_CLI_CONF_VAL(_t_, _tn_); \
+  DEFINE_SRV_CONF_VAL(_t_, _tn_); \
+  DEFINE_PRINT_ARRAY(_t_, _tn_, _fmt_); \
   DEFINE_PRINT_VECTOR(_t_, _tn_, _fmt_); \
   DEFINE_PRINT_MATRIX(_t_, _tn_, _fmt_); \
+  DEFINE_FLOAT_ARRAY(_t_, _tn_); \
   DEFINE_FLOAT_VECTOR(_t_, _tn_); \
   DEFINE_FLOAT_MATRIX(_t_, _tn_);
 
@@ -1405,18 +1631,17 @@ DEFINE_FLOAT(float, float, FMT_FLOAT);
 DEFINE_FLOAT(double, double, FMT_DOUBLE);
 
 #define DEFINE_INT(_t_, _tn_, _fmt_) \
+  DEFINE_TYPE(_t_, _tn_, _fmt_); \
   DEFINE_CONF(_t_, _tn_, _fmt_); \
-  DEFINE_CLI_CONF(_t_, _tn_); \
-  DEFINE_SRV_CONF(_t_, _tn_); \
-  DEFINE_PRINT_VECTOR(_t_, _tn_, _fmt_); \
-  DEFINE_INT_VECTOR(_t_, _tn_); \
+  DEFINE_CLI_CONF_VAL(_t_, _tn_); \
+  DEFINE_SRV_CONF_VAL(_t_, _tn_); \
+  DEFINE_PRINT_ARRAY(_t_, _tn_, _fmt_); \
+  DEFINE_INT_ARRAY(_t_, _tn_); \
 
 DEFINE_INT(char, char, FMT_CHAR);
 DEFINE_INT(int, int, FMT_INT);
+DEFINE_INT(long, long, FMT_LONG);
 
-DEFINE_CONF(void *, void_p, FMT_VOID_PTR);
-DEFINE_CLI_CONF(void *, void_p);
-DEFINE_SRV_CONF(void *, void_p);
-DEFINE_CONF(char *, char_p, FMT_CHAR_PTR);
-DEFINE_CLI_CONF(char *, char_p);
-DEFINE_SRV_CONF(char *, char_p);
+DEFINE_CONF(void_p, void_p, FMT_VOID_PTR);
+DEFINE_CLI_CONF_VAL(void_p, void_p);
+DEFINE_SRV_CONF_VAL(void_p, void_p);

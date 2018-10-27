@@ -33,30 +33,19 @@ class scdc_dataprov_store_mem_handler
   public:
     static const char * const type;
 
-    struct entry_data_t
-    {
-      std::string name;
-      scdc_buf_t buf;
-    };
+    bool open_config_conf(const std::string &conf, scdc_args *args, bool &done);
+
+    bool open_conf(std::string &conf, scdc_args *args, scdc_result &result);
+    bool open(scdc_result &result);
+    bool close(scdc_result &result);
+
+    struct entry_data_t;
     typedef entry_data_t *entry_t;
     static const entry_t entry_null;
-    typedef std::list<entry_t> entries_t;
 
-    struct store_data_t
-    {
-      std::string name;
-      entries_t entries;
-    };
+    struct store_data_t;
     typedef store_data_t *store_t;
     static const store_t store_null;
-    typedef std::list<store_t> stores_t;
-
-    ~scdc_dataprov_store_mem_handler() { clear_stores(); }
-
-    store_t add_store(const char *path);
-    void del_store(store_t store);
-    store_t find_store(const char *path);
-    void clear_stores();
 
     bool ls_stores(std::string &result);
     bool info_store(const char *path, std::string &result);
@@ -65,12 +54,6 @@ class scdc_dataprov_store_mem_handler
 
     store_t store_open(const char *path);
     void store_close(store_t store);
-    bool store_match(store_t store, const char *path);
-
-    entry_t add_entry(store_t store, const char *path);
-    void del_entry(store_t store, entry_t entry);
-    entry_t find_entry(store_t store, const char *path);
-    void clear_entries(store_t store);
 
     bool ls_entries(store_t store, std::string &result);
     bool info_entry(store_t store, const char *path, std::string &result);
@@ -81,12 +64,25 @@ class scdc_dataprov_store_mem_handler
     void entry_close(store_t store, entry_t entry);
     bool entry_match(store_t store, entry_t entry, const char *path);
 
+    static const bool HAVE_entry_read_access_at = true;
     bool entry_read_access_at(store_t store, entry_t entry, scdcint_t size, scdcint_t pos, scdc_buf_t &buf);
     scdcint_t entry_read_at(store_t store, entry_t entry, void *ptr, scdcint_t size, scdcint_t pos);
     scdcint_t entry_write_at(store_t store, entry_t entry, const void *ptr, scdcint_t size, scdcint_t pos);
 
   private:
+    typedef std::list<entry_t> entries_t;
+    typedef std::list<store_t> stores_t;
     stores_t stores;
+
+    store_t add_store(const char *path);
+    void del_store(store_t store);
+    store_t find_store(const char *path);
+    void clear_stores();
+
+    entry_t add_entry(store_t store, const char *path);
+    void del_entry(store_t store, entry_t entry);
+    entry_t find_entry(store_t store, const char *path);
+    void clear_entries(store_t store);
 };
 
 

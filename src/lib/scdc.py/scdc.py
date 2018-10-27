@@ -216,6 +216,11 @@ def release(*args):
   return scdcmod.release(*args)
 
 
+def last_result(*args):
+  PYSCDC_TRACE("last_result: " + str(args))
+  return scdcmod.last_result(*args)
+
+
 def log_init(*args):
   PYSCDC_TRACE("log_init: " + str(args))
   return scdcmod.log_init(*args)

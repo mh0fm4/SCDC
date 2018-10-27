@@ -33,42 +33,52 @@ using namespace std;
 #define SCDC_LOG_PREFIX  "compcoup: "
 
 
-bool scdc_compcoup::dataset_cmd(const char *cmd, scdcint_t cmd_size, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+bool scdc_compcoup::dataset_cmd(const std::string &cmd, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
 {
-  SCDC_TRACE("dataset_cmd: '" << string(cmd, cmd_size) << "'");
+  SCDC_TRACE_F("cmd: '" << cmd << "'");
+
+  bool ret = false;
+  string res;
 
   string scmd, suri, sparams;
-  split_cmdline(cmd, cmd_size, &scmd, &suri, &sparams);
+  split_cmdline(cmd.c_str(), cmd.size(), &scmd, &suri, &sparams);
+  suri = ltrim(suri, ":");
 
-  const char *path = suri.c_str();
-  scdcint_t path_size = suri.size();
-
-  if (path[0] == ':')
-  {
-    ++path;
-    --path_size;
-  }
-
-  scdc_dataset *dataset = dataprovs->dataset_open(path, path_size, output);
+  scdc_dataset *dataset = dataprovs->dataset_open(suri, res);
 
   if (!dataset)
   {
-    SCDC_TRACE("dataset_cmd: failed: '" << SCDC_DATASET_OUTPUT_STR(output) << "'");
-
-    return false;
+    result = "opening dataset '" + suri + "' failed: " + res;
+    SCDC_FAIL_F(result);
+    goto do_return;
   }
 
-  SCDC_TRACE("dataset_cmd: dataset: '" << dataset << "'");
+  SCDC_TRACE_F("dataset: " << dataset);
 
-  string cmdline;
-  join_cmdline(scmd.c_str(), 0, sparams.c_str(), cmdline);
+  {
+    string cmdline;
+    join_cmdline(scmd.c_str(), 0, sparams.c_str(), cmdline);
 
-  bool ret = dataset->do_cmd(cmdline.c_str(), cmdline.size(), input, output);
+    ret = dataset->do_cmd(cmdline, input, output, result);
 
-  if (ret) SCDC_TRACE("dataset_cmd: successful");
-  else SCDC_TRACE("dataset_cmd: failed: '" << SCDC_DATASET_OUTPUT_STR(output) << "'");
+    if (!ret)
+    {
+      result = "command failed: " + result;
+      SCDC_FAIL_F(result);
+    }
 
-  dataprovs->dataset_close(dataset, output);
+    SCDC_TRACE_F("command " << (ret?"successful":"failed") << ", result: '" << result << "'");
+  }
+
+  if (!dataprovs->dataset_close(dataset, res))
+  {
+    result = "closing dataset failed: " + res + ", previous command " + (ret?"successful: ":"failed: ") + result;
+    SCDC_FAIL_F(result);
+    goto do_return;
+  }
+
+do_return:
+  SCDC_TRACE_F("return: " << ret << ", result: '" + result + "'");
 
   return ret;
 }

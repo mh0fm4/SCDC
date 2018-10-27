@@ -23,6 +23,8 @@
 #include <string>
 #include <algorithm>
 
+#define SCDC_TRACE_NOT  !SCDC_TRACE_DATAPROV_BENCH
+
 #include "config.hh"
 #include "log.hh"
 #include "common.hh"
@@ -45,7 +47,7 @@ typedef struct _dataset_output_next_data_t
 } dataset_output_next_data_t;
 
 
-static scdcint_t dataset_output_next(scdc_dataset_output_t *output)
+static scdcint_t dataset_output_next(scdc_dataset_output_t *output, scdc_result_t *result)
 {
   dataset_output_next_data_t *data = static_cast<dataset_output_next_data_t *>(output->data);
 
@@ -138,15 +140,15 @@ class scdc_dataset_bench: public scdc_dataset
       :scdc_dataset(dataprov_), format("binary"), content("zero") { }
 
 
-    bool do_cmd_info(const string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+    bool do_cmd_info(const string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
     {
       SCDC_TRACE("dataset_bench: do_cmd_info");
 
-      return scdc_dataset::do_cmd_info(params, input, output);
+      return scdc_dataset::do_cmd_info(params, input, output, result);
     }
 
 
-    bool do_cmd_cd(const string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+    bool do_cmd_cd(const string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
     {
       SCDC_TRACE("dataset_bench: do_cmd_cd: '" << params << "'");
 
@@ -164,27 +166,27 @@ class scdc_dataset_bench: public scdc_dataset
         else if (p == "file") mode = "file";
         else
         {
-          SCDC_FAIL("invalid path '" << p << "'");
-          SCDC_DATASET_OUTPUT_PRINTF(output, "error: invalid path '%s'", p.c_str());
+          result = "invalid path";
+          SCDC_FAIL(__func__ << ": changing to path '" << p << "' failed: " << result);
           return false;
         }
       }
 
-      return scdc_dataset::do_cmd_cd((format + "/" + content + "/" + mode).c_str(), input, output);
+      return scdc_dataset::do_cmd_cd((format + "/" + content + "/" + mode).c_str(), input, output, result);
     }
 
 
-    bool do_cmd_ls(const string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+    bool do_cmd_ls(const string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
     {
       SCDC_TRACE("dataset_bench: do_cmd_ls: params: '" << params << "'");
 
-      SCDC_DATASET_OUTPUT_PRINTF(output, "binary|d|ascii|d|zero|d|random|d|memory|d|file|d|");
+      result = "binary|d|ascii|d|zero|d|random|d|memory|d|file|d|";
 
       return true;
     }
 
 
-    bool do_cmd_put(const string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+    bool do_cmd_put(const string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
     {
       SCDC_TRACE("dataset_bench: do_cmd_put: '" << params << "'");
 
@@ -211,7 +213,7 @@ class scdc_dataset_bench: public scdc_dataset
 
         if (!input->next || total_size == 0) break;
 
-        ret = input->next(input);
+        ret = input->next(input, 0);
       }
 
       if (file) fclose(file);
@@ -220,7 +222,7 @@ class scdc_dataset_bench: public scdc_dataset
     }
 
 
-    bool do_cmd_get(const string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+    bool do_cmd_get(const string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
     {
       SCDC_TRACE("dataset_bench: do_cmd_get: '" << params << "'");
 
@@ -249,7 +251,7 @@ class scdc_dataset_bench: public scdc_dataset
       output->data = data;
 
       /* get first chunk of data */
-      output->next(output);
+      output->next(output, 0);
 
       return true;
     }
@@ -262,13 +264,13 @@ scdc_dataprov_bench::scdc_dataprov_bench()
 }
 
 
-bool scdc_dataprov_bench::open(const char *conf, scdc_args *args)
+bool scdc_dataprov_bench::open(const char *conf, scdc_args *args, scdc_result &result)
 {
   SCDC_TRACE("open: conf: '" << conf << "'");
 
   bool ret = true;
 
-  if (!scdc_dataprov::open(conf, args))
+  if (!scdc_dataprov::open(conf, args, result))
   {
     SCDC_FAIL("open: opening base");
     ret = false;
@@ -287,30 +289,23 @@ bool scdc_dataprov_bench::open(const char *conf, scdc_args *args)
 }
 
 
-void scdc_dataprov_bench::close()
+bool scdc_dataprov_bench::close(scdc_result &result)
 {
   SCDC_TRACE("close:");
 
-  scdc_dataprov::close();
+  bool ret = scdc_dataprov::close(result);
+
+  SCDC_TRACE("close: return: " << ret);
+
+  return ret;
 }
 
 
-scdc_dataset *scdc_dataprov_bench::dataset_open(const char *path, scdcint_t path_size, scdc_dataset_output_t *output)
+scdc_dataset *scdc_dataprov_bench::dataset_open(std::string &path, scdc_result &result)
 {
-  SCDC_TRACE("dataset_open: '" << string(path, path_size) << "'");
-
-  scdc_dataset *dataset = 0;
-  
-  if (config_open(path, path_size, output, &dataset)) return dataset;
+  SCDC_TRACE("dataset_open: path: '" << path << "'");
 
   scdc_dataset_bench *dataset_bench = new scdc_dataset_bench(this);
-
-  if (path && !dataset_bench->do_cmd_cd(string(path, path_size).c_str(), NULL, output))
-  {
-    SCDC_FAIL("dataset_open: do_cmd_cd: failed: '" << SCDC_DATASET_OUTPUT_STR(output) << "'");
-    delete dataset_bench;
-    return 0;
-  }
 
   SCDC_TRACE("dataset_open: return: '" << dataset_bench << "'");
 
@@ -318,15 +313,17 @@ scdc_dataset *scdc_dataprov_bench::dataset_open(const char *path, scdcint_t path
 }
 
 
-void scdc_dataprov_bench::dataset_close(scdc_dataset *dataset, scdc_dataset_output_t *output)
+bool scdc_dataprov_bench::dataset_close(scdc_dataset *dataset, scdc_result &result)
 {
-  SCDC_TRACE("dataset_close: '" << dataset << "'");
+  SCDC_TRACE("dataset_close: dataset: " << dataset);
 
-  if (config_close(dataset, output)) return;
+  bool ret = true;
 
   delete dataset;
 
-  SCDC_TRACE("dataset_close: return");
+  SCDC_TRACE("dataset_close: return: " << ret);
+
+  return ret;
 }
 
 

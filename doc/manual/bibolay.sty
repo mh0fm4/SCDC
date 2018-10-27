@@ -1,0 +1,96 @@
+% usage:
+% \usepackage{bibolay}
+% \bibolaytext{<text>}
+% \bibolaynotext
+% \bibolaytextpos{<posx>}{<posy>}
+% \bibolaytextwidth{<width>}
+% \bibolaybib{<bibtexfile>}
+% \bibolaystyle{<bibtexstyle>}
+% \bibolaydir{<bibtexfiledirectory>}
+% \bibolayset{inline,noinline,plain,full}
+% \bibolay[inline,noinline,plain,full]{}
+
+
+\ProvidesPackage{bibolay}[2018/04/18 Bibliograhpic Overlay]
+\RequirePackage{ifthen}%
+\RequirePackage[overlay,absolute]{textpos}%
+\newcommand{\bibolay@text}{\textbf{Original published:}}%
+\newcommand{\bibolaytext}[1]{\renewcommand{\bibolay@text}{#1}}%
+\newcommand{\bibolaynotext}{\renewcommand{\bibolay@text}{}}%
+\newlength{\bibolay@textposx}%
+\setlength{\bibolay@textposx}{0.025\paperwidth}%
+\newlength{\bibolay@textposy}%
+\setlength{\bibolay@textposy}{0.025\paperwidth}%
+\newcommand{\bibolaytextpos}[2]{\setlength{\bibolay@textposx}{#1}\setlength{\bibolay@textposy}{#2}}%
+\newlength{\bibolay@textwidth}%
+\setlength{\bibolay@textwidth}{0.95\paperwidth}%
+\newcommand{\bibolaytextwidth}[1]{\setlength{\bibolay@textwidth}{#1}}%
+\newcommand{\bibolay@bib}{bibolay}%
+\newcommand{\bibolaybib}[1]{\renewcommand{\bibolay@bib}{#1}}%
+\newcommand{\bibolay@style}{plain}%
+\newcommand{\bibolaystyle}[1]{\renewcommand{\bibolay@style}{#1}}%
+\newcommand{\bibolay@auxfile}{\jobname-bibolay.aux}%
+\newcommand{\bibolay@bbldir}{}%
+\newcommand{\bibolay@bblfile}{\jobname-bibolay.bbl}%
+\newcommand{\bibolaydir}[1]{\renewcommand{\bibolay@bbldir}{#1}}%
+\newif\ifbibolay@setinline\bibolay@setinlinefalse%
+\newif\ifbibolay@settext\bibolay@settexttrue%
+\newcommand{\bibolayset}[1]{%
+\@for\cur:=#1\do
+{%
+\ifthenelse{\equal{\cur}{inline}}{\bibolay@setinlinetrue}{}%
+\ifthenelse{\equal{\cur}{noinline}}{\bibolay@setinlinefalse}{}%
+\ifthenelse{\equal{\cur}{plain}}{\bibolay@settextfalse}{}%
+\ifthenelse{\equal{\cur}{full}}{\bibolay@settexttrue}{}%
+}%
+}%
+\newwrite\bibolay@auxout%
+\immediate\openout\bibolay@auxout=\bibolay@auxfile%
+\immediate\write\bibolay@auxout{\relax }%
+\newif\ifbibolay@inline%
+\newif\ifbibolay@text%
+\AtBeginDocument{%
+\IfFileExists{\bibolay@bbldir\bibolay@bblfile}{%
+% yes: \bibolay@bbldir\bibolay@bblfile
+\begingroup%
+\renewenvironment{thebibliography}[1]{%
+\let\bibitem=\bibolay@bibitem%
+}{}%renewenvironment
+\input{\bibolay@bbldir\bibolay@bblfile}%
+\endgroup%
+}{%
+% no: \bibolay@bbldir\bibolay@bblfile
+}%IfFileExists
+}%AtBeginDocument
+\AtEndDocument{%
+\immediate\write\bibolay@auxout{\string\bibstyle{\bibolay@style}}%
+\immediate\write\bibolay@auxout{\string\bibdata{\bibolay@bib}}%
+\immediate\closeout\bibolay@auxout%
+\IfFileExists{\bibolay@bib.bib}{%
+\immediate\write18{bibtex \bibolay@auxfile}%
+}{%IfFileExists
+\PackageWarningNoLine{bibolay}{%
+Bibliography file \bibolay@bib.bib not found.\MessageBreak
+Unable to run BibTeX to create the overlay text}
+}%PackageWarningNoLine
+}%AtEndDocument
+\def\bibolay@bibitem#1 #2 \par{{%
+\let\protect\@unexpandable@protect%
+\expandafter \gdef\csname bibolay@entry@#1\endcsname {#2}}}%
+\newcommand{\bibolay}[2][]{%
+\ifbibolay@setinline\bibolay@inlinetrue\else\bibolay@inlinefalse\fi%
+\ifbibolay@settext\bibolay@texttrue\else\bibolay@textfalse\fi%
+\@for\cur:=#1\do
+{%
+\ifthenelse{\equal{\cur}{inline}}{\bibolay@inlinetrue}{}%
+\ifthenelse{\equal{\cur}{noinline}}{\bibolay@inlinefalse}{}%
+\ifthenelse{\equal{\cur}{plain}}{\bibolay@textfalse}{}%
+\ifthenelse{\equal{\cur}{full}}{\bibolay@texttrue}{}%
+}%
+\immediate\write\bibolay@auxout{\string\citation{#2}}%
+\ifbibolay@inline\else\begin{textblock*}{\bibolay@textwidth}(\bibolay@textposx,\bibolay@textposy)\fi%
+{\frenchspacing\raggedright\noindent%
+\ifbibolay@text\bibolay@text\setbox0=\hbox{\bibolay@text\unskip}\ifdim\wd0=0pt\else~\fi\fi%
+\@nameuse{bibolay@entry@#2}}%
+\ifbibolay@inline\else\end{textblock*}\fi%
+}%

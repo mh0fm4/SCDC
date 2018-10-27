@@ -1,0 +1,32 @@
+\section{UDS: Unix domain socket}
+\label{sect:nodeport_uds}
+
+
+\subsection{Server-side setup}
+
+The following configuration switches and parameters have to be provided for opening a new nodeport with the following function:
+
+\code{scdc_nodeport_open("uds[:<config_switches>]", <params>);}
+
+Mandatory configuration switches: none
+
+Mandatory parameters: none
+
+Optional configuration switches and parameters:
+\begin{description}
+
+  \item[\code{socketname}]
+String containing an alphanumeric name identifying the socket to be used for the node port.
+The identifier has to be used as the authority part of an URI to gain access through the corresponding node port.
+
+  \item[\code{socketfile}]
+String specifying the socket file within the local file system to be used for the node port.
+The identifier has to be used as the authority part of an URI to gain access through the corresponding node port.
+
+\end{description}
+
+
+\subsection{Client-side usage}
+
+URI scheme(s): \code{scdc+uds:[//<authority>]/<path>}\\
+\code{<authority> = [socketname:]<socketname> | socketfile:<socketfile>}

@@ -95,6 +95,16 @@ static inline std::string trim(const char *s, const char *t = 0)
 }
 
 
+static inline std::string string_pop_front(std::string &s, char c = ' ')
+{
+  size_t n = s.find(c);
+  std::string r = s.substr(0, n);
+  if (n != std::string::npos) s.erase(0, n + 1);
+  else s.clear();
+  return r;
+}
+
+
 class stringlist
 {
   public:
@@ -280,7 +290,7 @@ void normalize_path(const char *path, std::string &normalized);
 void abstimeout(struct timespec *abstime, double timeout = 0, double z_time_wtime_base = -1);
 
 void mem2str(const void *mem, scdcint_t mem_size, std::string &str);
-void str2mem(const std::string str, void *mem, scdcint_t *mem_size);
+void str2mem(const std::string &str, void *mem, scdcint_t *mem_size);
 
 
 #endif /* __COMMON_HH__ */

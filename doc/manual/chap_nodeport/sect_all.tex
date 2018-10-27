@@ -1,0 +1,23 @@
+\section{General functionalities}
+
+
+\subsection{Server-side setup}
+
+The following configuration switches and parameters have to be provided for opening a new nodeport with the following function:
+
+\code{scdc_nodeport_open("...[:<config_switches>]", <params>);}
+
+Mandatory configuration switches: none
+
+Mandatory parameters: none
+
+Optional configuration switches and parameters:
+\begin{description}
+  \item[\code{max_connections}]
+Integer specifying the maximum number of concurrent connections the node port can handle.
+\end{description}
+
+
+\subsection{Client-side usage}
+
+URI scheme: \code{scdc[+<scheme_suffix>]:[//<authority>]/<path>}

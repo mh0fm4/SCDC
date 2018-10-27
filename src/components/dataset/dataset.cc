@@ -40,13 +40,13 @@ using namespace std;
 #define SCDC_LOG_PREFIX  "dataset: "
 
 
-bool scdc_dataset::do_cmd(const char *cmd, scdcint_t cmd_size, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+bool scdc_dataset::do_cmd(const std::string &cmd, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
 {
-  SCDC_TRACE("do_cmd: '" << string(cmd, cmd_size) << "'");
+  SCDC_TRACE("do_cmd: cmd: '" << cmd << "'");
 
   string scmd, suri, sparams, params;
 
-  split_cmdline(cmd, cmd_size, &scmd, &suri, &sparams);
+  split_cmdline(cmd.c_str(), cmd.size(), &scmd, &suri, &sparams);
 
   join_cmdline(0, suri.c_str(), sparams.c_str(), params);
 
@@ -61,22 +61,22 @@ bool scdc_dataset::do_cmd(const char *cmd, scdcint_t cmd_size, scdc_dataset_inpu
     if (scmd == "cd")
     {
       if (params == "") ret = true;
-      else ret = dataprov->config_do_cmd("info", params.c_str(), 0, 0);
+      else ret = dataprov->config_do_cmd("info", params.c_str(), 0, 0, result);
 
-      if (ret) ret = scdc_dataset::do_cmd_cd(params.c_str(), input, output);
+      if (ret) ret = scdc_dataset::do_cmd_cd(params.c_str(), input, output, result);
 
     } else if (scmd == "pwd")
     {
-      ret = scdc_dataset::do_cmd_pwd(params.c_str(), input, output);
+      ret = scdc_dataset::do_cmd_pwd(params.c_str(), input, output, result);
 
     } else
     {
       if (pwd.size() > 0) params = pwd + " " + params;
 
-      ret = dataprov->config_do_cmd(scmd.c_str(), params.c_str(), input, output);
+      ret = dataprov->config_do_cmd(scmd.c_str(), params.c_str(), input, output, result);
     }
 
-  } else ret = dataprov->dataset_cmds_do_cmd(this, scmd.c_str(), params.c_str(), input, output);
+  } else ret = dataprov->dataset_cmds_do_cmd(this, scmd.c_str(), params.c_str(), input, output, result);
 
   SCDC_TRACE("do_cmd: return: '" << ret << "'");
 
@@ -84,7 +84,7 @@ bool scdc_dataset::do_cmd(const char *cmd, scdcint_t cmd_size, scdc_dataset_inpu
 }
 
 
-bool scdc_dataset::do_cmd_info(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+bool scdc_dataset::do_cmd_info(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
 {
   SCDC_TRACE("do_cmd_info: params: '" << params << "'");
 
@@ -92,29 +92,25 @@ bool scdc_dataset::do_cmd_info(const std::string &params, scdc_dataset_input_t *
   SCDC_INFO("config: '" << config << "'");
   SCDC_INFO("pwd: '" << pwd << "'");
 
-  SCDC_DATASET_OUTPUT_CLEAR(output);
-
   return true;
 }
 
 
-bool scdc_dataset::do_cmd_cd(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+bool scdc_dataset::do_cmd_cd(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
 {
   SCDC_TRACE("do_cmd_cd: '" << params << "'");
 
   set_pwd(params);
 
-  SCDC_DATASET_OUTPUT_CLEAR(output);
-
   return true;
 }
 
 
-bool scdc_dataset::do_cmd_pwd(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+bool scdc_dataset::do_cmd_pwd(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
 {
   SCDC_TRACE("do_cmd_pwd: params: '" << params << "'");
 
-  SCDC_DATASET_OUTPUT_PRINTF(output, pwd.c_str());
+  result = pwd;
 
   return true;
 }

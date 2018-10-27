@@ -429,11 +429,11 @@ do_return:
             SCDC_DATASET_INOUT_BUF_PTR(&output) = buf;
             SCDC_DATASET_INOUT_BUF_SIZE(&output) = size_left;
 
-            if (output.next(&output) == SCDC_FAILURE) goto do_return;
+            if (output.next(&output, 0) == SCDC_FAILURE) goto do_return;
 
           } while (1);
 
-          while (output.next) output.next(&output);
+          while (output.next) output.next(&output, 0);
 
           ret = __n - size_left;
           noffset += __n - size_left;
@@ -476,7 +476,7 @@ do_return:
           offset = o;
           __way = ios_base::cur;
 
-          while (output.next) output.next(&output);
+          while (output.next) output.next(&output, 0);
         }
 
         switch (__way)

@@ -29,17 +29,21 @@
 #include "log.hh"
 #include "dataset_inout.h"
 #include "dataprov.hh"
+#include "dataprov_access_stub.hh"
 #include "dataprov_store_stub.hh"
 #include "dataprov_store_mem.hh"
 #include "dataprov_fs.hh"
+#include "dataprov_fs2.hh"
 #if USE_MYSQL
 # include "dataprov_mysql.hh"
 #endif
 #if USE_WEBDAV
 # include "dataprov_webdav.hh"
+# include "dataprov_webdav2.hh"
 #endif
 #if USE_NFS
 # include "dataprov_nfs.hh"
+# include "dataprov_nfs2.hh"
 #endif
 #include "dataprov_bench.hh"
 #include "dataprov_hook.hh"
@@ -56,14 +60,14 @@ using namespace std;
 #define SCDC_LOG_PREFIX  "dataprov-pool: "
 
 
-scdc_dataprov *scdc_dataprov_pool::open(const char *base_path, const char *conf, scdc_args *args)
+scdc_dataprov *scdc_dataprov_pool::open(const char *base_path, const char *conf, scdc_args *args, scdc_result &result)
 {
   SCDC_TRACE("open: base_path: '" << base_path << "', conf: '" << conf << "'");
 
   stringlist confs(':', conf);
   string dp_type = confs.front_pop();
 
-  if (dp_type == "fs")
+  if (dp_type == "fs") // deprecated
   {
     string s = confs.front();
     if (s == "access")
@@ -106,37 +110,52 @@ scdc_dataprov *scdc_dataprov_pool::open(const char *base_path, const char *conf,
   } else if (dp_type == "nfs")
   {
     string s = confs.front();
-    if (s == "store")
+    if (s == "access")
+    {
+      confs.front_pop();
+      dp_type = "nfs_access";
+
+    } else if (s == "store")
     {
       confs.front_pop();
       dp_type = "nfs_store";
 
-    } else dp_type = "nfs_store";
+    } else dp_type = "nfs_access";
 
-  } else if (dp_type == "store")
+  } else if (dp_type == "access")
   {
     string s = confs.front();
-    if (s == "fs")
+    if (s == "stub")
     {
       confs.front_pop();
-      dp_type = "store_fs";
+      dp_type = "access_stub";
 
-    } else if (s == "mysql")
+    } else if (s == "fs")
     {
       confs.front_pop();
-      dp_type = "store_mysql";
-
-    } else if (s == "webdav")
-    {
-      confs.front_pop();
-      dp_type = "store_webdav";
+      dp_type = "access_fs";
 
     } else if (s == "nfs")
     {
       confs.front_pop();
-      dp_type = "store_nfs";
+      dp_type = "access_nfs";
 
-    } else if (s == "stub")
+    } else if (s == "webdav")
+    {
+      confs.front_pop();
+      dp_type = "access_webdav";
+
+    } else if (s == "none")
+    {
+      confs.front_pop();
+      dp_type = "access_none";
+
+    } else dp_type = "access_none";
+
+  } else if (dp_type == "store")
+  {
+    string s = confs.front();
+    if (s == "stub")
     {
       confs.front_pop();
       dp_type = "store_stub";
@@ -145,6 +164,26 @@ scdc_dataprov *scdc_dataprov_pool::open(const char *base_path, const char *conf,
     {
       confs.front_pop();
       dp_type = "store_mem";
+
+    } else if (s == "fs")
+    {
+      confs.front_pop();
+      dp_type = "store_fs";
+
+    } else if (s == "nfs")
+    {
+      confs.front_pop();
+      dp_type = "store_nfs";
+
+    } else if (s == "webdav")
+    {
+      confs.front_pop();
+      dp_type = "store_webdav";
+
+    } else if (s == "mysql")
+    {
+      confs.front_pop();
+      dp_type = "store_mysql";
 
     } else if (s == "none")
     {
@@ -176,19 +215,25 @@ scdc_dataprov *scdc_dataprov_pool::open(const char *base_path, const char *conf,
 
   scdc_dataprov *dataprov = 0;
 
-  if (dp_type == "store_stub") dataprov = new scdc_dataprov_store_stub();
+  if (dp_type == "access_stub") dataprov = new scdc_dataprov_access_stub();
+  else if (dp_type == "access_fs" || dp_type == "fs_access") dataprov = new scdc_dataprov_access_fs();
+  else if (dp_type == "store_stub") dataprov = new scdc_dataprov_store_stub();
   else if (dp_type == "store_mem") dataprov = new scdc_dataprov_store_mem();
-  else if (dp_type == "fs_access") dataprov = new scdc_dataprov_fs_access();
-  else if (dp_type == "fs_store" || dp_type == "store_fs") dataprov = new scdc_dataprov_fs_store();
+  else if (dp_type == "store_fs" || dp_type == "fs_store") dataprov = new scdc_dataprov_store_fs();
+  else if (dp_type == "fs2_access") dataprov = new scdc_dataprov_fs2_access(); // deprecated
+  else if (dp_type == "fs2_store") dataprov = new scdc_dataprov_fs2_store(); // deprecated
 #if USE_MYSQL
   else if (dp_type == "mysql_store" || dp_type == "store_mysql") dataprov = new scdc_dataprov_mysql_store();
 #endif
 #if USE_WEBDAV
-  else if (dp_type == "webdav_access") dataprov = new scdc_dataprov_webdav_access();
-  else if (dp_type == "webdav_store" || dp_type == "store_webdav") dataprov = new scdc_dataprov_webdav_store();
+  else if (dp_type == "webdav_access" || dp_type == "access_webdav") dataprov = new scdc_dataprov_access_webdav();
+  else if (dp_type == "webdav_store" || dp_type == "store_webdav") dataprov = new scdc_dataprov_store_webdav();
+  else if (dp_type == "webdav2_access") dataprov = new scdc_dataprov_webdav2_access();
 #endif
 #if USE_NFS
-  else if (dp_type == "nfs_store" || dp_type == "store_nfs") dataprov = new scdc_dataprov_nfs_store();
+  else if (dp_type == "nfs_access" || dp_type == "access_nfs") dataprov = new scdc_dataprov_access_nfs();
+  else if (dp_type == "nfs_store" || dp_type == "store_nfs") dataprov = new scdc_dataprov_store_nfs();
+  else if (dp_type == "nfs2_store") dataprov = new scdc_dataprov_nfs2_store();
 #endif
   else if (dp_type == "bench" || dp_type == "gen") dataprov = new scdc_dataprov_bench();
   else if (dp_type == "hook" || dp_type == "config") dataprov = new scdc_dataprov_hook();
@@ -204,7 +249,7 @@ scdc_dataprov *scdc_dataprov_pool::open(const char *base_path, const char *conf,
   /* use the given config string as type instead of the implementation defined type (i.e., "fs:store" and "store:fs" use the same implementation, but different types) */
   dataprov->set_type(dp_type);
 
-  if (!dataprov->open(confs.conflate().c_str(), args))
+  if (!dataprov->open(confs.conflate().c_str(), args, result))
   {
     delete dataprov;
     return 0;
@@ -222,15 +267,17 @@ scdc_dataprov *scdc_dataprov_pool::open(const char *base_path, const char *conf,
 }
 
 
-void scdc_dataprov_pool::close(scdc_dataprov *dataprov)
+bool scdc_dataprov_pool::close(scdc_dataprov *dataprov, scdc_result &result)
 {
+  bool ret = false;
+
   for (iterator i = begin(); i != end(); ++i)
   {
     if (i->second != dataprov) continue;
 
     erase(i);
 
-    dataprov->close();
+    ret = dataprov->close(result);
 
     delete dataprov;
 
@@ -238,6 +285,8 @@ void scdc_dataprov_pool::close(scdc_dataprov *dataprov)
 
     break;
   }
+
+  return ret;
 }
 
 
@@ -245,7 +294,9 @@ void scdc_dataprov_pool::close_all()
 {
   SCDC_TRACE("close_all:");
 
-  while (!empty()) close(begin()->second);
+  scdc_result result;
+
+  while (!empty()) close(begin()->second, result);
 
   SCDC_TRACE("close_all: return");
 }
@@ -262,58 +313,51 @@ bool scdc_dataprov_pool::exists(scdc_dataprov *dataprov)
 }
 
 
-scdc_dataset *scdc_dataprov_pool::dataset_open(const char *path, scdcint_t path_size, scdc_dataset_output_t *output)
+scdc_dataset *scdc_dataprov_pool::dataset_open(const std::string &path, scdc_result &result)
 {
-  SCDC_TRACE("dataset_open: '" << string(path, path_size) << "'");
+  SCDC_TRACE(__func__ << ": '" << path << "'");
 
-  string p(path, path_size);
-
-  p = p.substr(0, p.find('/'));
+  string p = path.substr(0, path.find('/'));
 
   iterator i = find(p);
 
   if (i == end())
   {
     SCDC_FAIL("dataset_open: failed: no matching provider found");
-    SCDC_DATASET_OUTPUT_PRINTF(output, "no matching provider found");
+    result = "no matching provider found";
     return 0;
   }
 
   scdc_dataprov *dataprov = i->second;
 
-  path += p.size();
-  path_size -= p.size();
+  p = ltrim(path.substr(p.size()), "/");
 
-  /* skip trailing '/' */
-  while (path_size > 0 && path[0] == '/')
-  {
-    ++path;
-    --path_size;
-  }
-
-  scdc_dataset *dataset = dataprov->dataset_open(path, path_size, output);
+  scdc_dataset *dataset = dataprov->dataset_path_open(p, result);
 
   if (!dataset)
   {
-    SCDC_FAIL("dataset_open: failed: '" << SCDC_DATASET_OUTPUT_STR(output) << "'");
-    return 0;
+    SCDC_FAIL(__func__ << ": opening dataset failed: " << result);
   }
 
-  SCDC_TRACE("dataset_open: '" << dataset << "'");
+  SCDC_TRACE(__func__ << ": return: " << dataset);
 
   return dataset;
 }
 
 
-void scdc_dataprov_pool::dataset_close(scdc_dataset *dataset, scdc_dataset_output_t *output)
+bool scdc_dataprov_pool::dataset_close(scdc_dataset *dataset, scdc_result &result)
 {
-  SCDC_TRACE("dataset_close: dataset: '" << dataset << "'");
+  SCDC_TRACE(__func__ << ": dataset: " << dataset);
 
-  dataset->get_dataprov()->dataset_close(dataset, output);
+  bool ret = dataset->get_dataprov()->dataset_path_close(dataset, result);
+
+  SCDC_TRACE(__func__ << ": return: " << ret);
+
+  return ret;
 }
 
 
-scdc_dataset *scdc_dataprov_pool::dataset_open_read_state(scdc_data *incoming, scdc_dataset_output_t *output)
+scdc_dataset *scdc_dataprov_pool::dataset_open_read_state(scdc_data *incoming, scdc_result &result)
 {
   SCDC_TRACE("dataset_open_read_state:");
 
@@ -341,16 +385,16 @@ scdc_dataset *scdc_dataprov_pool::dataset_open_read_state(scdc_data *incoming, s
 
   if (!exists(dataprov))
   {
-    SCDC_DATASET_OUTPUT_PRINTF(output, "data provider not available");
-    SCDC_FAIL("dataset_open_read_state: data provider not available");
+    result = "data provider not available";
+    SCDC_FAIL(__func__ << ": " << result);
     return 0;
   }
 
-  return dataprov->dataset_open_read_state(incoming, output);
+  return dataprov->dataset_open_read_state(incoming, result);
 }
 
 
-void scdc_dataprov_pool::dataset_close_write_state(scdc_dataset *dataset, scdc_data *outgoing, scdc_dataset_output_t *output)
+bool scdc_dataprov_pool::dataset_close_write_state(scdc_dataset *dataset, scdc_data *outgoing, scdc_result &result)
 {
   SCDC_TRACE("dataset_close_write_state: dataset: '" << dataset << "'");
 
@@ -367,7 +411,11 @@ void scdc_dataprov_pool::dataset_close_write_state(scdc_dataset *dataset, scdc_d
 
   outgoing->inc_write_pos(n);
 
-  dataprov->dataset_close_write_state(dataset, outgoing, output);
+  bool ret = dataprov->dataset_close_write_state(dataset, outgoing, result);
+
+  SCDC_TRACE("dataset_close_write_state: return: " << ret);
+
+  return ret;
 }
 
 

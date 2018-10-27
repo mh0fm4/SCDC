@@ -1,58 +1,72 @@
-\documentclass[11pt,a4paper]{scrreprt}
+\documentclass[
+11pt,
+a4paper,
+parskip=true,
+]{scrreprt}
 
-%\usepackage[english]{babel}
-%\usepackage[ansinew]{inputenc}
-%
-%\usepackage{amsmath}
-%\usepackage{listings}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+
+%\usepackage[ngerman]{babel}
+\usepackage[american]{babel}
+
+% \usepackage{graphicx}
+% \graphicspath{{images/}{plots/}}
+
+% \usepackage{lmodern}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{csquotes}
+\usepackage{xspace}
+\usepackage{enumitem}
+\usepackage{ifthen}
+\usepackage{alltt}
+
+\usepackage[hyphens]{url}
+\usepackage[colorlinks,linktoc=page,plainpages=false]{hyperref}
+
+\usepackage{xcolor}
+\definecolor{darkblue}{rgb}{0,0,.67}
+\definecolor{darkred}{rgb}{.67,0,0}
+\definecolor{darkgreen}{rgb}{0,.67,0}
+
+\hypersetup{
+  linkcolor=darkred,   % color of internal links
+  citecolor=darkgreen, % color of links to bibliography
+  %filecolor=magenta,   % color of file links
+  urlcolor=blue        % color of external links
+}
+
+
+\usepackage{bibolay}
+\bibolaybib{references}
+\bibolaystyle{unsrt}
+
+
+\input{common}
 
 
 \begin{document}
 
-\title{sorting library - Handbuch v0.1}
+\title{Simulation Component and Data Coupling (SCDC)}
+\subtitle{User manual}
 
 \author{Michael Hofmann}
 
 \maketitle
 
-\chapter{Einleitung}
+% show only subsections within toc
+\setcounter{tocdepth}{1}
+\tableofcontents
 
-\chapter{Schnellstart}
-
-\chapter{Installation}
-
-\chapter{Konfiguration}
-
-\chapter{Anpassung}
-
-\chapter{Nutzung}
-
-%\chapter{Komponenten}
+\input{chap_intro/chap}
+\input{chap_general/chap}
+\input{chap_server/chap}
+\input{chap_client/chap}
+\input{chap_nodeport/chap}
+\input{chap_dataprov/chap}
+\input{chap_redirect/chap}
+\input{chap_demos/chap}
 
 \end{document}
-
-1. Allgemein
-1.1 Overview
-1.2 Compiling and usage
--> Makefile.in, make
--> #include scdc.h, libscdc.[a,so]
-
-2. Server-side
-2.1 Nodeport functions
-2.2 Data provider functions
-
-3. Client-side
-3.1 Dataset functions
-3.2 Configuration access
-
-4. Nodeports
--> jeweils: server: setup, client: uri
-4.1 direct
-4.2 UDS
-4.3 TCP
-4.4 MPI
-
-5. Data provider
--> jeweils: server: setup, client: dataset and commands, configuration
-5.1 Hook
-5.2 

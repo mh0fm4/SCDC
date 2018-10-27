@@ -22,68 +22,15 @@
 #define __DATAPROV_FS_HH__
 
 
-#include <string>
-
-#include "dataprov.hh"
-
-
-class scdc_dataprov_fs: public scdc_dataprov
-{
-  public:
-    scdc_dataprov_fs(std::string type_):scdc_dataprov(type_) { }
-
-    virtual bool open(const char *conf, scdc_args *args);
-    virtual void close();
-
-    template<class DATASET_FS>
-    scdc_dataset *dataset_open(const char *path, scdcint_t path_size, scdc_dataset_output_t *output);
-    virtual void dataset_close(scdc_dataset *dataset, scdc_dataset_output_t *output);
-
-    virtual bool config_do_cmd_param(const std::string &cmd, const std::string &param, std::string val, scdc_config_result &result, bool &done);
-
-    void set_root(const std::string &root_);
-
-    bool make_pwd_path(const std::string &pwd, const std::string &sub, std::string &pwd_path);
-    void make_abs_path(const std::string &pwd_path, std::string &abs_path);
-
-    std::string get_abs_path(const std::string &rel_path = "");
-
-    void do_full_path(const char *path, std::string &full_path);
-    bool undo_full_path(const char *full_path, std::string &path);
-
-  protected:
-    std::string root;
-};
+#include "dataprov_access.hh"
+#include "dataprov_access_posix_handler.hh"
+#include "dataprov_store.hh"
+#include "dataprov_store_posix_handler.hh"
+#include "posix_fs_handler.hh"
 
 
-class scdc_dataprov_fs_access: public scdc_dataprov_fs
-{
-  public:
-    scdc_dataprov_fs_access();
-
-    virtual bool open(const char *conf, scdc_args *args);
-
-    virtual scdc_dataset *dataset_open(const char *path, scdcint_t path_size, scdc_dataset_output_t *output);
-
-#if 0
-    virtual bool config_do_cmd_param(const std::string &cmd, const std::string &param, std::string val, scdc_config_result &result, bool &done);
-#endif
-};
-
-
-class scdc_dataprov_fs_store: public scdc_dataprov_fs
-{
-  public:
-    scdc_dataprov_fs_store();
-
-    virtual bool open(const char *conf, scdc_args *args);
-
-    virtual scdc_dataset *dataset_open(const char *path, scdcint_t path_size, scdc_dataset_output_t *output);
-
-#if 0
-    virtual bool config_do_cmd_param(const std::string &cmd, const std::string &param, std::string val, scdc_config_result &result, bool &done);
-#endif
-};
+typedef scdc_dataprov_access<scdc_dataprov_access_posix_handler<scdc_posix_fs_handler> > scdc_dataprov_access_fs;
+typedef scdc_dataprov_store<scdc_dataprov_store_posix_handler<scdc_posix_fs_handler> > scdc_dataprov_store_fs;
 
 
 #endif /* __DATAPROV_FS_HH__ */

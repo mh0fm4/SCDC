@@ -1,7 +1,0 @@
-SCDC - Simulation Component and Data Coupling
-
-
-Required software packages:
-- C and C++ compiler
-- Python development package (python-dev)
-- MySQL Connector/C development package (libmysqlclient-dev), dev.mysql.com

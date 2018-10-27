@@ -57,6 +57,10 @@ scdcint_t scdc_init(const char *conf, ...);
 */
 void scdc_release(void);
 
+/** @brief Function for returning the result string of the last SCDC library function call.
+*/
+const char *scdc_last_result();
+
 /** @brief Function for initializing the logging. Can be called before #scdc_init.
 *
 * @param conf String of configuration parameters.
@@ -231,6 +235,42 @@ void scdc_dataset_input_unset(scdc_dataset_input_t *input);
 * @param output Output object.
 */
 void scdc_dataset_output_unset(scdc_dataset_output_t *output);
+
+/** @hideinitializer
+* @brief Auxiliary function to execute the next function of an input object.
+*
+* @param input Input object.
+* @param result Structure for storing a result message of the next function.
+* @return Whether the next function was successful (#SCDC_SUCCESS) or not (#SCDC_FAILURE).
+*/
+#define scdc_dataset_input_next(_in_, _res_)  scdc_dataset_inout_next(_in_, _res_)
+
+/** @hideinitializer
+* @brief Auxiliary function to execute the next function of an output object.
+*
+* @param input Output object.
+* @param result Structure for storing a result message of the next function.
+* @return Whether the next function was successful (#SCDC_SUCCESS) or not (#SCDC_FAILURE).
+*/
+#define scdc_dataset_output_next(_out_, _res_)  scdc_dataset_inout_next(_out_, _res_)
+
+scdcint_t scdc_dataset_inout_next_loop(scdc_dataset_inout_t *inout, scdc_result_t *result);
+
+/** @brief Auxiliary function to execute the next function of an input object until it is finished or an error occurs.
+*
+* @param input Input object.
+* @param result Structure for storing a result message of the next function.
+* @return Whether the next function was successful (#SCDC_SUCCESS) or not (#SCDC_FAILURE).
+*/
+#define scdc_dataset_input_next_loop(_in_, _res_)  scdc_dataset_inout_next_loop(_in_, _res_)
+
+/** @brief Auxiliary function to execute the next function of an output object until it is finished or an error occurs.
+*
+* @param output Output object.
+* @param result Structure for storing a result message of the next function.
+* @return Whether the next function was successful (#SCDC_SUCCESS) or not (#SCDC_FAILURE).
+*/
+#define scdc_dataset_output_next_loop(_out_, _res_)  scdc_dataset_inout_next_loop(_out_, _res_)
 
 /** @brief Auxiliary function to create an input object.
 *

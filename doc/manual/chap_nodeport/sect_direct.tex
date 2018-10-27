@@ -1,0 +1,25 @@
+\section{Direct: Function calls}
+\label{sect:nodeport_direct}
+
+
+\subsection{Server-side setup}
+
+The following configuration switches and parameters have to be provided for opening a new nodeport with the following function:
+
+\code{scdc_nodeport_open("direct[:<config_switches>]", <params>);}
+
+Mandatory configuration switches: none
+
+Mandatory parameters:
+\begin{enumerate}
+  \item
+String containing an alphanumeric name identifying the node port.
+The identifier has to be used as the authority part of an URI to gain access through the corresponding node port.
+\end{enumerate}
+
+Optional configuration switches and parameters: none
+
+
+\subsection{Client-side usage}
+
+URI scheme(s): \code{scdc:[//<id>]/<path>}

@@ -207,6 +207,8 @@ struct _scdc_context_data_t
 
   ~_scdc_context_data_t() { };
 
+  scdc_result_t *result;
+
 #if SCDC_DEBUG
   set<scdc_dataset_t> datasets;
 #endif
@@ -219,7 +221,7 @@ struct _scdc_context_data_t
 };
 
 
-static scdcint_t scdc_main_config_hook_config(void *dataprov, const char *cmd, const char *param, const char *val, scdcint_t val_size, char **res, scdcint_t *res_size);
+static scdcint_t scdc_main_config_hook_config(void *dataprov, const char *cmd, const char *param, const char *val, scdcint_t val_size, scdc_result_t *result);
 
 const static scdc_dataprov_hook_t scdc_main_config_hook = {
   0, 0,  /* open, close */
@@ -263,6 +265,7 @@ class scdc_context
 
       if (data) return false;
 
+      scdcint_t result_size = SCDC_RESULT_STR_MIN_SIZE;
       bool no_config = false;
       bool no_direct = false;
 
@@ -281,6 +284,10 @@ class scdc_context
       }
 
       data = new _scdc_context_data_t;
+
+      data->result = static_cast<scdc_result_t *>(::operator new(SCDC_RESULT_EXTENT(result_size)));
+      SCDC_RESULT_SET_SIZE(data->result, result_size);
+      SCDC_RESULT_SET_EMPTY(data->result);
 
       scdc_nodeport_pool::init();
       scdc_nodeconn_pool::init();
@@ -330,6 +337,8 @@ class scdc_context
       scdc_nodeport_pool::release();
       scdc_nodeconn_pool::release();
 
+      ::operator delete(data->result);
+
       delete data; data = 0;
 
       SCDC_TRACE("scdc-context: " << __func__ << ": return");
@@ -341,16 +350,16 @@ static scdc_context scdc_main_context;
 scdc_log *scdc_main_context_log = &scdc_main_context.log;
 
 
-static scdcint_t scdc_main_config_hook_config(void *dataprov, const char *cmd, const char *param, const char *val, scdcint_t val_size, char **res, scdcint_t *res_size)
+static scdcint_t scdc_main_config_hook_config(void *dataprov, const char *cmd, const char *param, const char *val, scdcint_t val_size, scdc_result_t *result)
 {
-  SCDC_TRACE(__func__ << ": cmd: '" << cmd << "', param: '" << param << "', val: " << string(val, val_size) << ", result size: " << *res_size);
+  SCDC_TRACE(__func__ << ": cmd: '" << cmd << "', param: '" << param << "', val: " << string(val, val_size));
 
   string c(cmd), p(param);
 
   bool done = false;
   bool ret = true;
 
-  scdc_config_result result;
+  scdc_config_result res;
 
   if (p == "")
   {
@@ -358,17 +367,17 @@ static scdcint_t scdc_main_config_hook_config(void *dataprov, const char *cmd, c
     {
       done = true;
 
-      ret = scdc_dataprov_config::info(result, "libscdc configuration");
+      ret = scdc_dataprov_config::info(res, "libscdc configuration");
 
     } else if (c == "ls")
     {
       done = true;
 
-      ret = scdc_dataprov_config::ls(result, "dataprovs")
-         && scdc_dataprov_config::ls(result, "nodeports")
-         && scdc_dataprov_config::ls(result, "nodeconns")
+      ret = scdc_dataprov_config::ls(res, "dataprovs")
+         && scdc_dataprov_config::ls(res, "nodeports")
+         && scdc_dataprov_config::ls(res, "nodeconns")
 #if NODECONN_CACHE_CONNECTIONS
-         && scdc_dataprov_config::ls(result, "nodeconn_cache_connections")
+         && scdc_dataprov_config::ls(res, "nodeconn_cache_connections")
 #endif
          && true;
 
@@ -381,11 +390,11 @@ static scdcint_t scdc_main_config_hook_config(void *dataprov, const char *cmd, c
     {
       done = true;
 
-      if (p == "dataprovs") ret = scdc_dataprov_config::info(result, param, "data providers");
-      else if (p == "nodeports") ret = scdc_dataprov_config::info(result, param, "node ports");
-      else if (p == "nodeports") ret = scdc_dataprov_config::info(result, param, "node connections");
+      if (p == "dataprovs") ret = scdc_dataprov_config::info(res, param, "data providers");
+      else if (p == "nodeports") ret = scdc_dataprov_config::info(res, param, "node ports");
+      else if (p == "nodeports") ret = scdc_dataprov_config::info(res, param, "node connections");
 #if NODECONN_CACHE_CONNECTIONS
-      else if (p == "nodeconn_cache_connections") ret = scdc_dataprov_config::info(result, param, "number of node connections to cache (integer)");
+      else if (p == "nodeconn_cache_connections") ret = scdc_dataprov_config::info(res, param, "number of node connections to cache (integer)");
 #endif
       else done = false;
 
@@ -395,12 +404,12 @@ static scdcint_t scdc_main_config_hook_config(void *dataprov, const char *cmd, c
     {
       done = true;
 
-/*      if (p == "dataprovs")  ret = scdc_dataprov_config::put<>(result, param);
-      else if (p == "nodeports")  ret = scdc_dataprov_config::put<>(result, param);
-      else if (p == "nodeconns")  ret = scdc_dataprov_config::put<>(result, param);*/
+/*      if (p == "dataprovs")  ret = scdc_dataprov_config::put<>(res, param);
+      else if (p == "nodeports")  ret = scdc_dataprov_config::put<>(res, param);
+      else if (p == "nodeconns")  ret = scdc_dataprov_config::put<>(res, param);*/
       if (p == "");
 #if NODECONN_CACHE_CONNECTIONS
-      else if (p == "nodeconn_cache_connections") ret = scdc_dataprov_config::put<scdcint_t>(result, param, val, data->nodeconns.cache_connections);
+      else if (p == "nodeconn_cache_connections") ret = scdc_dataprov_config::put<scdcint_t>(res, param, val, data->nodeconns.cache_connections);
 #endif
       else done = false;
 
@@ -408,9 +417,9 @@ static scdcint_t scdc_main_config_hook_config(void *dataprov, const char *cmd, c
     {
       done = true;
 
-      if (p == "dataprovs")  ret = scdc_dataprov_config::get<size_t>(result, param, scdc_main_context.data->dataprovs.size());
-      else if (p == "nodeports")  ret = scdc_dataprov_config::get<size_t>(result, param, scdc_main_context.data->nodeports.size());
-      else if (p == "nodeconns")  ret = scdc_dataprov_config::get<size_t>(result, param, scdc_main_context.data->nodeconns.size());
+      if (p == "dataprovs")  ret = scdc_dataprov_config::get<size_t>(res, param, scdc_main_context.data->dataprovs.size());
+      else if (p == "nodeports")  ret = scdc_dataprov_config::get<size_t>(res, param, scdc_main_context.data->nodeports.size());
+      else if (p == "nodeconns")  ret = scdc_dataprov_config::get<size_t>(res, param, scdc_main_context.data->nodeconns.size());
 #if NODECONN_CACHE_CONNECTIONS
       else if (p == "nodeconn_cache_connections") ss << scdc_main_context.data->nodeconns.cache_connections;
 #endif
@@ -424,11 +433,7 @@ static scdcint_t scdc_main_config_hook_config(void *dataprov, const char *cmd, c
     return SCDC_FAILURE;
   }
 
-  if (res && res_size)
-  {
-    strncpy(*res, result.c_str(), *res_size);
-    *res_size = result.size();
-  }
+  if (result) SCDC_RESULT_SET_STR(result, res.c_str());
 
   return ret;
 }
@@ -488,6 +493,18 @@ void scdc_release()
   SCDC_TRACE(__func__ << ": return");
 
   scdc_log_release_intern();
+}
+
+
+const char *scdc_last_result()
+{
+  SCDC_TRACE(__func__ << ":");
+
+  const char *result = SCDC_RESULT_STR(scdc_main_context.data->result);
+
+  SCDC_TRACE(__func__ << ": return: " << static_cast<void *>(result));
+
+  return result;
 }
 
 
@@ -561,7 +578,11 @@ scdc_dataprov_t scdc_dataprov_open_intern(const char *base_path, const char *con
 {
   scdc_args xargs(args);
 
-  scdc_dataprov *dataprov = scdc_main_context.data->dataprovs.open(base_path, conf, &xargs);
+  scdc_result result;
+
+  scdc_dataprov *dataprov = scdc_main_context.data->dataprovs.open(base_path, conf, &xargs, result);
+
+  SCDC_RESULT_SET_STR(scdc_main_context.data->result, result.c_str());
 
   if (!dataprov) return SCDC_DATAPROV_NULL;
 
@@ -597,7 +618,11 @@ void scdc_dataprov_close(scdc_dataprov_t dataprov)
 
   if (dataprov == SCDC_DATAPROV_NULL) return;
 
-  if (!scdc_main_context_destroyed) scdc_main_context.data->dataprovs.close(static_cast<scdc_dataprov *>(dataprov));
+  scdc_result result;
+
+  if (!scdc_main_context_destroyed) scdc_main_context.data->dataprovs.close(static_cast<scdc_dataprov *>(dataprov), result);
+
+  SCDC_RESULT_SET_STR(scdc_main_context.data->result, result.c_str());
 
   SCDC_TRACE(__func__ << ": return");
 }
@@ -808,13 +833,13 @@ scdcint_t scdc_dataset_inout_next_hash(scdc_dataset_inout_t *inout)
 
   if (!inout) return 0;
 
-  SCDC_TRACE(__func__ << ": next: " << static_cast<void *>(inout->next));
+  SCDC_TRACE(__func__ << ": next: " << reinterpret_cast<void *>(inout->next));
   SCDC_TRACE(__func__ << ": data: " << static_cast<void *>(inout->data));
   SCDC_TRACE(__func__ << ": intern_data: " << static_cast<void *>(inout->intern_data));
 
   scdcint_t next_hash = pointer2scdcint(reinterpret_cast<void *>(inout->next)) ^ pointer2scdcint(inout->data) ^ pointer2scdcint(inout->intern_data);
 
-  SCDC_TRACE(__func__ << ": next_hash: " << next_hash << " (" << pointer2scdcint(reinterpret_cast<scdcint_t>(inout->next)) << " + " << pointer2scdcint(inout->data) << " + " << pointer2scdcint(inout->intern_data) << ")");
+  SCDC_TRACE(__func__ << ": next_hash: " << next_hash << " (" << pointer2scdcint(reinterpret_cast<void *>(inout->next)) << " + " << pointer2scdcint(inout->data) << " + " << pointer2scdcint(inout->intern_data) << ")");
 
   return next_hash;
 }
@@ -840,12 +865,11 @@ scdc_dataset_t scdc_dataset_open_intern(const char *uri, scdc_args_t *args)
     return SCDC_DATASET_NULL;
   }
 
-  scdc_dataset_output_t output;
-  scdc_dataset_output_create(&output, "buffer", dataset->buf, dataset->buf_size);
+  scdc_result result;
+  dataset->dataset = dataset->nodeconn->dataset_open(spath, result);
+  SCDC_RESULT_SET_STR(scdc_main_context.data->result, result.c_str());
 
-  dataset->dataset = dataset->nodeconn->get_compcoup()->dataset_open(spath.c_str(), spath.size(), &output);
-
-  scdc_dataset_output_destroy(&output);
+  SCDC_TRACE(__func__ << ": result: '" << result << "'");
 
   if (!dataset->dataset)
   {
@@ -861,7 +885,7 @@ scdc_dataset_t scdc_dataset_open_intern(const char *uri, scdc_args_t *args)
 
   SCDC_TRACE(__func__ << ": return '" << dataset << "'");
 
-  SCDC_INFO("opening dataset " << dataset << " with uri '" << uri << "'");
+/*  SCDC_INFO("opening dataset " << dataset << " with uri '" << uri << "'");*/
 
   return dataset;
 }
@@ -896,7 +920,7 @@ void scdc_dataset_close(scdc_dataset_t dataset)
 
   if (dataset == SCDC_DATASET_NULL) return;
 
-  SCDC_INFO("closing dataset " << dataset);
+/*  SCDC_INFO("closing dataset " << dataset);*/
 
 #if SCDC_DEBUG
   if (scdc_main_context.data->datasets.erase(dataset) != 1)
@@ -906,16 +930,17 @@ void scdc_dataset_close(scdc_dataset_t dataset)
   }
 #endif
 
-  scdc_dataset_output_t output;
-  scdc_dataset_output_create(&output, "buffer", dataset->buf, dataset->buf_size);
+  scdc_result result;
+  dataset->nodeconn->dataset_close(static_cast<scdc_dataset *>(dataset->dataset), result);
+  SCDC_RESULT_SET_STR(scdc_main_context.data->result, result.c_str());
 
-  dataset->nodeconn->get_compcoup()->dataset_close(static_cast<scdc_dataset *>(dataset->dataset), &output);
-
-  scdc_dataset_output_destroy(&output);
+  SCDC_TRACE(__func__ << ": result: '" << result << "'");
 
   scdc_main_context.data->nodeconns.close(dataset->nodeconn);
 
   delete dataset;
+
+  SCDC_TRACE(__func__ << ": return");
 }
 
 
@@ -939,8 +964,8 @@ scdcint_t scdc_dataset_cmd_intern(scdc_dataset_t dataset, const char *cmd, scdc_
 
     if (suri.size() <= 0)
     {
-      SCDC_DATASET_OUTPUT_PRINTF(output, "no URI given");
-      SCDC_FAIL(__func__ << ": no URI given!");
+      SCDC_RESULT_SET_STR(scdc_main_context.data->result, "no URI given");
+      SCDC_FAIL(__func__ << ": " << SCDC_RESULT_STR(scdc_main_context.data->result));
       delete dataset;
       return SCDC_FAILURE;
     }
@@ -954,8 +979,8 @@ scdcint_t scdc_dataset_cmd_intern(scdc_dataset_t dataset, const char *cmd, scdc_
 
     if (!dataset->nodeconn)
     {
-      SCDC_DATASET_OUTPUT_PRINTF(output, "open connection failed");
-      SCDC_FAIL(__func__ << ": failed: open connection failed!");
+      SCDC_RESULT_SET_STR(scdc_main_context.data->result, "open connection failed");
+      SCDC_FAIL(__func__ << ": " << SCDC_RESULT_STR(scdc_main_context.data->result));
       delete dataset;
       return SCDC_FAILURE;
     }
@@ -987,14 +1012,19 @@ scdcint_t scdc_dataset_cmd_intern(scdc_dataset_t dataset, const char *cmd, scdc_
   scdcint_t output_next_hash_in = scdc_dataset_inout_next_hash(output);
 
   bool ret;
+  scdc_result result;
 
   double cmd_timing = z_time_wtime();
 
-  if (dataset->dataset) ret = dataset->dataset->do_cmd(cmd, cmd_size, input, output);
-  else ret = dataset->nodeconn->get_compcoup()->dataset_cmd(cmd, cmd_size, input, output);
+  if (dataset->dataset) ret = dataset->dataset->do_cmd(string(cmd, cmd_size), input, output, result);
+  else ret = dataset->nodeconn->dataset_cmd(string(cmd, cmd_size), input, output, result);
 
   cmd_timing = z_time_wtime() - cmd_timing;
   SCDC_TRACE(__func__ << ": timing: " << cmd_timing);
+
+  SCDC_TRACE(__func__ << ": result: '" << result << "'");
+
+  SCDC_RESULT_SET_STR(scdc_main_context.data->result, result.c_str());
 
   scdcint_t output_next_hash_out = scdc_dataset_inout_next_hash(output);
 

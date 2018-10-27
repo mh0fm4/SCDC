@@ -1,1 +1,47 @@
-../Makefile.in
+# This is a Makefile!
+
+#  
+#  Copyright (C) 2014, 2015, 2016, 2017, 2018 Michael Hofmann
+#  
+#  This file is part of the Simulation Component and Data Coupling (SCDC) library.
+#  
+#  The SCDC library is free software: you can redistribute it and/or
+#  modify it under the terms of the GNU Lesser Public License as published
+#  by the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+#  
+#  The SCDC library is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU Lesser Public License for more details.
+#  
+#  You should have received a copy of the GNU Lesser Public License
+#  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#  
+
+
+# current directory from current file, push to stack
+CWD:=$(subst Makefile.in,,$(MAKEFILE_IN))
+CWD_STACK:=$(CWD) $(CWD_STACK)
+# $(info CWD: $(CWD))
+# $(info CWD_STACK: $(CWD_STACK))
+
+MAKEFILE_IN:=$(CWD)../Makefile.in
+DEPS+=$(MAKEFILE_IN)
+# $(info MAKEFILE_IN: $(MAKEFILE_IN))
+# $(info DEPS: $(DEPS))
+
+SCDC_SRC:=$(subst Makefile.in,,$(MAKEFILE_IN))../
+
+include $(MAKEFILE_IN)
+
+# current directory from stack, pop from stack
+CWD:=$(firstword $(CWD_STACK))
+CWD_STACK:=$(wordlist 2,$(words $(CWD_STACK)),$(CWD_STACK))
+# $(info CWD: $(CWD))
+# $(info CWD_STACK: $(CWD_STACK))
+
+REDIRECT_DEPENDS:=$(CWD)redirect/redirect_call.h $(CWD)redirect/libredirect_scdc.a
+REDIRECT_CPPFLAGS:=-I$(CWD)redirect
+REDIRECT_LDFLAGS:=-L$(CWD)redirect
+REDIRECT_LIBS:=-lredirect_scdc

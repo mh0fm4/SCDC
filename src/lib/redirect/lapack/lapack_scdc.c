@@ -27,6 +27,7 @@
 
 #define LIBLAPACK_SCDC_REMOTE  1
 
+#include "lapack_scdc_config.h"
 #include "common.h"
 #include "lapack.h"
 #include "lapack_call.h"
@@ -76,16 +77,21 @@ static void do_sgesv(lapack_call_t *lc)
   LAPACK_CALL(get_input_conf_int)(lc, "N", &N);
   LAPACK_CALL(get_input_conf_int)(lc, "NRHS", &NRHS);
 
-  float *A = 0, *B = 0;
-  int LDA = 0, rcma, LDB = 0, rcmb;
-  LAPACK_CALL(get_inout_param_matrix_float)(lc, "A", N, N, &A, &LDA, &rcma);
-  LAPACK_CALL(get_inout_param_matrix_float)(lc, "B", N, NRHS, &B, &LDB, &rcmb);
+  float *A = NULL, *B = NULL;
+  rdint_t NRA_ = N, NCA_ = N, NRB_ = N, NCB_ = NRHS;
+  rdint_t LDA_ = 0, rcma, LDB_ = 0, rcmb;
+  LAPACK_CALL(get_inout_param_matrix_float)(lc, "A", &A, &NRA_, &NCA_, &LDA_, &rcma);
+  LAPACK_CALL(get_inout_param_matrix_float)(lc, "B", &B, &NRB_, &NCB_, &LDB_, &rcmb);
+  int LDA = LDA_, LDB = LDB_;
 
-  ASSERT(rcma == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
-  ASSERT(rcmb == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
+  ASSERT(NRA_ == N && NCA_ == N && rcma == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
+  ASSERT(NRB_ == N && NCB_ == NRHS && rcmb == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
 
-  int *IPIV = 0;
-  LAPACK_CALL(get_output_param_vector_int)(lc, "IPIV", N, &IPIV); /* output buffer 'IPIV' anfordern */
+  rdint_t NIPIV_ = N;
+  int *IPIV = NULL;
+  LAPACK_CALL(get_output_param_array_int)(lc, "IPIV", &IPIV, &NIPIV_); /* output buffer 'IPIV' anfordern */
+
+  ASSERT(NIPIV_ == N);
 
   int INFO = 0;
 
@@ -98,10 +104,10 @@ static void do_sgesv(lapack_call_t *lc)
 
   TRACE_F("%s: N: %d, NRHS: %d, A: %p, LDA: %d, IPIV: %p, B: %p, LDB: %d, INFO: %d", __func__, N, NRHS, A, LDA, IPIV, B, LDB, INFO);
 
-  LAPACK_CALL(put_output_param_matrix_float)(lc, "A", N, N, A, LDA, rcma);
-  LAPACK_CALL(put_output_param_matrix_float)(lc, "B", N, NRHS, B, LDB, rcmb);
+  LAPACK_CALL(put_output_param_matrix_float)(lc, "A", A, N, N, LDA, rcma);
+  LAPACK_CALL(put_output_param_matrix_float)(lc, "B", B, N, NRHS, LDB, rcmb);
 
-  LAPACK_CALL(put_output_param_vector_int)(lc, "IPIV", N, IPIV);
+  LAPACK_CALL(put_output_param_array_int)(lc, "IPIV", IPIV, N);
 
   LAPACK_CALL(put_output_conf_int)(lc, "INFO", INFO);
 
@@ -132,14 +138,18 @@ static void do_strsv(lapack_call_t *lc)
   LAPACK_CALL(get_input_conf_int)(lc, "N", &N);
   
   float *A = 0;
-  int LDA = 0, rcma;
-  LAPACK_CALL(get_input_param_matrix_float)(lc, "A", N, N, &A, &LDA, &rcma);
+  rdint_t NRA_ = N, NCA_ = N;
+  rdint_t LDA_ = 0, rcma;
+  LAPACK_CALL(get_input_param_matrix_float)(lc, "A", &A, &NRA_, &NCA_, &LDA_, &rcma);
+  int LDA = LDA_;
 
-  ASSERT(rcma == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
+  ASSERT(NRA_ == N && NCA_ == N && rcma == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
 
   float *X = 0;
-  int INCX = 0;
-  LAPACK_CALL(get_input_param_vector_float)(lc, "X", N, &X, &INCX);
+  rdint_t N_ = N;
+  rdint_t INCX_ = 0;
+  LAPACK_CALL(get_input_param_vector_float)(lc, "X", &X, &N_, &INCX_);
+  int INCX = INCX_;
 
   TRACE_F("%s: UPLO: %c, TRANS: %c, DIAG: %c, N: %d, A: %p, LDA: %d, X: %p, INCX: %d", __func__, UPLO, TRANS, DIAG, N, A, LDA, X, INCX);
 
@@ -150,7 +160,7 @@ static void do_strsv(lapack_call_t *lc)
 
   TRACE_F("%s: UPLO: %c, TRANS: %c, DIAG: %c, N: %d, A: %p, LDA: %d, X: %p, INCX: %d", __func__, UPLO, TRANS, DIAG, N, A, LDA, X, INCX);
 
-  LAPACK_CALL(put_output_param_vector_float)(lc, "X", N, X, INCX);
+  LAPACK_CALL(put_output_param_vector_float)(lc, "X", X, N, INCX);
 
   LAPACK_TIMING_REMOTE_PUT(lc, liblapack_scdc_timing_remote[0]);
 
@@ -168,7 +178,17 @@ void *lapack_scdc_open(const char *conf, va_list ap)
 
   LAPACK_ORIG_INIT();
 
-  lapack_call_t *lc = malloc(sizeof(lapack_call_t));
+  lapack_call_t *lc = malloc(sizeof(lapack_call_t)
+#if LIBLAPACK_SCDC_CACHE
+    + sizeof(lapack_cache_t)
+#endif
+    );
+
+#if LIBLAPACK_SCDC_CACHE
+  lapack_cache_t *lch = (lapack_cache_t *) (lc + 1);
+
+  LAPACK_CACHE(init)(lch);
+#endif
 
   TRACE_F("%s: return: %p", __func__, lc);
 
@@ -181,6 +201,12 @@ scdcint_t lapack_scdc_close(void *dataprov)
   TRACE_F("%s: dataprov: %p", __func__, dataprov);
 
   lapack_call_t *lc = dataprov;
+
+#if LIBLAPACK_SCDC_CACHE
+  lapack_cache_t *lch = (lapack_cache_t *) (lc + 1);
+
+  LAPACK_CACHE(release)(lch);
+#endif
 
   free(lc);
 
@@ -220,25 +246,34 @@ scdcint_t lapack_scdc_dataset_close(void *dataprov, void *dataset)
 }*/
 
 
-scdcint_t lapack_scdc_dataset_cmd(void *dataprov, void *dataset, const char *cmd, const char *params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+scdcint_t lapack_scdc_dataset_cmd(void *dataprov, void *dataset, const char *cmd, const char *params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result_t *result)
 {
-  TRACE_F("%s: dataprov: %p, dataset: %p, cmd: '%s', params: '%s', input: %p, output: %p", __func__, dataprov, dataset, cmd, params, input, output);
+  TRACE_F("%s: dataprov: %p, dataset: %p, cmd: '%s', params: '%s', input: %p, output: %p, result: %p", __func__, dataprov, dataset, cmd, params, input, output, result);
 
   printf("input: "); scdc_dataset_input_print(input); printf("\n");
   printf("output: "); scdc_dataset_output_print(output); printf("\n");
 
   lapack_call_t *lc = dataprov;
 
-  LAPACK_CALL(init_scdc)(lc, params, input, output);
+  LAPACK_CALL(init_scdc)(lc);
 
+#if LIBLAPACK_SCDC_CACHE
+  lapack_cache_t *lch = (lapack_cache_t *) (lc + 1);
+
+  LAPACK_CALL(set_cache_ptr)(lc, lch);
+#endif
+
+  if (LAPACK_CALL(cmd)(lc, cmd, params, input, output, result))
+  {
 #if LAPACK_SGESV
-  if (strcmp(cmd, "sgesv") == 0) do_sgesv(lc); else
+    if (strcmp(cmd, "sgesv") == 0) do_sgesv(lc); else
 #endif
 #if LAPACK_STRSV
-  if (strcmp(cmd, "strsv") == 0) do_strsv(lc); else
+    if (strcmp(cmd, "strsv") == 0) do_strsv(lc); else
 #endif
-  {
-    TRACE_F("%s: command '%s' not supported!", __func__, cmd);
+    {
+      TRACE_F("%s: command '%s' not supported!", __func__, cmd);
+    }
   }
 
   LAPACK_CALL(release_scdc)(lc);

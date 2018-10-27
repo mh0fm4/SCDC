@@ -99,20 +99,20 @@ class scdc_dataprov_jobrun: public scdc_dataprov
 
     virtual bool open_config_conf(const std::string &conf, scdc_args *args, bool &done);
 
-    virtual bool open(const char *conf, scdc_args *args);
-    virtual void close();
+    virtual bool open(const char *conf, scdc_args *args, scdc_result &result);
+    virtual bool close(scdc_result &result);
 
     template<class DATASET_JOBRUN>
-    scdc_dataset *dataset_open(const char *path, scdcint_t path_size, scdc_dataset_output_t *output);
-    virtual void dataset_close(scdc_dataset *dataset, scdc_dataset_output_t *output);
+    scdc_dataset *dataset_open(std::string &path, scdc_result &result);
+    virtual bool dataset_close(scdc_dataset *dataset, scdc_result &result);
 
     virtual bool config_do_cmd_param(const std::string &cmd, const std::string &param, std::string val, scdc_config_result &result, bool &done);
 
-    bool do_cmd_ls(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output);
-    bool do_cmd_info(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output);
-    bool do_cmd_put(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output);
-    bool do_cmd_get(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output);
-    bool do_cmd_rm(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output);
+    bool do_cmd_ls(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result);
+    bool do_cmd_info(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result);
+    bool do_cmd_put(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result);
+    bool do_cmd_get(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result);
+    bool do_cmd_rm(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result);
 
     bool add_node(const std::string &nodeid, scdc_dataprov_jobrun_node_t &node);
     bool del_node(const std::string &nodeid);
@@ -178,12 +178,12 @@ class scdc_dataprov_jobrun_system: public scdc_dataprov_jobrun
 
     virtual bool open_config_conf(const std::string &conf, scdc_args *args, bool &done);
 
-    virtual bool open(const char *conf, scdc_args *args);
-    virtual void close();
+    virtual bool open(const char *conf, scdc_args *args, scdc_result &result);
+    virtual bool close(scdc_result &result);
 
     virtual bool config_do_cmd_param(const std::string &cmd, const std::string &param, std::string val, scdc_config_result &result, bool &done);
 
-    virtual scdc_dataset *dataset_open(const char *path, scdcint_t path_size, scdc_dataset_output_t *output);
+    virtual scdc_dataset *dataset_open(std::string &path, scdc_result &result);
 
     virtual bool job_do_run(const std::string &jobid, const std::string &cmd, const std::string &params, const scdc_dataprov_jobrun_res_t &res);
 
@@ -209,16 +209,16 @@ class scdc_dataprov_jobrun_handler: public scdc_dataprov_jobrun
   public:
     scdc_dataprov_jobrun_handler();
 
-    virtual bool open(const char *conf, scdc_args *args);
-    virtual void close();
+    virtual bool open(const char *conf, scdc_args *args, scdc_result &result);
+    virtual bool close(scdc_result &result);
 
     virtual bool config_do_cmd_param(const std::string &cmd, const std::string &param, std::string val, scdc_config_result &result, bool &done);
 
-    virtual scdc_dataset *dataset_open(const char *path, scdcint_t path_size, scdc_dataset_output_t *output);
+    virtual scdc_dataset *dataset_open(std::string &path, scdc_result &result);
 
     virtual bool job_do_run(const std::string &jobid, const std::string &cmd, const std::string &params, const scdc_dataprov_jobrun_res_t &res);
 
-    bool job_do_cmd(const std::string &jobid, const std::string &cmd, const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output);
+    bool job_do_cmd(const std::string &jobid, const std::string &cmd, const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result);
 
   public:
     scdc_dataprov_jobrun_handler_args_t handler_args;

@@ -45,13 +45,10 @@ class scdc_dataprov_register: public scdc_dataprov
     scdc_dataprov_register();
     scdc_dataprov_register(const std::string &type_);
 
-/*    virtual bool open(const char *conf, scdc_args *args);
-    virtual void close();*/
+    virtual scdc_dataset *dataset_open(std::string &path, scdc_result &result);
+    virtual bool dataset_close(scdc_dataset *dataset, scdc_result &result);
 
-    virtual scdc_dataset *dataset_open(const char *path, scdcint_t path_size, scdc_dataset_output_t *output);
-    virtual void dataset_close(scdc_dataset *dataset, scdc_dataset_output_t *output);
-
-    virtual bool dataset_cmds_do_cmd(scdc_dataset *dataset, const char *cmd, const char *params, scdc_dataset_input_t *input, scdc_dataset_output_t *output);
+    virtual bool dataset_cmds_do_cmd(scdc_dataset *dataset, const char *cmd, const char *params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result);
 
   protected:
     typedef std::map<std::string, scdc_dataprov_register_entry_t> register_t;

@@ -94,7 +94,7 @@ class scdc_dataset_jobrun_relay: public scdc_dataset
     }
 
 
-    bool do_cmd_cd(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+    bool do_cmd_cd(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
     {
       string jobid = safe_jobid(params);
 
@@ -120,7 +120,7 @@ class scdc_dataset_jobrun_relay: public scdc_dataset
     }*/
 
 
-    bool do_cmd_ls(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+    bool do_cmd_ls(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
     {
       string p = params;
       string jobid = pwd;
@@ -134,15 +134,15 @@ class scdc_dataset_jobrun_relay: public scdc_dataset
 
         p += plist.offset();
 
-        if (jobid.size() == 0) return dataprov_jobrun_relay()->do_cmd_ls(p, input, output);
+        if (jobid.size() == 0) return dataprov_jobrun_relay()->do_cmd_ls(p, input, output, result);
 
         remote_dataset_open(jobid, false);
       }
 
       if (remote_dataset == SCDC_DATASET_NULL)
       {
-        SCDC_FAIL("do_cmd_ls: no remote dataset available");
-        SCDC_DATASET_OUTPUT_PRINTF(output, "no remote dataset available");
+        result = "no remote dataset available";
+        SCDC_FAIL(__func__ << ": listing remote dataset failed: " << result);
         return false;
       }
 
@@ -152,8 +152,8 @@ class scdc_dataset_jobrun_relay: public scdc_dataset
 
       if (scdc_dataset_cmd(remote_dataset, cmd.c_str(), input, output) != SCDC_SUCCESS)
       {
-        SCDC_FAIL("do_cmd_ls: listing command failed: " << SCDC_DATASET_OUTPUT_STR(output));
-        SCDC_DATASET_OUTPUT_PRINTF(output, "listing command failed");
+        result = "remote command failed";
+        SCDC_FAIL(__func__ << ": listing remote dataset failed: " << result);
         return false;
       }
 
@@ -163,7 +163,7 @@ class scdc_dataset_jobrun_relay: public scdc_dataset
     }
 
 
-    bool do_cmd_info(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+    bool do_cmd_info(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
     {
       string p = params;
       string jobid = pwd;
@@ -177,15 +177,15 @@ class scdc_dataset_jobrun_relay: public scdc_dataset
 
         p += plist.offset();
 
-        if (jobid.empty()) return dataprov_jobrun_relay()->do_cmd_info(p, input, output);
+        if (jobid.empty()) return dataprov_jobrun_relay()->do_cmd_info(p, input, output, result);
 
         remote_dataset_open(jobid, false);
       }
 
       if (remote_dataset == SCDC_DATASET_NULL)
       {
-        SCDC_FAIL("do_cmd_info: no remote dataset available");
-        SCDC_DATASET_OUTPUT_PRINTF(output, "no remote dataset available");
+        result = "no remote dataset available";
+        SCDC_FAIL(__func__ << ": checking remote dataset failed: " << result);
         return false;
       }
 
@@ -195,8 +195,8 @@ class scdc_dataset_jobrun_relay: public scdc_dataset
 
       if (scdc_dataset_cmd(remote_dataset, cmd.c_str(), input, output) != SCDC_SUCCESS)
       {
-        SCDC_FAIL("do_cmd_info: info command failed: " << SCDC_DATASET_OUTPUT_STR(output));
-        SCDC_DATASET_OUTPUT_PRINTF(output, "info command failed");
+        result = "remote command failed";
+        SCDC_FAIL(__func__ << ": checking remote dataset failed: " << result);
         return false;
       }
 
@@ -206,7 +206,7 @@ class scdc_dataset_jobrun_relay: public scdc_dataset
     }
 
 
-    bool do_cmd_put(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+    bool do_cmd_put(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
     {
       string p = params;
       string jobid = pwd;
@@ -220,12 +220,12 @@ class scdc_dataset_jobrun_relay: public scdc_dataset
 
         p += plist.offset();
 
-        if (jobid.empty()) return dataprov_jobrun_relay()->do_cmd_put(p, input, output);
+        if (jobid.empty()) return dataprov_jobrun_relay()->do_cmd_put(p, input, output, result);
 
-        if (!dataprov_jobrun_relay()->sched_job_add(jobid))
+        if (!dataprov_jobrun_relay()->sched_job_add(jobid, result))
         {
-          SCDC_FAIL("do_cmd_put: adding job failed");
-          SCDC_DATASET_OUTPUT_PRINTF(output, "adding job failed");
+          result = "adding job failed: " + result;
+          SCDC_FAIL("do_cmd_put: " << result);
           return false;
         }
 
@@ -234,8 +234,8 @@ class scdc_dataset_jobrun_relay: public scdc_dataset
 
       if (remote_dataset == SCDC_DATASET_NULL)
       {
-        SCDC_FAIL("do_cmd_put: no remote dataset available");
-        SCDC_DATASET_OUTPUT_PRINTF(output, "no remote dataset available");
+        result = "no remote dataset available";
+        SCDC_FAIL(__func__ << ": putting remote dataset failed: " << result);
         return false;
       }
 
@@ -245,8 +245,8 @@ class scdc_dataset_jobrun_relay: public scdc_dataset
 
       if (scdc_dataset_cmd(remote_dataset, cmd.c_str(), input, output) != SCDC_SUCCESS)
       {
-        SCDC_FAIL("do_cmd_put: put command failed: " << SCDC_DATASET_OUTPUT_STR(output));
-        SCDC_DATASET_OUTPUT_PRINTF(output, "put command failed");
+        result = "remote command failed";
+        SCDC_FAIL(__func__ << ": putting remote dataset failed: " << result);
         return false;
       }
 
@@ -256,7 +256,7 @@ class scdc_dataset_jobrun_relay: public scdc_dataset
     }
 
 
-    bool do_cmd_get(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+    bool do_cmd_get(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
     {
       string p = params;
       string jobid = pwd;
@@ -270,15 +270,15 @@ class scdc_dataset_jobrun_relay: public scdc_dataset
 
         p += plist.offset();
 
-        if (jobid.empty()) return dataprov_jobrun_relay()->do_cmd_get(p, input, output);
+        if (jobid.empty()) return dataprov_jobrun_relay()->do_cmd_get(p, input, output, result);
 
         remote_dataset_open(jobid, false);
       }
 
       if (remote_dataset == SCDC_DATASET_NULL)
       {
-        SCDC_FAIL("do_cmd_get: no remote dataset available");
-        SCDC_DATASET_OUTPUT_PRINTF(output, "no remote dataset available");
+        result = "no remote dataset available";
+        SCDC_FAIL(__func__ << ": getting remote dataset failed: " << result);
         return false;
       }
 
@@ -288,8 +288,8 @@ class scdc_dataset_jobrun_relay: public scdc_dataset
 
       if (scdc_dataset_cmd(remote_dataset, cmd.c_str(), input, output) != SCDC_SUCCESS)
       {
-        SCDC_FAIL("do_cmd_get: get command failed: " << SCDC_DATASET_OUTPUT_STR(output));
-        SCDC_DATASET_OUTPUT_PRINTF(output, "get command failed");
+        result = "remote command failed";
+        SCDC_FAIL(__func__ << ": getting remote dataset failed: " << result);
         return false;
       }
 
@@ -299,7 +299,7 @@ class scdc_dataset_jobrun_relay: public scdc_dataset
     }
 
 
-    bool do_cmd_rm(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+    bool do_cmd_rm(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
     {
       string p = params;
       string jobid = pwd;
@@ -313,15 +313,15 @@ class scdc_dataset_jobrun_relay: public scdc_dataset
 
         p += plist.offset();
 
-        if (jobid.empty()) return dataprov_jobrun_relay()->do_cmd_rm(p, input, output);
+        if (jobid.empty()) return dataprov_jobrun_relay()->do_cmd_rm(p, input, output, result);
 
         remote_dataset_open(jobid, false);
       }
 
       if (remote_dataset == SCDC_DATASET_NULL)
       {
-        SCDC_FAIL("do_cmd_rm: no remote dataset available");
-        SCDC_DATASET_OUTPUT_PRINTF(output, "no remote dataset available");
+        result = "no remote dataset available";
+        SCDC_FAIL(__func__ << ": removing remote dataset failed: " << result);
         return false;
       }
 
@@ -331,21 +331,21 @@ class scdc_dataset_jobrun_relay: public scdc_dataset
 
       if (scdc_dataset_cmd(remote_dataset, cmd.c_str(), input, output) != SCDC_SUCCESS)
       {
-        SCDC_FAIL("do_cmd_rm: rm command failed: " << SCDC_DATASET_OUTPUT_STR(output));
-        SCDC_DATASET_OUTPUT_PRINTF(output, "rm command failed");
+        result = "remote command failed";
+        SCDC_FAIL(__func__ << ": removing remote dataset failed: " << result);
         return false;
       }
 
       if (!have_remote) remote_dataset_close();
 
-      if (!dataprov_jobrun_relay()->sched_job_del(jobid))
+      if (!dataprov_jobrun_relay()->sched_job_del(jobid, result))
       {
-        SCDC_FAIL("do_cmd_put: deleting job failed");
-        SCDC_DATASET_OUTPUT_PRINTF(output, "deleting job failed");
+        result = "deleting job failed: " + result;
+        SCDC_FAIL("do_cmd_put: " << result);
         return false;
       }
 
-      do_cmd_cd("", 0, 0);
+      do_cmd_cd("", 0, 0, result);
 
       return true;
     }
@@ -370,13 +370,13 @@ scdc_dataprov_jobrun_relay::scdc_dataprov_jobrun_relay()
 }
 
 
-bool scdc_dataprov_jobrun_relay::open(const char *conf, scdc_args *args)
+bool scdc_dataprov_jobrun_relay::open(const char *conf, scdc_args *args, scdc_result &result)
 {
   SCDC_TRACE("open: '" << conf << "'");
 
   bool ret = true;
 
-  if (!scdc_dataprov_relay::open(conf, args))
+  if (!scdc_dataprov_relay::open(conf, args, result))
   {
     SCDC_FAIL("open: opening base");
     ret = false;
@@ -396,66 +396,67 @@ bool scdc_dataprov_jobrun_relay::open(const char *conf, scdc_args *args)
 }
 
 
-void scdc_dataprov_jobrun_relay::close()
+bool scdc_dataprov_jobrun_relay::close(scdc_result &result)
 {
   SCDC_TRACE("close:");
 
-  scdc_dataprov_relay::close();
+  bool ret = scdc_dataprov_relay::close(result);
+
+  SCDC_TRACE("close: return: " << ret);
+
+  return ret;
 }
 
 
-scdc_dataset *scdc_dataprov_jobrun_relay::dataset_open(const char *path, scdcint_t path_size, scdc_dataset_output_t *output)
+scdc_dataset *scdc_dataprov_jobrun_relay::dataset_open(std::string &path, scdc_result &result)
 {
-  SCDC_TRACE("dataset_open: '" << string(path, path_size) << "'");
-
-  scdc_dataset *dataset = 0;
+  SCDC_TRACE("dataset_open: path: '" << path << "'");
   
-  if (config_open(path, path_size, output, &dataset)) return dataset;
+  scdc_dataset *dataset = 0;
 
-  string jobid(path, path_size);
+  string jobid = path;
 
   if (jobid == "" || sched_job_exists(jobid))
   {
     SCDC_TRACE("dataset_open: local dataset");
   
-    /* stay local and change to sub */
-    scdc_dataset_jobrun_relay *dataset_jobrun_relay = new scdc_dataset_jobrun_relay(this);
-
-    dataset_jobrun_relay->do_cmd_cd(jobid.c_str(), 0, output);
-
-    dataset = dataset_jobrun_relay;
+    /* stay local */
+    dataset = new scdc_dataset_jobrun_relay(this);
 
   } else
   {
     SCDC_TRACE("dataset_open: relay dataset");
 
-    dataset = scdc_dataprov_relay::dataset_open(path, path_size, output);
+    dataset = scdc_dataprov_relay::dataset_open(path, result);
   }
 
-  SCDC_TRACE("dataset_open: return: '" << dataset << "'");
+  SCDC_TRACE("dataset_open: return: " << dataset);
 
   return dataset;
 }
 
 
-void scdc_dataprov_jobrun_relay::dataset_close(scdc_dataset *dataset, scdc_dataset_output_t *output)
+bool scdc_dataprov_jobrun_relay::dataset_close(scdc_dataset *dataset, scdc_result &result)
 {
-  SCDC_TRACE("dataset_close: '" << dataset << "'");
+  SCDC_TRACE("dataset_close: dataset: " << dataset);
 
-  if (config_close(dataset, output)) return;
+  bool ret = false;
 
   if (typeid(*dataset) == typeid(scdc_dataset_jobrun_relay))
   {
     SCDC_TRACE("dataset_close: local dataset");
     delete dataset;
+    ret = true;
 
   } else
   {
     SCDC_TRACE("dataset_close: relay dataset");
-    scdc_dataprov_relay::dataset_close(dataset, output);
+    ret = scdc_dataprov_relay::dataset_close(dataset, result);
   }
 
-  SCDC_TRACE("dataset_close: return");
+  SCDC_TRACE("dataset_close: return: " << ret);
+
+  return ret;
 }
 
 
@@ -508,7 +509,7 @@ do_quit:
 }
 
 
-bool scdc_dataprov_jobrun_relay::do_cmd_ls(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+bool scdc_dataprov_jobrun_relay::do_cmd_ls(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
 {
   SCDC_TRACE("do_cmd_ls: params: '" << params << "'");
 
@@ -521,13 +522,13 @@ bool scdc_dataprov_jobrun_relay::do_cmd_ls(const std::string &params, scdc_datas
 
   if (s.size() > 0) s.resize(s.size() - 1);
 
-  SCDC_DATASET_OUTPUT_PRINTF(output, s.c_str());
+  result = s;
 
   return true;
 }
 
 
-bool scdc_dataprov_jobrun_relay::do_cmd_info(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+bool scdc_dataprov_jobrun_relay::do_cmd_info(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
 {
   SCDC_TRACE("do_cmd_info: params: '" << params << "'");
 
@@ -535,13 +536,13 @@ bool scdc_dataprov_jobrun_relay::do_cmd_info(const std::string &params, scdc_dat
 
   ss << sched_jobs.size() << ":-1:-1";
 
-  SCDC_DATASET_OUTPUT_PRINTF(output, ss.str().c_str());
+  result = ss.str();
 
   return true;
 }
 
 
-bool scdc_dataprov_jobrun_relay::do_cmd_put(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+bool scdc_dataprov_jobrun_relay::do_cmd_put(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
 {
   SCDC_TRACE("do_cmd_put: params: '" << params << "'");
 
@@ -549,7 +550,7 @@ bool scdc_dataprov_jobrun_relay::do_cmd_put(const std::string &params, scdc_data
 }
 
 
-bool scdc_dataprov_jobrun_relay::do_cmd_get(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+bool scdc_dataprov_jobrun_relay::do_cmd_get(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
 {
   SCDC_TRACE("do_cmd_get: params: '" << params << "'");
 
@@ -557,7 +558,7 @@ bool scdc_dataprov_jobrun_relay::do_cmd_get(const std::string &params, scdc_data
 }
 
 
-bool scdc_dataprov_jobrun_relay::do_cmd_rm(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+bool scdc_dataprov_jobrun_relay::do_cmd_rm(const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
 {
   SCDC_TRACE("do_cmd_rm: params: '" << params << "'");
 
@@ -565,7 +566,7 @@ bool scdc_dataprov_jobrun_relay::do_cmd_rm(const std::string &params, scdc_datas
 }
 
 
-bool scdc_dataprov_jobrun_relay::sched_job_add(const std::string &jobid)
+bool scdc_dataprov_jobrun_relay::sched_job_add(const std::string &jobid, scdc_result &result)
 {
   /* last sched exists, but execeeds its max. jobs? */
   if (sched_last != sched.end() && sched_last_jobs >= sched_last->second.max_parallel_jobs)
@@ -597,7 +598,7 @@ bool scdc_dataprov_jobrun_relay::sched_job_add(const std::string &jobid)
 }
 
 
-bool scdc_dataprov_jobrun_relay::sched_job_del(const std::string &jobid)
+bool scdc_dataprov_jobrun_relay::sched_job_del(const std::string &jobid, scdc_result &result)
 {
   return (sched_jobs.erase(jobid) == 1);
 }
@@ -621,7 +622,7 @@ bool scdc_dataprov_jobrun_relay::sched_job_get_relay(const std::string &jobid, s
 }
 
 
-bool scdc_dataprov_jobrun_relay::relay_put(const std::string &path, const std::string &url, std::string &r)
+bool scdc_dataprov_jobrun_relay::relay_put(const std::string &path, const std::string &url, std::string &result)
 {
   SCDC_TRACE("relay_put: path: '" << path << "', url: '" << url << "'");
 
@@ -636,18 +637,18 @@ bool scdc_dataprov_jobrun_relay::relay_put(const std::string &path, const std::s
 
   if (ret)
   {
-    string s = SCDC_DATASET_OUTPUT_STR(output);
+    string s = SCDC_DATASET_OUTPUT_STR_(output);
     stringlist sl(',', s.c_str(), s.size());
 
     if (sl.front_pop() != "jobrun")
     {
-      SCDC_FAIL("relay_put: url '" << url << "' is not a jobrun datprovider");
-      r = "not a jobrun dataprovider";
+      result = "url '" + url + "' is not a jobrun datprovider";
+      SCDC_FAIL("relay_put: " << result);
       ret = false;
 
     } else
     {
-      ret = scdc_dataprov_relay::relay_put(path, url, r);
+      ret = scdc_dataprov_relay::relay_put(path, url, result);
 
       if (ret)
       {
@@ -668,8 +669,8 @@ bool scdc_dataprov_jobrun_relay::relay_put(const std::string &path, const std::s
 
   } else
   {
-    SCDC_FAIL("relay_put: access to data provider '" << url << "' failed: " << SCDC_DATASET_OUTPUT_STR(output));
-    r = "access to data provider failed: " + SCDC_DATASET_OUTPUT_STR(output);
+    result = "accessing data provider '" + url + "' failed: ???";
+    SCDC_FAIL("relay_put: " << result);
   }
 
   scdc_dataset_output_destroy(output);

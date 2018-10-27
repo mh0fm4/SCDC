@@ -21,7 +21,7 @@
 #include <cstdio>
 #include <sstream>
 
-#include "z_pack.h"
+#define SCDC_TRACE_NOT  !SCDC_TRACE_DATAPROV_RELAY
 
 #include "config.hh"
 #include "common.hh"
@@ -42,15 +42,15 @@ using namespace std;
 class scdc_dataset_relay: public scdc_dataset
 {
   public:
-    scdc_dataset_relay(scdc_dataprov *dataprov_)
-      :scdc_dataset(dataprov_) { };
+    scdc_dataset_relay(scdc_dataprov *dataprov_, scdc_dataset_t dataset_)
+      :scdc_dataset(dataprov_), dataset(dataset_) { };
 
 
     void set_dataset(scdc_dataset_t dataset_) { dataset = dataset_; }
     scdc_dataset_t get_dataset() { return dataset; }
 
 
-    virtual bool do_cmd(const char *cmd, scdcint_t cmd_size, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+    virtual bool do_cmd(const char *cmd, scdcint_t cmd_size, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
     {
       SCDC_TRACE("do_cmd: '" << string(cmd, cmd_size) << "'");
 
@@ -84,92 +84,70 @@ scdc_dataprov_relay::scdc_dataprov_relay(const std::string &type_)
 }
 
 
-/*bool scdc_dataprov_relay::open(const char *conf, scdc_args *args)
+scdc_dataset *scdc_dataprov_relay::dataset_open(std::string &path, scdc_result &result)
 {
-  SCDC_TRACE("open: '" << conf << "'");
+  SCDC_TRACE("dataset_open: path: '" << path << "'");
 
-  return scdc_dataprov_register::open(conf, args);
-}
-
-
-void scdc_dataprov_relay::close()
-{
-  SCDC_TRACE("close:");
-
-  scdc_dataprov_register::close();
-}*/
-
-
-scdc_dataset *scdc_dataprov_relay::dataset_open(const char *path, scdcint_t path_size, scdc_dataset_output_t *output)
-{
-  SCDC_TRACE("dataset_open: '" << string(path, path_size) << "'");
-
-  scdc_dataset *dataset = 0;
-  
-  if (config_open(path, path_size, output, &dataset)) return dataset;
-
+  scdc_dataset_relay *dataset_relay = 0;
   scdc_dataset_t ds = SCDC_DATASET_NULL;
 
   relay_t::iterator r;
   for (r = relay.begin(); r != relay.end(); ++r)
   {
-    const char *relay_path = r->first.c_str();
-    scdcint_t relay_path_size = r->first.size();
+    const string &relay_path = r->first;
 
-    const char *dst_path = r->second.c_str();
+    /* if the given path does not contain the relay_path as a prefix, then skip */
+    if (path.substr(0, relay_path.size()) != relay_path) continue;
 
-    if (path_size >= relay_path_size && strncmp(path, relay_path, relay_path_size) == 0 && (path_size == relay_path_size || path[relay_path_size] == '/'))
+    /* remove the relay_path prefix from the full path */
+    string p = path.substr(relay_path.size());
+
+    /* if the full path without the relay_path prefix does not continue with a slash, then skip */
+    if (!p.empty() && p[0] != '/') continue;
+
+    /* remove leading slashs */
+    p = ltrim(p, "/");
+
+    const string &dst_path = r->second;
+
+    string uri = dst_path + "/" + p;
+
+    ds = scdc_dataset_open(uri.c_str());
+
+    if (ds == SCDC_DATASET_NULL)
     {
-      path += relay_path_size;
-      path_size -= relay_path_size;
-
-      /* skip trailing '/' */
-      while (path_size > 0 && path[0] == '/')
-      {
-        ++path;
-        --path_size;
-      }
-
-      string uri = dst_path;
-
-      uri += "/" + string(path, path_size);
-
-      ds = scdc_dataset_open(uri.c_str());
-
-      if (ds == SCDC_DATASET_NULL)
-      {
-        SCDC_DATASET_OUTPUT_PRINTF(output, "opening remote dataset '%s' failed", uri.c_str());
-        SCDC_FAIL("opening remote dataset '" << uri << "' failed");
-      }
-
-      break;
+      result = "opening remote dataset '" + uri + "' failed";
+      SCDC_FAIL(__func__ << ": scdc_dataset_open failed: " << result);
     }
+
+    break;
   }
+
+  if (r == relay.end()) result = "no matching relay found";
 
   if (ds == SCDC_DATASET_NULL)
   {
-    if (r == relay.end()) SCDC_DATASET_OUTPUT_PRINTF(output, "no matching relay found");
-
-    SCDC_FAIL("dataset_open: failed: '" << SCDC_DATASET_OUTPUT_STR(output) << "'");
-
-    return 0;
+    SCDC_FAIL(__func__ << ": failed: " << result);
+    goto do_return;
   }
 
-  scdc_dataset_relay *dataset_relay = new scdc_dataset_relay(this);
+  /* unset path to prevent a further cd command */
+  path.clear();
 
-  dataset_relay->set_dataset(ds);
+  dataset_relay = new scdc_dataset_relay(this, ds);
 
-  SCDC_TRACE("dataset_open: return: '" << dataset_relay << "'");
+do_return:
+  SCDC_TRACE("dataset_open: return: " << dataset_relay);
 
   return dataset_relay;
 }
 
 
-void scdc_dataprov_relay::dataset_close(scdc_dataset *dataset, scdc_dataset_output_t *output)
+bool scdc_dataprov_relay::dataset_close(scdc_dataset *dataset, scdc_result &result)
 {
-  SCDC_TRACE("dataset_close: '" << dataset << "'");
+  SCDC_TRACE("dataset_close: dataset: " << dataset);
 
-  if (config_close(dataset, output)) return;
+  bool ret = true;
 
   scdc_dataset_relay *dataset_relay = static_cast<scdc_dataset_relay *>(dataset);
 
@@ -179,7 +157,9 @@ void scdc_dataprov_relay::dataset_close(scdc_dataset *dataset, scdc_dataset_outp
 
   delete dataset;
 
-  SCDC_TRACE("dataset_close: return");
+  SCDC_TRACE("dataset_close: return: " << ret);
+
+  return ret;
 }
 
 
@@ -265,11 +245,11 @@ do_quit:
 }
 
 
-bool scdc_dataprov_relay::dataset_cmds_do_cmd(scdc_dataset *dataset, const std::string &cmd, const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+bool scdc_dataprov_relay::dataset_cmds_do_cmd(scdc_dataset *dataset, const std::string &cmd, const std::string &params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
 {
   SCDC_TRACE("dataset_cmds_do_cmd: cmd: '" << cmd << "', params: '" << params << "'");
 
-  bool ret = scdc_dataprov::dataset_cmds_do_cmd(dataset, cmd, params, input, output);
+  bool ret = scdc_dataprov::dataset_cmds_do_cmd(dataset, cmd, params, input, output, result);
 
   SCDC_TRACE("dataset_cmds_do_cmd: return: '" << ret << "'");
 

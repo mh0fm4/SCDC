@@ -611,16 +611,54 @@ Z_DECLARE_FUNCTION_END
 #ifdef Z_PACK_STDIO
 
 #if HAVE_STDIO_H || STDC_HEADERS
-#  ifdef __cplusplus
-#   include <cstdio>
-#  else
-#   include <stdio.h>
-#  endif
+# ifdef __cplusplus
+#  include <cstdio>
+# else
+#  include <stdio.h>
+# endif
 #endif
 
 int z_snscanf(const char *str, size_t size, const char *format, ...);
 
 #endif /* Z_PACK_STDIO */
+
+
+#if defined(Z_PACK_CXX) && defined(__cplusplus)
+
+# if HAVE_STDIO_H || STDC_HEADERS
+#  include <cstdio>
+# endif
+# include <string>
+
+namespace zxx {
+
+#define ZXX_TO_STRING(_f_, _v_) { char s[64]; snprintf(s, sizeof(s), _f_, _v_); return std::string(s); }
+
+# if __cplusplus < 201103L
+
+inline static std::string to_string(int val) ZXX_TO_STRING("%d", val);
+inline static std::string to_string(long val) ZXX_TO_STRING("%ld", val);
+inline static std::string to_string(long long val) ZXX_TO_STRING("%lld", val);
+inline static std::string to_string(unsigned val) ZXX_TO_STRING("%u", val);
+inline static std::string to_string(unsigned long val) ZXX_TO_STRING("%lu", val);
+inline static std::string to_string(unsigned long long val) ZXX_TO_STRING("%llu", val);
+inline static std::string to_string(float val) ZXX_TO_STRING("%f", val);
+inline static std::string to_string(double val) ZXX_TO_STRING("%f", val);
+inline static std::string to_string(long double val) ZXX_TO_STRING("%Lf", val);
+
+# else /* __cplusplus < 201103L */
+
+using std::to_string;
+
+# endif /* __cplusplus < 201103L */
+
+inline static std::string to_string(void *val) ZXX_TO_STRING("%p", val);
+
+#undef ZXX_TO_STRING
+
+} /* namespace zxx */
+
+#endif /* Z_PACK_CXX && __cplusplus */
 
 
 #endif /* __Z_PACK_H__ */

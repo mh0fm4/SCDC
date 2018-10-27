@@ -40,8 +40,10 @@ ifeq ($(USE_MPI),)
 endif
 
 ifeq ($(USE_WEBDAV),)
- CXXFILES_IGNORE+=dataprov/dataprov_webdav.cc
+ CXXFILES_IGNORE+=dataprov/dataprov_webdav.cc dataprov/posix_webdav_handler.cc
  HXXFILES_IGNORE+=dataprov/dataprov_webdav.hh
+ CXXFILES_IGNORE+=dataprov/dataprov_webdav2.cc
+ HXXFILES_IGNORE+=dataprov/dataprov_webdav2.hh
 endif
 
 ifneq ($(USE_DAVIX),)
@@ -49,6 +51,8 @@ ifneq ($(USE_DAVIX),)
 endif
 
 ifeq ($(USE_NFS),)
- CXXFILES_IGNORE+=dataprov/dataprov_nfs.cc
+ CXXFILES_IGNORE+=dataprov/dataprov_nfs.cc dataprov/posix_nfs_handler.cc
  HXXFILES_IGNORE+=dataprov/dataprov_nfs.hh
+ CXXFILES_IGNORE+=dataprov/dataprov_nfs2.cc
+ HXXFILES_IGNORE+=dataprov/dataprov_nfs2.hh
 endif

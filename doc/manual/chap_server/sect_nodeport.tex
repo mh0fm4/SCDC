@@ -1,0 +1,82 @@
+\section{Node port management}
+\label{sect:server_nodeport}
+
+Node ports represent the access methods through which a service component can be accessed by a client component.
+Direct access to a local service component within the same process with function calls is enabled by default.
+Further access methods can be enabled by opening new node ports with the function \fnct{scdc_nodeport_open}.
+An open node port is identified by a handle of type \dtyp{scdc_nodeport_t}, which can be used for
+starting and stopping accepting connections with the functions \fnct{scdc_nodeport_start} and \fnct{scdc_nodeport_stop},
+canceling a running node port (\ie, when started in a blocking mode) with the function \fnct{scdc_nodeport_cancel},
+and to close a node port with the functions \fnct{scdc_nodeport_close}.
+A node port can be started and stopped multiple times as long as it is not closed.
+Furthermore, node ports should always be properly stopped (if started) and closed to allow for an appropriate release of utilized system resources.
+Details about specific access methods available are described in Chapter~\ref{chap:nodeport}.
+
+\reffnc{scdc_nodeport_t scdc_nodeport_open(const char *conf, ...);}{
+\reffncparam{conf}{String of colon-separated configuration parameters.}
+\reffncparam{...}{Varying number of additional parameters.}
+\reffncret{Handle of the created node port or \code{SCDC_NODEPORT_NULL} if the function failed.}
+\reffncdesc{Function to open a new node port.
+The specific access method to be used has to be specified as the first configuration parameter given in parameter \prmt{conf}.
+Currently, the following access methods are supported:
+\reflst{
+\reflstcode{direct} Direct function calls (see Sect.~\ref{sect:nodeport_direct}).
+\reflstcode{uds} Unix domain socket (see Sect.~\ref{sect:nodeport_uds}).
+\reflstcode{tcp} TCP/IP network communication  (see Sect.~\ref{sect:nodeport_tcp}).
+\reflstcode{mpi} Message Passing Interface (see Sect.~\ref{sect:nodeport_mpi}).
+}
+}
+}
+
+\reffnc{void scdc_nodeport_close(scdc_nodeport_t nodeport);}{
+\reffncparam{nodeport}{Handle of the node port.}
+\reffncdesc{Function to close a node port.}
+}
+
+\reffnc{scdcint_t scdc_nodeport_start(scdc_nodeport_t nodeport, scdcint_t mode);}{
+\reffncparam{nodeport}{Handle of the node port.}
+\reffncparam{mode}{Specification of the mode for starting the node port (see description below).}
+\reffncret{Whether the function was successful (\cnst{SCDC_SUCCESS}) or not (\cnst{SCDC_FAILURE}).}
+\reffncdesc{Function to start accepting connections by a node port.
+The parameter \prmt{mode} has to be used to specify the mode for running the node port.
+Currently, the following modes specified with predefined constants are supported:
+\reflst{
+\reflstcode{SCDC_NODEPORT_START_NONE}{Do not run the node port.}
+\reflstcode{SCDC_NODEPORT_START_LOOP_UNTIL_CANCEL}{Run the node port in a blocking way (\ie, function blocks) until canceled with function \fnct{scdc_nodeport_cancel}.}
+%\reflstcode{SCDC_NODEPORT_START_LOOP_UNTIL_IDLE}{}
+\reflstcode{SCDC_NODEPORT_START_ASYNC_UNTIL_CANCEL}{Run the node port in a non-blocking way (\ie, function returns immediately) until canceled with function \fnct{scdc_nodeport_cancel}.}
+%\reflstcode{SCDC_NODEPORT_START_ASYNC_UNTIL_IDLE}{}
+}
+}
+}
+
+\reffnc{scdcint_t scdc_nodeport_stop(scdc_nodeport_t nodeport);}{
+\reffncparam{nodeport}{Handle of the node port.}
+\reffncret{Whether the function was successful (\cnst{SCDC_SUCCESS}) or not (\cnst{SCDC_FAILURE}).}
+\reffncdesc{Function to stop accepting connections by a node port.}
+}
+
+\reffnc{scdcint_t scdc_nodeport_cancel(scdc_nodeport_t nodeport, scdcint_t interrupt);}{
+\reffncparam{nodeport}{Handle of the node port.}
+\reffncparam{interrupt}{Specifies whether the cancellation should be performed \enquote{hard} (1) or \enquote{soft} (0).}
+\reffncret{Whether the function was successful (\cnst{SCDC_SUCCESS}) or not (\cnst{SCDC_FAILURE}).}
+\reffncdesc{Function to cancel accepting connections by a node port (\ie, if the node port was started in in a blocking mode).}
+}
+
+The following auxiliary functions are provided to ease the handling of node port-specific parts of URI addresses.
+The function \fnct{scdc_nodeport_authority} can be used to construct the authority part of an URI address for a specific access method.
+The function \fnct{scdc_nodeport_supported} can be used to test whether the library supports the specific access method given by an URI address.
+
+\reffnc{const char *scdc_nodeport_authority(const char *conf, ...);}{
+\reffncparam{conf}{String of colon-separated configuration parameters.}
+\reffncparam{...}{Varying number of additional parameters.}
+\reffncret{Pointer to a static string containing the authority information or NULL if the function failed.}
+\reffncdesc{Function to construct the authority information of an URI address for a given node port and its properties.}
+}
+
+\reffnc{scdcint_t scdc_nodeport_supported(const char *uri, ...);}{
+\reffncparam{uri}{String containing the pattern of the URI address. The string can include placeholders \enquote{\code{\%s}} that are replaced with strings given as additional parameters.}
+\reffncparam{...}{Varying number of additional parameters.}
+\reffncret{Whether the node port is supported (\cnst{SCDC_SUCCESS}) or not (\cnst{SCDC_FAILURE}).}
+\reffncdesc{Function to determine whether a node port specified by the scheme of a given URI address is supported.}
+}

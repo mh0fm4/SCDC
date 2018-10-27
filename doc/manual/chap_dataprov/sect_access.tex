@@ -1,0 +1,94 @@
+\section{Access: File system storage}
+\label{sect:dataprov_access}
+
+\begin{itemize}
+  \item file system storage
+  \item backends: local file system, NFS, WebDAV
+\end{itemize}
+
+
+\subsection{Server-side setup}
+
+\begin{description}
+  \item[\texttt{access:fs}] Parameter: root directory
+  \item[\texttt{access:nfs}] Parameter: NFS export URL \texttt{nfs://<host>/<path>}
+  \item[\texttt{access:webdav[:username:password]}] Parameter: WebDAV server URL \texttt{http://<host>[:port]/<path>}\\
+if the optional config switches \text{username} and \text{password} are given, then the user name and the password have to given as separate string parameters
+\end{description}
+
+
+\subsection{Client-side usage}
+
+\begin{dscmdref}
+
+% command: cd
+\refcmd{cd [|<dir>]}{
+\refcmduse{
+Change to directory given by \dscmd{<dir>}.
+}
+% \refcmdparam{[|<dir>]}
+\refcmdfail{Store \dscmd{<dir>} does not exist.}
+}
+
+% command: ls
+\refcmd{ls}{
+\refcmduse{List entries of the current directory.}
+\refcmdres{Number and list of entries separated by \enquote{|} character.}
+}
+
+% command: info
+\refcmd{info [|<entry>]}{
+\refcmduse{General information about the current directory or the given directory/file <entry>.}
+% \refcmdparam{[|<entry>]}
+\refcmdres{Directory or file information.}
+}
+
+% command: mkd
+\refcmd{mkd <dir>}{
+\refcmduse{Create directory <dir> within the current directory.}
+% \refcmdparam{<dir>}
+\refcmdfail{Directory \dscmd{<dir>} could not be created.}
+}
+
+% command: put
+\refcmd{put <file> [<pos>][:<size>]}{
+\refcmduse{
+Write data from the command input to the file \dscmd{<file>} of the current directory.
+Data is written at the beginning of the file or (optionally) at position \dscmd{<pos>}.
+Either all input or (optionally) at most \dscmd{<size>} bytes are written.
+If the entry already exists, its data is overwritten.
+If the entry does not exists, it is created.
+}
+% \refcmdparam{<file> [<pos>][:<size>]}
+\refcmdin{Data to be written to the file.}
+\refcmdfail{File \dscmd{<file>} could not be created or data write failed.}
+}
+
+% command: get
+\refcmd{get <file> [<pos>][:<size>]}{
+\refcmduse{
+Read data from the file \dscmd{<file>} of the current directory into the command output.
+Data is read at the beginning of the file or (optionally) at position \dscmd{<pos>}.
+Either all data or (optionally) at most \dscmd{<size>} bytes are read.
+If the file does not exists, then the command fails.
+}
+% \refcmdparam{<file> [<pos>][:<size>}
+\refcmdout{Data read from the file.}
+\refcmdfail{Entry \dscmd{<entry>} does not exist or data read failed.}
+}
+
+% command: rm
+\refcmd{rm [<entry>]}{
+\refcmduse{Remove the directory/file <entry> of the current directory.}
+% \refcmdparam{<entry>}
+\refcmdfail{Directory/file \dscmd{<entry>} does not exist or could not be removed.}
+}
+
+\end{dscmdref}
+
+
+\subsection{Configuration}
+
+\begin{description}
+  \item[\texttt{access:fs}] none
+\end{description}

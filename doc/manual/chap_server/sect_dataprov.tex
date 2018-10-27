@@ -1,0 +1,31 @@
+\section{Data provider management}
+\label{sect:server_dataprov}
+
+Data providers represent the services provided by a service component.
+A new service can be created by opening a new data provider with the function \fnct{scdc_dataprov_open}.
+An open data provider is identified by a handle of type \dtyp{scdc_dataprov_t}, which can be used to close a data provider with the functions \fnct{scdc_dataprov_close}.
+A service component can provide multiple services through different data providers.
+Each data provider is identified by a unique base path within the URI-based addressing scheme.
+Data providers should always be properly closed to allow for an appropriate release of utilized system resources.
+Details about specific data providers available are described in Chapter~\ref{chap:dataprov}.
+
+\reffnc{scdc_dataprov_t scdc_dataprov_open(const char *base_path, const char *conf, ...);}{
+\reffncparam{base_path}{String specifying the base path for the URI address of the data provider.}
+\reffncparam{conf}{String of colon-separated configuration parameters.}
+\reffncparam{...}{Varying number of additional parameters.}
+\reffncret{Handle of the created data provider or \code{SCDC_DATAPROV_NULL} if the function failed.}
+\reffncdesc{Function to open a new data provider.
+The specific data provider to be used has to be specified as the first configuration parameter given in parameter \prmt{conf}.
+Currently, the following data provider are supported:
+\reflst{
+\reflstcode{hook} Arbitrary functionality with user-defined hook functions (see Sect.~\ref{sect:dataprov_hook}).
+\reflstcode{access} File system storage with different backends (see Sect.~\ref{sect:dataprov_access}).
+\reflstcode{store} Non-hierarchical folder-oriented storage with different backends (see Sect.~\ref{sect:dataprov_store}).
+}
+}
+}
+
+\reffnc{void scdc_dataprov_close(scdc_dataprov_t dataprov);}{
+\reffncparam{nodeport}{Handle of the data provider.}
+\reffncdesc{Function to close a data provider.}
+}

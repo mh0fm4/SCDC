@@ -22,6 +22,8 @@
 #define __COMPCOUP_HH__
 
 
+#include <string>
+
 #include "dataset.hh"
 #include "dataprov_pool.hh"
 
@@ -33,9 +35,9 @@ class scdc_compcoup
       :dataprovs(0) { };
     virtual ~scdc_compcoup() { };
 
-    virtual scdc_dataset *dataset_open(const char *path, scdcint_t path_size, scdc_dataset_output_t *output) = 0;
-    virtual void dataset_close(scdc_dataset *dataset, scdc_dataset_output_t *output) = 0;
-    virtual bool dataset_cmd(const char *cmd, scdcint_t cmd_size, scdc_dataset_input_t *input, scdc_dataset_output_t *output);
+    virtual scdc_dataset *dataset_open(const std::string &path, scdc_result &result) = 0;
+    virtual bool dataset_close(scdc_dataset *dataset, scdc_result &result) = 0;
+    virtual bool dataset_cmd(const std::string &cmd, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result);
 
     virtual bool start(scdcint_t mode) = 0;
     virtual bool stop() = 0;

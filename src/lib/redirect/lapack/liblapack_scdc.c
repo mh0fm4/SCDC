@@ -24,8 +24,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "common.h"
 #include "z_pack.h"
+
+#include "lapack_scdc_config.h"
+#include "common.h"
 #include "lapack.h"
 #include "lapack_call.h"
 #include "lapack_scdc.h"
@@ -108,8 +110,8 @@ void liblapack_scdc_init()
 
     if (!liblapack_scdc_uri)
     {
-#if defined(LIBLAPACK_SCDC_URI)
-      liblapack_scdc_uri = LIBLAPACK_SCDC_URI;
+#if defined(LIBLAPACK_SCDC_URI_DEFAULT)
+      liblapack_scdc_uri = LIBLAPACK_SCDC_URI_DEFAULT;
 #elif LIBLAPACK_SCDC_LOCAL
       liblapack_scdc_uri = LIBLAPACK_SCDC_LOCAL_URI LIBLAPACK_SCDC_LOCAL_BASE;
 #endif
@@ -187,17 +189,25 @@ void LIB_F(sgesv_)(const int *N, const int *NRHS, float *A, const int *LDA, int 
 
   liblapack_scdc_init();
 
-  lapack_call_t lc;
+#if LIBLAPACK_SCDC_CACHE
+  lapack_cache_t lch;
+  LAPACK_CACHE(create)(&lch);
+#endif
 
+  lapack_call_t lc;
   LAPACK_CALL(create_scdc)(&lc, "sgesv", liblapack_scdc_uri);
+
+#if LIBLAPACK_SCDC_CACHE
+  LAPACK_CALL(set_cache_ptr)(&lc, &lch);
+#endif
 
   LAPACK_CALL(put_input_conf_int)(&lc, "N", *N);
   LAPACK_CALL(put_input_conf_int)(&lc, "NRHS", *NRHS);
 
-  LAPACK_CALL(put_inout_param_matrix_float)(&lc, "A", *N, *N, A, *LDA, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
-  LAPACK_CALL(put_inout_param_matrix_float)(&lc, "B", *N, *NRHS, B, *LDB, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
+  LAPACK_CALL(put_inout_param_matrix_float)(&lc, "A", A, *N, *N, *LDA, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
+  LAPACK_CALL(put_inout_param_matrix_float)(&lc, "B", B, *N, *NRHS, *LDB, RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR);
 
-  LAPACK_CALL(put_output_param_vector_int)(&lc, "IPIV", *N, IPIV);
+  LAPACK_CALL(put_output_param_array_int)(&lc, "IPIV", IPIV, *N);
 
   if(!LAPACK_CALL(execute)(&lc))
   {
@@ -206,16 +216,20 @@ void LIB_F(sgesv_)(const int *N, const int *NRHS, float *A, const int *LDA, int 
   }
 
   float *A_ = A, *B_ = B;
-  int LDA_ = *LDA, LDB_ = *LDB;
-  int rcma_ = RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR;
-  int rcmb_ = RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR;
-  LAPACK_CALL(get_output_param_matrix_float)(&lc, "A", *N, *N, &A_, &LDA_, &rcma_);
-  LAPACK_CALL(get_output_param_matrix_float)(&lc, "B", *N, *NRHS, &B_, &LDB_, &rcmb_);
+  rdint_t NRA_ = *N, NCA_ = *N, NRB_ = *N, NCB_ = *NRHS;
+  rdint_t LDA_ = *LDA, LDB_ = *LDB;
+  rdint_t rcma_ = RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR;
+  rdint_t rcmb_ = RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR;
+  LAPACK_CALL(get_output_param_matrix_float)(&lc, "A", &A_, &NRA_, &NCA_, &LDA_, &rcma_);
+  LAPACK_CALL(get_output_param_matrix_float)(&lc, "B", &B_, &NRB_, &NCB_, &LDB_, &rcmb_);
 
-  ASSERT(A_ == A && LDA_ == *LDA && rcma_ == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
-  ASSERT(B_ == B && LDB_ == *LDB && rcmb_ == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
+  ASSERT(A_ == A && NRA_ == *N && NCA_ == *N && LDA_ == *LDA && rcma_ == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
+  ASSERT(B_ == B && NCB_ == *N && NCB_ == *NRHS && LDB_ == *LDB && rcmb_ == (RCM_TYPE_DENSE|RCM_ORDER_COL_MAJOR));
 
-  LAPACK_CALL(get_output_param_vector_int)(&lc, "IPIV", *N, &IPIV);
+  rdint_t NIPIV_ = *N;
+  LAPACK_CALL(get_output_param_array_int)(&lc, "IPIV", &IPIV, &NIPIV_);
+
+  ASSERT(NIPIV_ == *N);
 
   LAPACK_CALL(get_output_conf_int)(&lc, "INFO", INFO);
 
@@ -223,6 +237,10 @@ void LIB_F(sgesv_)(const int *N, const int *NRHS, float *A, const int *LDA, int 
 
 do_quit:
   LAPACK_CALL(destroy_scdc)(&lc);
+
+#if LIBLAPACK_SCDC_CACHE
+  LAPACK_CACHE(destroy)(&lch);
+#endif
 
   liblapack_scdc_release();
 
@@ -261,31 +279,66 @@ void LIB_F(strsv)(const char *UPLO, const char *TRANS, const char *DIAG, const i
 {
   TRACE_F("%s: UPLO: %c, TRANS: %c, DIAG: %c, N: %d, A: %p, LDA: %d, X: %p, INCX: %d", __func__, *UPLO, *TRANS, *DIAG, *N, A, *LDA, X, *INCX);
 
+  LAPACK_TIMING_INIT_();
+
+  LAPACK_TIMING_START(liblapack_scdc_timing[0]);
+
+#if LIBLAPACK_SCDC_ENABLED
+
   liblapack_scdc_init();
 
-  lapack_call_t lc;
+#if LIBLAPACK_SCDC_CACHE
+  lapack_cache_t lch;
+  LAPACK_CACHE(create)(&lch);
+#endif
 
+  lapack_call_t lc;
   LAPACK_CALL(create_scdc)(&lc, "strsv", liblapack_scdc_uri);
+
+#if LIBLAPACK_SCDC_CACHE
+  LAPACK_CALL(set_cache_ptr)(&lc, &lch);
+#endif
 
   LAPACK_CALL(put_input_conf_char)(&lc, "UPLO", *UPLO);
   LAPACK_CALL(put_input_conf_char)(&lc, "TRANS", *TRANS);
   LAPACK_CALL(put_input_conf_char)(&lc, "DIAG", *DIAG);
 
   LAPACK_CALL(put_input_conf_int)(&lc, "N", *N);
-  LAPACK_CALL(put_input_param_matrix_float)(&lc, "A", *N, *N, A, *LDA, (NETLIB_UPLO_IS_UPPER(*UPLO)?RCM_TYPE_TRIANGULAR_UPPER:RCM_TYPE_TRIANGULAR_LOWER)|RCM_ORDER_COL_MAJOR);
+  LAPACK_CALL(put_input_param_matrix_float)(&lc, "A", A, *N, *N, *LDA, (NETLIB_UPLO_IS_UPPER(*UPLO)?RCM_TYPE_TRIANGULAR_UPPER:RCM_TYPE_TRIANGULAR_LOWER)|RCM_ORDER_COL_MAJOR);
 
-  LAPACK_CALL(put_input_param_vector_float)(&lc, "X", *N, X, *INCX);
+  LAPACK_CALL(put_input_param_vector_float)(&lc, "X", X, *N, *INCX);
 
-  LAPACK_CALL(execute)(&lc);
+  if(!LAPACK_CALL(execute)(&lc))
+  {
+    TRACE_F("%s: failed", __func__);
+    goto do_quit;
+  }
 
-  int INCX_ = *INCX;
-  LAPACK_CALL(get_output_param_vector_float)(&lc, "X", *N, &X, &INCX_);
+  rdint_t N_ = *N;
+  rdint_t INCX_ = *INCX;
+  LAPACK_CALL(get_output_param_vector_float)(&lc, "X", &X, &N_, &INCX_);
 
-  ASSERT(INCX_ == *INCX);
+  ASSERT(N_ == *N && INCX_ == *INCX);
 
+do_quit:
   LAPACK_CALL(destroy_scdc)(&lc);
 
+#if LIBLAPACK_SCDC_CACHE
+  LAPACK_CACHE(destroy)(&lch);
+#endif
+
   liblapack_scdc_release();
+
+#else /* LIBLAPACK_SCDC_ENABLED */
+
+  LAPACK_ORIG_F_INIT(strsv_);
+  LAPACK_ORIG_F(MANGLE_LAPACK(strsv_))(UPLO, TRANS, DIAG, N, A, LDA, X, INCX);
+
+#endif /* LIBLAPACK_SCDC_ENABLED */
+
+  LAPACK_TIMING_STOP(liblapack_scdc_timing[0]);
+
+  LAPACK_TIMING_PRINT_F("%s: %f  %f", __func__, liblapack_scdc_timing[0], liblapack_scdc_timing[1]);
 
   TRACE_F("%s: return", __func__);
 }

@@ -31,9 +31,9 @@ class scdc_compcoup_direct: public scdc_compcoup
     scdc_compcoup_direct();
     virtual ~scdc_compcoup_direct();
 
-    virtual scdc_dataset *dataset_open(const char *path, scdcint_t path_size, scdc_dataset_output_t *output);
-    virtual void dataset_close(scdc_dataset *dataset, scdc_dataset_output_t *output);
-    virtual bool dataset_cmd(const char *cmd, scdcint_t cmd_size, scdc_dataset_input_t *input, scdc_dataset_output_t *output);
+    virtual scdc_dataset *dataset_open(const std::string &path, scdc_result &result);
+    virtual bool dataset_close(scdc_dataset *dataset, scdc_result &result);
+    virtual bool dataset_cmd(const std::string &cmd, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result);
 
     virtual bool start(scdcint_t mode);
     virtual bool stop();

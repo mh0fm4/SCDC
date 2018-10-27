@@ -29,7 +29,7 @@ void *blas_scdc_open(const char *conf, va_list ap);
 scdcint_t blas_scdc_close(void *dataprov);
 /*void *blas_scdc_dataset_open(void *dataprov, const char *path);
 scdcint_t blas_scdc_dataset_close(void *dataprov, void *dataset);*/
-scdcint_t blas_scdc_dataset_cmd(void *dataprov, void *dataset, const char *cmd, const char *params, scdc_dataset_input_t *input, scdc_dataset_output_t *output);
+scdcint_t blas_scdc_dataset_cmd(void *dataprov, void *dataset, const char *cmd, const char *params, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result_t *result);
 
 const static scdc_dataprov_hook_t blas_scdc_hook = {
   blas_scdc_open, /* open */

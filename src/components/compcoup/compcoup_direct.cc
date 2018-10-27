@@ -46,53 +46,53 @@ scdc_compcoup_direct::~scdc_compcoup_direct()
 }
 
 
-scdc_dataset *scdc_compcoup_direct::dataset_open(const char *path, scdcint_t path_size, scdc_dataset_output_t *output)
+scdc_dataset *scdc_compcoup_direct::dataset_open(const std::string &path, scdc_result &result)
 {
-  SCDC_TRACE("dataset_open: '" << string(path, path_size) << "'");
+  SCDC_TRACE("dataset_open: path: '" << path << "'");
 
   if (!running)
   {
-    SCDC_DATASET_OUTPUT_PRINTF(output, "direct disabled");
+    result = "direct disabled";
     return 0;
   }
 
   if (!dataprovs)
   {
-    SCDC_DATASET_OUTPUT_PRINTF(output, "no data provider available");
+    result = "no data provider available";
     return 0;
   }
 
-  scdc_dataset *dataset = dataprovs->dataset_open(path, path_size, output);
+  scdc_dataset *dataset = dataprovs->dataset_open(path, result);
 
   return dataset;
 }
 
 
-void scdc_compcoup_direct::dataset_close(scdc_dataset *dataset, scdc_dataset_output_t *output)
+bool scdc_compcoup_direct::dataset_close(scdc_dataset *dataset, scdc_result &result)
 {
   SCDC_TRACE("dataset_close: '" << dataset << "'");
 
   if (!dataprovs)
   {
-    SCDC_DATASET_OUTPUT_PRINTF(output, "no data provider available");
-    return;
+    result = "no data provider available";
+    return false;
   }
 
-  dataprovs->dataset_close(dataset, output);
+  return dataprovs->dataset_close(dataset, result);
 }
 
 
-bool scdc_compcoup_direct::dataset_cmd(const char *cmd, scdcint_t cmd_size, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+bool scdc_compcoup_direct::dataset_cmd(const std::string &cmd, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
 {
-  SCDC_TRACE("dataset_cmd: '" << string(cmd, cmd_size) << "'");
+  SCDC_TRACE("dataset_cmd: cmd: '" << cmd << "'");
 
   if (!running)
   {
-    SCDC_DATASET_OUTPUT_PRINTF(output, "direct disabled");
+    result = "direct disabled";
     return 0;
   }
 
-  return scdc_compcoup::dataset_cmd(cmd, cmd_size, input, output);
+  return scdc_compcoup::dataset_cmd(cmd, input, output, result);
 }
 
 

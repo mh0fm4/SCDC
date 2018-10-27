@@ -145,6 +145,11 @@ class scdc_dataset_transport: public scdc_dataset
       return ret;
     }
 
+    static bool write_string(scdc_transport_connection_t *transport_connection_, const string &s)
+    {
+      return write_string(transport_connection_, s.c_str(), s.size());
+    }
+
 
     static bool read_string(scdc_transport_connection_t *transport_connection_, std::string *s)
     {
@@ -397,9 +402,9 @@ class scdc_dataset_transport: public scdc_dataset
     }
 
 
-    bool do_cmd(const char *cmd, scdcint_t cmd_size, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+    bool do_cmd(const string &cmd, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
     {
-      return compcoup_transport->dataset_cmd(this, cmd, cmd_size, input, output);
+      return compcoup_transport->dataset_cmd(this, cmd, input, output, result);
     }
 
 
@@ -427,7 +432,7 @@ scdc_compcoup_transport::~scdc_compcoup_transport()
 }
 
 
-static scdcint_t read_input_next(scdc_dataset_input_t *input)
+static scdcint_t read_input_next(scdc_dataset_input_t *input, scdc_result_t *result)
 {
   SCDC_TRACE("read_input_next:");
 
@@ -465,7 +470,7 @@ static scdcint_t read_input_next(scdc_dataset_input_t *input)
 }
 
 
-static scdcint_t read_output_next(scdc_dataset_output_t *output)
+static scdcint_t read_output_next(scdc_dataset_output_t *output, scdc_result_t *result)
 {
   SCDC_TRACE("read_output_next:");
 
@@ -503,36 +508,35 @@ static scdcint_t read_output_next(scdc_dataset_output_t *output)
 }
 
 
-scdc_dataset *scdc_compcoup_transport::dataset_open(const char *path, scdcint_t path_size, scdc_dataset_output_t *output)
+scdc_dataset *scdc_compcoup_transport::dataset_open(const string &path, scdc_result &result)
 {
-  SCDC_TRACE("dataset_open: '" << string(path, path_size) << "'");
+  SCDC_TRACE("dataset_open: path: '" << path << "'");
 
   if (!transport_connection->acquire())
   {
-    SCDC_FAIL("dataset_open: acquiring connection failed!");
-    SCDC_DATASET_OUTPUT_PRINTF(output, "acquiring connection failed");
+    result = "acquiring connection failed";
+    SCDC_FAIL(__func__ << ": " << result);
     return 0;
   }
 
   bool ret = true;
 
-  /* send request: DATASET_OPEN <output-info> <path> */
+  /* send request: DATASET_OPEN <path> */
 
   ret = ret && scdc_dataset_transport::write_delim(transport_connection, "DATASET_OPEN", -1, default_delim);
-  ret = ret && scdc_dataset_transport::write_output_info(transport_connection, output);
-  ret = ret && scdc_dataset_transport::write_string(transport_connection, path, path_size);
+  ret = ret && scdc_dataset_transport::write_string(transport_connection, path);
 
   ret = ret && transport->send_outgoing(transport_connection);
 
   if (!ret)
   {
-    SCDC_FAIL("dataset_open: sending open request failed!");
-    SCDC_DATASET_OUTPUT_PRINTF(output, "sending open request failed");
+    result = "sending open request failed";
+    SCDC_FAIL(__func__ << ": " << result);
     transport_connection->release();
     return 0;
   }
 
-  /* read answer: DATASET_OPEN (OK|FAILED) (STATE <state>|NOSTATE) (<output-info> <output-data> )+ */
+  /* read answer: DATASET_OPEN (OK|FAILED) (STATE <state>|NOSTATE) RESULT <string> */
 
   string s;
 
@@ -564,48 +568,14 @@ scdc_dataset *scdc_compcoup_transport::dataset_open(const char *path, scdcint_t 
     SCDC_ASSERT(s == "NOSTATE");
   }
 
-  if (!ret)
-  {
-    SCDC_FAIL("dataset_open: reading open answer failed!");
-    SCDC_DATASET_OUTPUT_PRINTF(output, "reading open answer failed");
-    delete dataset_transport;
-    transport_connection->release();
-    return 0;
-  }
-
-  /* final output is either consumed by a given next function or has to be further consumed using the next function */
-  bool output_next = false;
-  ret = ret && dataset_output_incoming_consume(transport_connection, output, &output_next);
-
-  if (output)
-  {
-    if (output_next)
-    {
-      output->next = read_output_next;
-      output->data = transport_connection;
-
-    } else
-    {
-      if (transport_connection->current_incoming_output_intern)
-      {
-        output->next = read_output_next;
-        output->data = transport_connection;
-
-        /* unset internal buffer usage for next 'next' */
-        transport_connection->current_incoming_output_intern = false;
-
-      } else
-      {
-        output->next = 0;
-        output->data = 0;
-      }
-    }
-  }
+  ret = ret && scdc_dataset_transport::read_delim(transport_connection, &s, default_delim);
+  SCDC_ASSERT(s == "RESULT");
+  ret = ret && scdc_dataset_transport::read_string(transport_connection, &result);
 
   if (!ret)
   {
-    SCDC_FAIL("dataset_open: reading output failed");
-    SCDC_DATASET_OUTPUT_PRINTF(output, "reading output failed");
+    result = "reading open answer failed";
+    SCDC_FAIL(__func__ << ": " << result);
     delete dataset_transport;
     transport_connection->release();
     return 0;
@@ -613,47 +583,47 @@ scdc_dataset *scdc_compcoup_transport::dataset_open(const char *path, scdcint_t 
 
   if (!dataset_transport)
   {
-    SCDC_FAIL("dataset_open: failed: '" << SCDC_DATASET_OUTPUT_STR(output) << "'");
+    result = "creating local dataset failed";
+    SCDC_FAIL(__func__ << ": " << result);
   }
 
-  if (!output || !output->next) transport_connection->release();
+  transport_connection->release();
 
   return dataset_transport;
 }
 
 
-void scdc_compcoup_transport::dataset_close(scdc_dataset *dataset, scdc_dataset_output_t *output)
+bool scdc_compcoup_transport::dataset_close(scdc_dataset *dataset, scdc_result &result)
 {
   SCDC_TRACE("dataset_close: dataset: '" << dataset << "'");
 
   if (!transport_connection->acquire())
   {
-    SCDC_FAIL("dataset_close: acquiring connection failed!");
-    SCDC_DATASET_OUTPUT_PRINTF(output, "acquiring connection failed");
-    return;
+    result = "acquiring connection failed";
+    SCDC_FAIL(__func__ << ": " << result);
+    return false;
   }
 
   bool ret = true;
 
   scdc_dataset_transport *dataset_transport = static_cast<scdc_dataset_transport *>(dataset);
 
-  /* send request: DATASET_CLOSE <output-info> <state> */
+  /* send request: DATASET_CLOSE <state> */
 
   ret = ret && scdc_dataset_transport::write_delim(transport_connection, "DATASET_CLOSE", -1, default_delim);
-  ret = ret && scdc_dataset_transport::write_output_info(transport_connection, output);
   ret = ret && dataset_transport->write_state();
 
   ret = ret && transport->send_outgoing(transport_connection);
 
   if (!ret)
   {
-    SCDC_FAIL("dataset_close: sending close request failed!");
-    SCDC_DATASET_OUTPUT_PRINTF(output, "sending close request failed");
+    result = "sending close request failed";
+    SCDC_FAIL(__func__ << ": " << result);
     transport_connection->release();
-    return;
+    return false;
   }
 
-  /* read answer: DATASET_CLOSE (OK|FAILED) (<output-info> <output-data> )+ */
+  /* read answer: DATASET_CLOSE (OK|FAILED) RESULT <string> */
 
   string s;
 
@@ -663,86 +633,49 @@ void scdc_compcoup_transport::dataset_close(scdc_dataset *dataset, scdc_dataset_
   ret = ret && scdc_dataset_transport::read_delim(transport_connection, &s, default_delim);
   if (s == "OK")
   {
-    delete dataset_transport;
-    dataset_transport = 0;
+    /* nothing to do here */
 
   } else
   {
     SCDC_ASSERT(s == "FAILED");
   }
 
-  if (!ret)
-  {
-    SCDC_FAIL("dataset_close: reading close answer failed!");
-    SCDC_DATASET_OUTPUT_PRINTF(output, "reading close answer failed");
-    delete dataset_transport;
-    transport_connection->release();
-    return;
-  }
-
-  /* final output is either consumed by a given next function or has to be further consumed using the next function */
-  bool output_next = false;
-  ret = ret && dataset_output_incoming_consume(transport_connection, output, &output_next);
-
-  if (output)
-  {
-    if (output_next)
-    {
-      output->next = read_output_next;
-      output->data = transport_connection;
-
-    } else
-    {
-      if (transport_connection->current_incoming_output_intern)
-      {
-        output->next = read_output_next;
-        output->data = transport_connection;
-
-        /* unset internal buffer usage for next 'next' */
-        transport_connection->current_incoming_output_intern = false;
-
-      } else
-      {
-        output->next = 0;
-        output->data = 0;
-      }
-    }
-  }
+  ret = ret && scdc_dataset_transport::read_delim(transport_connection, &s, default_delim);
+  SCDC_ASSERT(s == "RESULT");
+  ret = ret && scdc_dataset_transport::read_string(transport_connection, &result);
 
   if (!ret)
   {
-    SCDC_FAIL("dataset_close: reading output failed");
-    SCDC_DATASET_OUTPUT_PRINTF(output, "reading output failed");
+    result = "reading close answer failed";
+    SCDC_FAIL(__func__ << ": " << result);
     delete dataset_transport;
     transport_connection->release();
-    return;
+    return false;
   }
 
-  if (dataset_transport)
-  {
-    SCDC_FAIL("dataset_close: failed: '" << SCDC_DATASET_OUTPUT_STR(output) << "'");
-    delete dataset_transport;
-    dataset_transport = 0;
-  }
+  delete dataset_transport;
+  dataset_transport = 0;
 
-  if (!output || !output->next) transport_connection->release();
+  transport_connection->release();
+
+  return ret;
 }
 
 
-bool scdc_compcoup_transport::dataset_cmd(const char *cmd, scdcint_t cmd_size, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+bool scdc_compcoup_transport::dataset_cmd(const string &cmd, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
 {
-  return dataset_cmd(0, cmd, cmd_size, input, output);
+  return dataset_cmd(0, cmd, input, output, result);
 }
 
 
-bool scdc_compcoup_transport::dataset_cmd(scdc_dataset *dataset, const char *cmd, scdcint_t cmd_size, scdc_dataset_input_t *input, scdc_dataset_output_t *output)
+bool scdc_compcoup_transport::dataset_cmd(scdc_dataset *dataset, const string &cmd, scdc_dataset_input_t *input, scdc_dataset_output_t *output, scdc_result &result)
 {
-  SCDC_TRACE("dataset_cmd: dataset: '" << dataset << "'");
+  SCDC_TRACE("dataset_cmd: dataset: " << dataset << ", cmd: '" << cmd << "'");
 
   if (!transport_connection->acquire())
   {
-    SCDC_FAIL("dataset_cmd: acquiring connection failed!");
-    SCDC_DATASET_OUTPUT_PRINTF(output, "acquiring connection failed");
+    result = "acquiring connection failed";
+    SCDC_FAIL(__func__ << ": " << result);
     return false;
   }
 
@@ -763,12 +696,12 @@ bool scdc_compcoup_transport::dataset_cmd(scdc_dataset *dataset, const char *cmd
   {
     ret = ret && scdc_dataset_transport::write_delim(transport_connection, "NOSTATE", -1, default_delim);
   }
-  ret = ret && scdc_dataset_transport::write_string(transport_connection, cmd, cmd_size);
+  ret = ret && scdc_dataset_transport::write_string(transport_connection, cmd);
 
   if (!ret)
   {
-    SCDC_FAIL("dataset_cmd: sending cmd request failed!");
-    SCDC_DATASET_OUTPUT_PRINTF(output, "sending cmd request failed");
+    result = "sending cmd request failed";
+    SCDC_FAIL(__func__ << ": " << result);
     transport_connection->release();
     return false;
   }
@@ -780,13 +713,13 @@ bool scdc_compcoup_transport::dataset_cmd(scdc_dataset *dataset, const char *cmd
 
   if (!ret)
   {
-    SCDC_FAIL("dataset_cmd: sending input failed!");
-    SCDC_DATASET_OUTPUT_PRINTF(output, "sending input failed");
+    result = "sending input failed";
+    SCDC_FAIL(__func__ << ": " << result);
     transport_connection->release();
     return false;
   }
 
-  /* read answer: DATASET_CMD (<output-info> <output-data> )+(OK|FAILED) (STATE <state>|NOSTATE) (<output-info> <output-data> )+ */
+  /* read answer: DATASET_CMD (<output-info> <output-data> )+(OK|FAILED) (STATE <state>|NOSTATE) RESULT <string> (<output-info> <output-data> )+ */
 
   string s;
 
@@ -795,8 +728,8 @@ bool scdc_compcoup_transport::dataset_cmd(scdc_dataset *dataset, const char *cmd
 
   if (!ret)
   {
-    SCDC_FAIL("dataset_cmd: reading cmd answer (1) failed!");
-    SCDC_DATASET_OUTPUT_PRINTF(output, "reading cmd answer (1) failed");
+    result = "reading cmd answer (1) failed";
+    SCDC_FAIL(__func__ << ": " << result);
     transport_connection->release();
     return false;
   }
@@ -809,8 +742,8 @@ bool scdc_compcoup_transport::dataset_cmd(scdc_dataset *dataset, const char *cmd
 
   if (!ret)
   {
-    SCDC_FAIL("dataset_cmd: reading immediate output failed!");
-    SCDC_DATASET_OUTPUT_PRINTF(output, "reading immediate output failed");
+    result = "reading immediate output failed";
+    SCDC_FAIL(__func__ << ": " << result);
     transport_connection->release();
     return false;
   }
@@ -839,10 +772,14 @@ bool scdc_compcoup_transport::dataset_cmd(scdc_dataset *dataset, const char *cmd
     SCDC_ASSERT(!dataset_transport);
   }
 
+  ret = ret && scdc_dataset_transport::read_delim(transport_connection, &s, default_delim);
+  SCDC_ASSERT(s == "RESULT");
+  ret = ret && scdc_dataset_transport::read_string(transport_connection, &result);
+
   if (!ret)
   {
-    SCDC_FAIL("dataset_open: reading cmd answer (2) failed!");
-    SCDC_DATASET_OUTPUT_PRINTF(output, "reading cmd answer (2) failed");
+    result = "reading cmd answer (2) failed";
+    SCDC_FAIL(__func__ << ": " << result);
     delete dataset_transport;
     transport_connection->release();
     return false;
@@ -879,21 +816,20 @@ bool scdc_compcoup_transport::dataset_cmd(scdc_dataset *dataset, const char *cmd
 
   if (!ret)
   {
-    SCDC_FAIL("dataset_open: reading output failed");
-    SCDC_DATASET_OUTPUT_PRINTF(output, "reading output failed");
+    result = "reading output failed";
+    SCDC_FAIL(__func__ << ": " << result);
     delete dataset_transport;
     transport_connection->release();
     return false;
   }
 
-  if (!cmd_ret)
-  {
-    SCDC_FAIL("dataset_open: failed: '" << SCDC_DATASET_OUTPUT_STR(output) << "'");
-  }
+  ret = cmd_ret;
 
   if (!output || !output->next) transport_connection->release();
 
-  return cmd_ret;
+  SCDC_TRACE_F("return: " << ret << ", result: '" << result << "'");
+
+  return ret;
 }
 
 
@@ -1165,7 +1101,7 @@ bool scdc_compcoup_transport::dataset_input_incoming_consume(scdc_transport_conn
     if (!input->next) break;
 
     SCDC_TRACE("dataset_input_incoming_consume: next");
-    if (!input->next(input))
+    if (!input->next(input, 0))
     {
       SCDC_FAIL("dataset_input_incoming_consume: next failed");
       return false;
@@ -1190,7 +1126,7 @@ bool scdc_compcoup_transport::dataset_input_outgoing_produce(scdc_transport_conn
     if (!input || !input->next) break;
 
     SCDC_TRACE("dataset_input_outgoing_produce: next");
-    if (!input->next(input))
+    if (!input->next(input, 0))
     {
       SCDC_FAIL("dataset_input_outgoing_produce: next failed");
       return false;
@@ -1228,7 +1164,7 @@ bool scdc_compcoup_transport::dataset_output_incoming_consume(scdc_transport_con
     if (!output->next) break;
 
     SCDC_TRACE("dataset_output_incoming_consume: next");
-    if (!output->next(output))
+    if (!output->next(output, 0))
     {
       SCDC_FAIL("dataset_output_incoming_consume: next failed");
       return false;
@@ -1249,7 +1185,7 @@ bool scdc_compcoup_transport::dataset_output_outgoing_produce(scdc_transport_con
     if (!output || !output->next) break;
 
     SCDC_TRACE("dataset_output_outgoing_produce: next");
-    if (!output->next(output))
+    if (!output->next(output, 0))
     {
       SCDC_FAIL("dataset_output_outgoing_produce: next failed");
       return false;
@@ -1260,7 +1196,7 @@ bool scdc_compcoup_transport::dataset_output_outgoing_produce(scdc_transport_con
 }
 
 
-static scdcint_t write_output_next(scdc_dataset_output_t *output)
+static scdcint_t write_output_next(scdc_dataset_output_t *output, scdc_result_t *result)
 {
   scdc_transport_connection_t *transport_connection = static_cast<scdc_transport_connection_t *>(output->data);
 
@@ -1279,26 +1215,19 @@ void scdc_compcoup_transport::on_dataset_open(scdc_transport_connection_t *conn)
 
   SCDC_ASSERT(dataprovs);
 
-  /* read request: DATASET_OPEN <output-info> <path> */
-
-  bool output_next = false;
-  scdc_dataset_transport::read_output_info(conn, 0, output_next);
-  SCDC_ASSERT(!output_next);
-
-  scdc_dataset_output_t output = *transport->acquire_outgoing_dataset_output(conn);
-
-  output.next = 0;
-  output.data = 0;
+  /* read request: DATASET_OPEN <path> */
 
   string path;
   scdc_dataset_transport::read_string(conn, &path);
   SCDC_TRACE("on_dataset_open: path: '" << path << "'");
 
-  /* send answer: DATASET_OPEN (OK|FAILED) (STATE <state>|NOSTATE) (<output-info> <output-data> )+ */
+  /* send answer: DATASET_OPEN (OK|FAILED) (STATE <state>|NOSTATE) RESULT <string> */
 
   scdc_dataset_transport::write_delim(conn, "DATASET_OPEN", -1, default_delim);
 
-  scdc_dataset *dataset = dataprovs->dataset_open(path.data(), path.size(), &output);
+  scdc_result result;
+
+  scdc_dataset *dataset = dataprovs->dataset_open(path, result);
 
   if (dataset)
   {
@@ -1306,19 +1235,19 @@ void scdc_compcoup_transport::on_dataset_open(scdc_transport_connection_t *conn)
 
     scdc_dataset_transport::write_delim(conn, "STATE", -1, default_delim);
     scdc_dataset_transport::write_state_begin(conn);
-    dataprovs->dataset_close_write_state(dataset, conn->get_outgoing(), 0);
+    dataprovs->dataset_close_write_state(dataset, conn->get_outgoing(), result);
     scdc_dataset_transport::write_state_end(conn);
 
   } else
   {
     SCDC_FAIL("on_dataset_open: failed");
     scdc_dataset_transport::write_delim(conn, "FAILED", -1, default_delim);
+
     scdc_dataset_transport::write_delim(conn, "NOSTATE", -1, default_delim);
   }
 
-  dataset_output_outgoing_produce(conn, &output);
-
-  transport->release_outgoing_dataset_output(conn);
+  scdc_dataset_transport::write_delim(conn, "RESULT", -1, default_delim);
+  scdc_dataset_transport::write_string(conn, result.c_str(), result.size());
 
   transport->send_outgoing(conn);
 }
@@ -1328,29 +1257,22 @@ void scdc_compcoup_transport::on_dataset_close(scdc_transport_connection_t *conn
 {
   SCDC_TRACE("on_dataset_close:");
 
-  /* read request: DATASET_CLOSE <output-info> <state> */
+  /* read request: DATASET_CLOSE <state> */
 
-  bool output_next = false;
-  scdc_dataset_transport::read_output_info(conn, 0, output_next);
-  SCDC_ASSERT(!output_next);
-
-  scdc_dataset_output_t output = *transport->acquire_outgoing_dataset_output(conn);
-
-  output.next = 0;
-  output.data = 0;
-
-  /* send answer: DATASET_CLOSE (OK|FAILED) (<output-info> <output-data> )+ */
-
-  scdc_dataset_transport::write_delim(conn, "DATASET_CLOSE", -1, default_delim);
+  scdc_result result;
 
   scdc_dataset_transport::read_state_begin(conn);
-  scdc_dataset *dataset = dataprovs->dataset_open_read_state(conn->get_incoming(), &output);
+  scdc_dataset *dataset = dataprovs->dataset_open_read_state(conn->get_incoming(), result);
   scdc_dataset_transport::read_state_end(conn);
+
+  /* send answer: DATASET_CLOSE (OK|FAILED) RESULT <string> */
+
+  scdc_dataset_transport::write_delim(conn, "DATASET_CLOSE", -1, default_delim);
 
   if (dataset)
   {
     scdc_dataset_transport::write_delim(conn, "OK", -1, default_delim);
-    dataprovs->dataset_close(dataset, 0);
+    dataprovs->dataset_close(dataset, result);
 
   } else
   {
@@ -1358,15 +1280,14 @@ void scdc_compcoup_transport::on_dataset_close(scdc_transport_connection_t *conn
     scdc_dataset_transport::write_delim(conn, "FAILED", -1, default_delim);
   }
 
-  dataset_output_outgoing_produce(conn, &output);
-
-  transport->release_outgoing_dataset_output(conn);
+  scdc_dataset_transport::write_delim(conn, "RESULT", -1, default_delim);
+  scdc_dataset_transport::write_string(conn, result.c_str(), result.size());
 
   transport->send_outgoing(conn);
 }
 
 
-static scdcint_t read_input_next_dummy(scdc_dataset_input_t *input)
+static scdcint_t read_input_next_dummy(scdc_dataset_input_t *input, scdc_result_t *result)
 {
   return SCDC_SUCCESS;
 }
@@ -1386,19 +1307,21 @@ void scdc_compcoup_transport::on_dataset_cmd(scdc_transport_connection_t *conn)
   string s;
   scdc_dataset_transport::read_delim(conn, &s, default_delim);
 
-  /* send answer: DATASET_CMD (<output-info> <output-data> )+(OK|FAILED) (STATE <state>|<NOSTATE) (<output-info> <output-data> )+ */
+  /* send answer: DATASET_CMD (<output-info> <output-data> )+(OK|FAILED) (STATE <state>|<NOSTATE) RESULT <string> (<output-info> <output-data> )+ */
 
   scdc_dataset_transport::write_delim(conn, "DATASET_CMD", -1, default_delim);
 
   bool stateless = true;
   scdc_dataset *dataset = 0;
 
+  scdc_result result;
+
   if (s == "STATE")
   {
     stateless = false;
 
     scdc_dataset_transport::read_state_begin(conn);
-    dataset = dataprovs->dataset_open_read_state(conn->get_incoming(), &output);
+    dataset = dataprovs->dataset_open_read_state(conn->get_incoming(), result);
     scdc_dataset_transport::read_state_end(conn);
 
   } else
@@ -1455,11 +1378,11 @@ void scdc_compcoup_transport::on_dataset_cmd(scdc_transport_connection_t *conn)
 
   if (stateless)
   {
-    ret = scdc_compcoup::dataset_cmd(s.c_str(), s.size(), &input, &output);
+    ret = scdc_compcoup::dataset_cmd(s, &input, &output, result);
 
   } else if (dataset)
   {
-    ret = dataset->do_cmd(s.c_str(), s.size(), &input, &output);
+    ret = dataset->do_cmd(s, &input, &output, result);
 
   } else
   {
@@ -1506,9 +1429,12 @@ void scdc_compcoup_transport::on_dataset_cmd(scdc_transport_connection_t *conn)
   {
     scdc_dataset_transport::write_delim(conn, "STATE", -1, default_delim);
     scdc_dataset_transport::write_state_begin(conn);
-    dataprovs->dataset_close_write_state(dataset, conn->get_outgoing(), 0);
+    dataprovs->dataset_close_write_state(dataset, conn->get_outgoing(), result);
     scdc_dataset_transport::write_state_end(conn);
   }
+
+  scdc_dataset_transport::write_delim(conn, "RESULT", -1, default_delim);
+  scdc_dataset_transport::write_string(conn, result.c_str(), result.size());
 
   dataset_output_outgoing_produce(conn, &output);
 

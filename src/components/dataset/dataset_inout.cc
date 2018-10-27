@@ -99,7 +99,7 @@ const scdc_dataset_inout_t scdc_dataset_inout_none =
 };
 
 
-static scdcint_t scdc_dataset_inout_endl_next(scdc_dataset_inout_t *inout)
+static scdcint_t scdc_dataset_inout_endl_next(scdc_dataset_inout_t *inout, scdc_result_t *result)
 {
   if (inout) inout->next = scdc_dataset_inout_endl_next;
 
@@ -324,6 +324,17 @@ void scdc_dataset_inout_unset(scdc_dataset_inout_t *inout)
 
   inout->intern = 0;
   inout->intern_data = 0;
+}
+
+
+scdcint_t scdc_dataset_inout_next_loop(scdc_dataset_inout_t *inout, scdc_result_t *result)
+{
+  while (inout->next)
+  {
+    if (scdc_dataset_inout_next(inout, result) != SCDC_SUCCESS) return SCDC_FAILURE;
+  }
+
+  return SCDC_SUCCESS;
 }
 
 
@@ -724,7 +735,7 @@ scdcint_t inout_FX_data_t<FILE *>::get_size_left()
 
 /* type: input FILE */
 template<typename T>
-static scdcint_t input_FX_next(scdc_dataset_input_t *input)
+static scdcint_t input_FX_next(scdc_dataset_input_t *input, scdc_result_t *result)
 {
   inout_FX_data_t<T> *data = static_cast<inout_FX_data_t<T> *>(input->data);
 
@@ -918,7 +929,7 @@ static void scdc_dataset_input_FX_destroy(scdc_dataset_input_t *input, T *fx)
 #define SYNC_AFTER_WRITE  0
 
 template<typename T>
-static scdcint_t output_FX_next(scdc_dataset_output_t *output)
+static scdcint_t output_FX_next(scdc_dataset_output_t *output, scdc_result_t *result)
 {
   inout_FX_data_t<T> *data = static_cast<inout_FX_data_t<T> *>(output->data);
 
@@ -1113,7 +1124,7 @@ static scdc_dataset_inout_t *scdc_dataset_input_fd_create(scdc_dataset_input_t *
   input->intern->destroy = scdc_dataset_input_fd_destroy;
 
 #if INPUT_CREATE_NEXT
-  input->next(input);
+  input->next(input, 0);
 #endif
 
   return input;
@@ -1181,7 +1192,7 @@ static scdc_dataset_inout_t *scdc_dataset_input_fddup_create(scdc_dataset_input_
   input->intern->destroy = scdc_dataset_input_fddup_destroy;
 
 #if INPUT_CREATE_NEXT
-  input->next(input);
+  input->next(input, 0);
 #endif
 
   return input;
@@ -1259,7 +1270,7 @@ static scdc_dataset_inout_t *scdc_dataset_input_stream_create(scdc_dataset_input
   input->intern->destroy = scdc_dataset_input_stream_destroy;
 
 #if INPUT_CREATE_NEXT
-  input->next(input);
+  input->next(input, 0);
 #endif
 
   return input;
@@ -1339,7 +1350,7 @@ static scdc_dataset_inout_t *scdc_dataset_input_streamdup_create(scdc_dataset_in
   input->intern->destroy = scdc_dataset_input_streamdup_destroy;
 
 #if INPUT_CREATE_NEXT
-  input->next(input);
+  input->next(input, 0);
 #endif
 
   return input;
@@ -1445,7 +1456,7 @@ static scdc_dataset_inout_t *scdc_dataset_input_file_create(scdc_dataset_input_t
   input->intern->destroy = scdc_dataset_input_file_destroy;
 
 #if INPUT_CREATE_NEXT
-  input->next(input);
+  input->next(input, 0);
 #endif
 
   return input;
@@ -1581,7 +1592,7 @@ static scdc_dataset_inout_t *scdc_dataset_input_fs_create(scdc_dataset_input_t *
   strcpy(input->format, "fstar");
 
 #if INPUT_CREATE_NEXT
-  input->next(input);
+  input->next(input, 0);
 #endif
 
   return input;
@@ -1679,7 +1690,7 @@ typedef struct _input_fslist_dir_data_t
 } input_fslist_dir_data_t;
 
 
-static scdcint_t input_fslist_dir_next(scdc_dataset_input_t *input)
+static scdcint_t input_fslist_dir_next(scdc_dataset_input_t *input, scdc_result_t *result)
 {
   input_fslist_dir_data_t *data = static_cast<input_fslist_dir_data_t *>(input->data);
 
@@ -1907,7 +1918,7 @@ static scdc_dataset_inout_t *scdc_dataset_input_fslist_create(scdc_dataset_input
   strcpy(input->format, format.c_str());
 
 #if INPUT_CREATE_NEXT
-  if (input->next) input->next(input);
+  if (input->next) input->next(input, 0);
 #endif
 
   return input;
@@ -1935,7 +1946,7 @@ typedef struct _input_produce_data_t
 } input_produce_data_t;
 
 
-static scdcint_t input_produce_next(scdc_dataset_input_t *input)
+static scdcint_t input_produce_next(scdc_dataset_input_t *input, scdc_result_t *result)
 {
   input_produce_data_t *data = static_cast<input_produce_data_t *>(input->data);
 
@@ -1989,7 +2000,7 @@ static scdc_dataset_inout_t *scdc_dataset_input_produce_create(scdc_dataset_inpu
   input->next = input_produce_next;
 
 #if INPUT_CREATE_NEXT
-  input->next(input);
+  input->next(input, 0);
 #endif
 
   return input;
@@ -2005,7 +2016,7 @@ static void scdc_dataset_input_produce_destroy(scdc_dataset_input_t *input)
 
 
 /* type: output consume */
-static scdcint_t output_consume_next(scdc_dataset_output_t *output)
+static scdcint_t output_consume_next(scdc_dataset_output_t *output, scdc_result_t *result)
 {
   SCDC_TRACE("consuming output of size = " << SCDC_DATASET_INOUT_BUF_CURRENT(output));
 
@@ -2075,7 +2086,7 @@ static void autodestroy_un_pack(scdc_dataset_inout_t *inout, scdc_dataset_inout_
 }
 
 
-static scdcint_t autodestroy_next(scdc_dataset_input_t *inout)
+static scdcint_t autodestroy_next(scdc_dataset_input_t *inout, scdc_result_t *result)
 {
   autodestroy_un_pack(inout, 0);
 
@@ -2083,7 +2094,7 @@ static scdcint_t autodestroy_next(scdc_dataset_input_t *inout)
 
   if (inout->next)
   {
-    ret = inout->next(inout);
+    ret = inout->next(inout, 0);
     autodestroy_un_pack(inout, autodestroy_next);
 
   } else
@@ -2441,7 +2452,7 @@ static scdcint_t scdc_dataset_inout_redirect_to(scdc_dataset_inout_t *inout, con
       inout2inout(inout, output, false);
 
       /* process output (just continue if output has no more next) */
-      if (output->next && !output->next(output))
+      if (output->next && !output->next(output, 0))
       {
         ret = SCDC_FAILURE;
         break;
@@ -2461,7 +2472,7 @@ static scdcint_t scdc_dataset_inout_redirect_to(scdc_dataset_inout_t *inout, con
       if (!inout->next) break;
 
       /* get next inout */
-      if (!inout->next(inout))
+      if (!inout->next(inout, 0))
       {
         ret = SCDC_FAILURE;
         break;
