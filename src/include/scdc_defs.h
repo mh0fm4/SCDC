@@ -280,14 +280,14 @@ typedef struct _scdc_dataset_inout_t
 * @brief Macro to set the memory location of a (single) data buffer in a dataset input/output object.
 *
 * @param \_inout\_ Dataset input/output object.
-* @param \_c\_ New memory location.
+* @param \_p\_ New memory location.
 */
 #define SCDC_DATASET_INOUT_BUF_SET_P(_inout_, _p_)  (SCDC_DATASET_INOUT_BUF_PTR(_inout_) = (_p_))
 /** @hideinitializer
 * @brief Macro to get the memory location of a (single) data buffer in a dataset input/output object.
 *
 * @param \_inout\_ Dataset input/output object.
-* @return Memory location of a (single) data buffer or 0 in case of a multiple data buffer.
+* @return Memory location of a (single) data buffer or NULL in case of a multiple data buffer.
 */
 #define SCDC_DATASET_INOUT_BUF_GET_P(_inout_)       ((SCDC_DATASET_INOUT_BUF_SIZE(_inout_) >= 0)?SCDC_DATASET_INOUT_BUF_PTR(_inout_):SCDC_NULL)
 
@@ -295,7 +295,7 @@ typedef struct _scdc_dataset_inout_t
 * @brief Macro to set the size of the memory location of a (single) data buffer in a dataset input/output object.
 *
 * @param \_inout\_ Dataset input/output object.
-* @param \_c\_ New size of the memory location.
+* @param \_s\_ New size of the memory location.
 */
 #define SCDC_DATASET_INOUT_BUF_SET_S(_inout_, _s_)  (SCDC_DATASET_INOUT_BUF_SIZE(_inout_) = (_s_))
 /** @hideinitializer

@@ -1,0 +1,175 @@
+\section{Dataset input/output}
+\label{sect:client_inout}
+
+
+\subsection{Input/output object structure}
+\label{ssect:client_inout_struct}
+
+The input and output data of commands executed on datasets with the function \fnct{scdc_dataset_cmd} is represented by objects of type \dtyp{scdc_dataset_input_t} and \dtyp{scdc_dataset_output_t}.
+Both types are structures with the following fields:
+\reflst{%
+\reflstcode{char format[SCDC_FORMAT_MAX_SIZE]}{String describing the format of the data (to be) transferred.}
+\reflstcode{scdc_buf_t buf}{Buffer containing the data (to be) transferred (see Sect.~\ref{ssect:client_inout_buffer}).}
+\reflstcode{scdcint_t total_size}{Currently know total size of the data (to be) transferred (bytes).}
+\reflstcode{char total_size_given}{Specifies how the given value in \prmt{total_size} should be interpreted. Predefined values are \cnst{SCDC_DATASET_INOUT_TOTAL_SIZE_GIVEN_EXACT}, \cnst{SCDC_DATASET_INOUT_TOTAL_SIZE_GIVEN_AT_LEAST}, \cnst{SCDC_DATASET_INOUT_TOTAL_SIZE_GIVEN_AT_MOST}, \cnst{SCDC_DATASET_INOUT_TOTAL_SIZE_GIVEN_NONE}.}
+\reflstcode{scdc_dataset_inout_next_f *next}{Pointer to a next function that produces or consumes more input/output. The next function reads or modifies the fields of the provided dataset input/output object.}
+\reflstcode{void *data}{Pointer to store arbitrary information within a dataset input/output object.}
+\reflstcode{scdc_dataset_inout_intern_t *intern}{Pointer to an internally used field of data. (Should only be initialized with \cnst{NULL}, but not further modified.)}
+\reflstcode{void *intern_data}{Pointer to internally used data. (Should only be initialized with NULL, but not further modified.)}
+}
+
+The following auxiliary functions are provided to initialize all fields of an input or output object with safe \enquote{empty} values:
+
+\reffnc{void scdc_dataset_input_unset(scdc_dataset_input_t *input);}{%
+\reffncparam{input}{Input object.}
+\reffncdesc{Auxiliary function to reset all fields of an input object to a (null-like) value.}
+}
+
+\reffnc{void scdc_dataset_output_unset(scdc_dataset_output_t *output);}{%
+\reffncparam{output}{Output object.}
+\reffncdesc{Auxiliary function to reset all fields of an output object to a (null-like) value.}
+}
+
+% /** @brief Auxiliary function to print the content of an input object.
+% *
+% * @param input Input object.
+% */
+% void scdc_dataset_input_print(scdc_dataset_input_t *input);
+% 
+% /** @brief Auxiliary function to print the content of an output object.
+% *
+% * @param output Output object.
+% */
+% void scdc_dataset_output_print(scdc_dataset_output_t *output);
+
+
+\subsection{Data buffer specification}
+\label{ssect:client_inout_buffer}
+
+The data buffer of an input or output object is represented by an object of type \dtyp{scdc_buf_t}, which is a structure with the following fields:
+\reflst{%
+\reflstcode{void *ptr}{Pointer to the memory location of the buffer.}
+\reflstcode{scdcint_t size}{Size of the buffer (bytes).}
+\reflstcode{scdcint_t current}{Current size of the data within the buffer (bytes).}
+}
+
+The following preprocessor macros are provided to easy the access to the data buffer fields of an input or output object (\ie parameter \prmt{_inout_} of the macros):
+\reflst{%
+\reflstcode{SCDC_DATASET_INOUT_BUF_PTR(_inout_)}{Return the memory location of a (single) data buffer in an input/output object.}
+\reflstcode{SCDC_DATASET_INOUT_BUF_SIZE(_inout_)}{Return the size of the memory location of a (single) data buffer in an input/output object}.
+\reflstcode{SCDC_DATASET_INOUT_BUF_CURRENT(_inout_)}{Return the current data size of a (single) data buffer in an input/output object}.
+\reflstcode{SCDC_DATASET_INOUT_BUF_SET_P(_inout_, _p_)}{Set the memory location of a (single) data buffer in an input/output object to value \prmt{_p_}.}
+\reflstcode{SCDC_DATASET_INOUT_BUF_GET_P(_inout_)}{Get the memory location of a (single) data buffer in a dataset input/output object (or NULL in case of a multiple data buffer).}
+\reflstcode{SCDC_DATASET_INOUT_BUF_SET_S(_inout_, _s_)}{Set the size of the memory location of a (single) data buffer in a dataset input/output object to value \prmt{_s_}.}
+\reflstcode{SCDC_DATASET_INOUT_BUF_GET_S(_inout_)}{Get the size of the memory location of a (single) data buffer in a dataset input/output object (or 0 in case of a multiple data buffer).}
+\reflstcode{SCDC_DATASET_INOUT_BUF_SET_C(_inout_, _c_)}{Set the current data size of a (single) data buffer in a dataset input/output object to value \prmt{_c_}.}
+\reflstcode{SCDC_DATASET_INOUT_BUF_GET_C(_inout_)}{Get the current data size of a (single) data buffer in a dataset input/output object (or 0 in case of a multiple data buffer).}
+% SCDC_DATASET_INOUT_BUF_SET(_inout_, _p_, _s_, _c_)
+% SCDC_DATASET_INOUT_BUF_ASSIGN(_inout_, _rhs_)
+}
+
+
+\subsection{Data streams}
+\label{ssect:client_inout_stream}
+
+Input and output objects contain usually only a single data buffer that can store a fixed size input or output data.
+To provide a continuous stream of input and output data, the input/output objects can also contain a function pointer to a so-called next function (see field \prmt{next} Sect.~\ref{ssect:client_inout_struct}).
+A next function has to comply to the following format:\\
+\textit{Format:} \reffnc{scdcint_t scdc_dataset_inout_next_f(scdc_dataset_inout_t *inout, scdc_result_t *result);}{%
+\reffncparam{inout}{Dataset input or output that is or should be continued with the next function.}
+\reffncparam{result}{Structure for storing a result message of the next function.}
+\reffncret{Whether the next function was successful (\cnst{SCDC_SUCCESS}) or not (\cnst{SCDC_FAILURE}).}
+}
+
+The next function of an input object is responsible for creating further input data.
+The corresponding input object is given as the first parameter of the next function such that the object itself (\ie its fields) can be modified by the next function.
+This includes, for example, the data buffer of the input object to provide further input data.
+To end the stream of input data, the function pointer of the next function within the input objects has to be set to NULL.
+The next function of an input object has to be specified by the user and the function is executed inside the call to \fnct{scdc_dataset_cmd} as long as the function pointer is not NULL.
+
+The next function of an output object is responsible for creating further output data.
+The corresponding output object has to be specified as the first parameter of the next function such that the object itself (\ie its fields) can be modified by the next function.
+This includes, for example, the data buffer of the output object to provide further output data.
+The end of the stream of output data is reached when the function pointer of the next function within the output objects is set to NULL.
+The next function of an output object is set after the call to \fnct{scdc_dataset_cmd} and has to be executed by the user as long as the function pointer is not NULL.
+
+The following auxiliary macros are provided to ease the usage of next functions:\\
+\reffnc{scdc_dataset_input_next(_in_, _res_)}{%
+\reffncparam{_in_}{Pointer to a input object that should be continued with the next function.}
+\reffncparam{_res_}{Pointer to a \dtyp{scdc_result_t} structure for storing a result message of the next function.}
+\reffncret{Whether the next function was successful (\cnst{SCDC_SUCCESS}) or not (\cnst{SCDC_FAILURE}).}
+\reffncdesc{Macro to execute the next function of input object \prmt{_in_} one times.}
+}
+
+\reffnc{scdc_dataset_output_next(_out_, _res_)}{%
+\reffncparam{_out_}{Pointer to a output object that should be continued with the next function.}
+\reffncparam{_res_}{Pointer to a \dtyp{scdc_result_t} structure for storing a result message of the next function.}
+\reffncret{Whether the next function was successful (\cnst{SCDC_SUCCESS}) or not (\cnst{SCDC_FAILURE}).}
+\reffncdesc{Macro to execute the next function of output object \prmt{_out_} one times.}
+}
+
+\reffnc{scdc_dataset_input_next(_in_, _res_)}{%
+\reffncparam{_in_}{Pointer to a input object that should be continued with the next function.}
+\reffncparam{_res_}{Pointer to a \dtyp{scdc_result_t} structure for storing a result message of the next function.}
+\reffncret{Whether the next function was successful (\cnst{SCDC_SUCCESS}) or not (\cnst{SCDC_FAILURE}).}
+\reffncdesc{Macro to to execute the next function of input object \prmt{_in_} until it is finished or an error occurs.}
+}
+
+\reffnc{scdc_dataset_output_next(_out_, _res_)}{%
+\reffncparam{_out_}{Pointer to a output object that should be continued with the next function.}
+\reffncparam{_res_}{Pointer to a \dtyp{scdc_result_t} structure for storing a result message of the next function.}
+\reffncret{Whether the next function was successful (\cnst{SCDC_SUCCESS}) or not (\cnst{SCDC_FAILURE}).}
+\reffncdesc{Macro to execute the next function of output object \prmt{_out_} until it is finished or an error occurs.}
+}
+
+
+\subsection{Auxiliary functions}
+\label{ssect:client_inout_auxilary}
+
+% /** @brief Auxiliary function to create an input object.
+% *
+% * @param input Pointer to an input object to be used.
+% * @param conf String of configuration parameters.
+% * @param ... Varying number of additional parameters.
+% * @return Pointer to the created input object (i.e. the same as @a input) or #SCDC_NULL if the function fails.
+% */
+% scdc_dataset_input_t *scdc_dataset_input_create(scdc_dataset_input_t *input, const char *conf, ...);
+% 
+% /** @brief Function to destroy an input object that was created with #scdc_dataset_input_create.
+% *
+% * @param input Input object.
+% */
+% void scdc_dataset_input_destroy(scdc_dataset_input_t *input);
+% 
+% /** @brief Auxiliary function to create an output object.
+% *
+% * @param output Pointer to an output object to be used.
+% * @param conf String of configuration parameters.
+% * @param ... Varying number of additional parameters.
+% * @return Pointer to the created output object (i.e. the same as @a output) or #SCDC_NULL if the function fails.
+% */
+% scdc_dataset_output_t *scdc_dataset_output_create(scdc_dataset_output_t *output, const char *conf, ...);
+% 
+% /** @brief Function to destroy an input object that was created with #scdc_dataset_output_create.
+% *
+% * @param output Output object.
+% */
+% void scdc_dataset_output_destroy(scdc_dataset_output_t *output);
+% 
+% /** @brief Auxiliary function to redirect the data of an input object.
+% *
+% * @param input Input object.
+% * @param conf String of configuration parameters.
+% * @param ... Varying number of additional parameters.
+% * @return Whether the function was successful (#SCDC_SUCCESS) or not (#SCDC_FAILURE).
+% */
+% scdcint_t scdc_dataset_input_redirect(scdc_dataset_input_t *input, const char *conf, ...);
+% 
+% /** @brief Auxiliary function to redirect the data of an output object.
+% *
+% * @param output Output object.
+% * @param conf String of configuration parameters.
+% * @param ... Varying number of additional parameters.
+% * @return Whether the function was successful (#SCDC_SUCCESS) or not (#SCDC_FAILURE).
+% */
+% scdcint_t scdc_dataset_output_redirect(scdc_dataset_output_t *output, const char *conf, ...);

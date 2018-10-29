@@ -1,0 +1,36 @@
+\section{Datasets}
+\label{sect:client_datasets}
+
+Datasets represent the basic elements which are provided by service components and can be individually accessed by client components.
+Specific datasets are identified by their URI address (see Sect.~\ref{sect:intro_overview}).
+A client can open a dataset with the function \fnct{scdc_dataset_open}, execute one or several commands on the dataset with the function \fnct{scdc_dataset_cmd}, and close the dataset with the function \fnct{scdc_dataset_close}.
+Each execution of a commands can involve input and output data transferred between the client and the service.
+The specification of the corresponding input and output data objects is described in Sect.~\ref{sect:client_inout}.
+The specific commands that can be executed on the datasets are described for the different data providers in Chap.~\ref{chap:dataprov}.
+
+\reffnc{scdc_dataset_t scdc_dataset_open(const char *uri, ...);}{%
+\reffncparam{uri}{String containing the URI address.}
+\reffncparam{...}{Varying number of additional parameters.}
+\reffncret{Handle of the opened dataset or \cnst{SCDC_DATASET_NULL} if the function failed.}
+\reffncdesc{Function to the open a dataset with a given URI address.
+The authority of the URI address can be equal to the \enquote{\%s} placeholder in which case it is replaced with the string given as additional parameter.
+}
+}
+
+\reffnc{void scdc_dataset_close(scdc_dataset_t dataset);}{%
+\reffncparam{dataset}{Handle of the dataset.}
+\reffncdesc{Function to close a dataset.}
+}
+
+\reffnc{scdcint_t scdc_dataset_cmd(scdc_dataset_t dataset, const char *cmd, scdc_dataset_input_t *input, scdc_dataset_output_t *output, ...)}{%
+\reffncparam{dataset}{Handle of the dataset or \cnst{SCDC_DATASET_NULL} (see description below).}
+\reffncparam{cmd}{String containing the command to be executed.}
+\reffncparam{input}{Input object with data transferred from client to server (see Sect.~\ref{sect:client_inout}).}
+\reffncparam{output}{Output object with data transferred from server to client (see Sect.~\ref{sect:client_inout}).}
+\reffncparam{...}{Varying number of additional parameters.}
+\reffncret{Whether the function was successful (\cnst{SCDC_SUCCESS}) or not (\cnst{SCDC_FAILURE}).}
+\reffncdesc{Function to execute a command on a dataset.
+The dataset handle can be \cnst{SCDC_DATASET_NULL} in which case the parameter \prmt{cmd} has to start with an URI address specifying the dataset to be used (\ie to execute a single command without explicitly opening and closing a dataset).
+The authority of the URI address can be equal to the \enquote{\%s} placeholder in which case it is replaced with the string given as additional parameter.
+}
+}

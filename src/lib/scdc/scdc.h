@@ -188,7 +188,7 @@ typedef struct _scdc_dataset_t *scdc_dataset_t;
 
 /** @brief Function to the open a dataset with a given URI address.
 *
-* @param uri String containing the URI address. The string can include '%s' placeholders that are replaced with strings given as additional parameters. 
+* @param uri String containing the URI address. The authority of the URI address can be equal to the '%s' placeholder in which case it is replaced with the string given as additional parameter.
 * @param ... Varying number of additional parameters.
 * @return Handle of the opened dataset or #SCDC_DATASET_NULL if the function failed.
 */
@@ -202,7 +202,7 @@ void scdc_dataset_close(scdc_dataset_t dataset);
 
 /** @brief Function to execute a command on a dataset.
 *
-* @param dataset Handle of the dataset. The handle can be #SCDC_DATASET_NULL in which case the parameter @a cmd has to start with an URI address specifying the dataset to be used (i.e. to execute a single command without explicitely opening and closing a dataset).
+* @param dataset Handle of the dataset. The handle can be #SCDC_DATASET_NULL in which case the parameter @a cmd has to start with an URI address specifying the dataset to be used (i.e. to execute a single command without explicitely opening and closing a dataset). The authority of the URI address can be equal to the '%s' placeholder in which case it is replaced with the string given as additional parameter.
 * @param cmd String containing the command to be executed.
 * @param input Input object with data transferred from client to server.
 * @param output Output object with data transferred from server to client.
@@ -237,37 +237,37 @@ void scdc_dataset_input_unset(scdc_dataset_input_t *input);
 void scdc_dataset_output_unset(scdc_dataset_output_t *output);
 
 /** @hideinitializer
-* @brief Auxiliary function to execute the next function of an input object.
+* @brief Auxiliary macro to execute the next function of an input object.
 *
-* @param input Input object.
-* @param result Structure for storing a result message of the next function.
+* @param _in_ Input object.
+* @param _res_ Structure for storing a result message of the next function.
 * @return Whether the next function was successful (#SCDC_SUCCESS) or not (#SCDC_FAILURE).
 */
 #define scdc_dataset_input_next(_in_, _res_)  scdc_dataset_inout_next(_in_, _res_)
 
 /** @hideinitializer
-* @brief Auxiliary function to execute the next function of an output object.
+* @brief Auxiliary macro to execute the next function of an output object.
 *
-* @param input Output object.
-* @param result Structure for storing a result message of the next function.
+* @param _out_ Output object.
+* @param _res_ Structure for storing a result message of the next function.
 * @return Whether the next function was successful (#SCDC_SUCCESS) or not (#SCDC_FAILURE).
 */
 #define scdc_dataset_output_next(_out_, _res_)  scdc_dataset_inout_next(_out_, _res_)
 
 scdcint_t scdc_dataset_inout_next_loop(scdc_dataset_inout_t *inout, scdc_result_t *result);
 
-/** @brief Auxiliary function to execute the next function of an input object until it is finished or an error occurs.
+/** @brief Auxiliary macro to execute the next function of an input object until it is finished or an error occurs.
 *
-* @param input Input object.
-* @param result Structure for storing a result message of the next function.
+* @param _in_ Input object.
+* @param _res_ Structure for storing a result message of the next function.
 * @return Whether the next function was successful (#SCDC_SUCCESS) or not (#SCDC_FAILURE).
 */
 #define scdc_dataset_input_next_loop(_in_, _res_)  scdc_dataset_inout_next_loop(_in_, _res_)
 
-/** @brief Auxiliary function to execute the next function of an output object until it is finished or an error occurs.
+/** @brief Auxiliary macro to execute the next function of an output object until it is finished or an error occurs.
 *
-* @param output Output object.
-* @param result Structure for storing a result message of the next function.
+* @param _out_ Output object.
+* @param _res_ Structure for storing a result message of the next function.
 * @return Whether the next function was successful (#SCDC_SUCCESS) or not (#SCDC_FAILURE).
 */
 #define scdc_dataset_output_next_loop(_out_, _res_)  scdc_dataset_inout_next_loop(_out_, _res_)
